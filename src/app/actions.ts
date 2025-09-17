@@ -375,6 +375,11 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
     } else if (format === 'json') {
         try {
             productList = JSON.parse(data);
+            if (!Array.isArray(productList)) {
+                 // Try to wrap it in an array and parse again for single objects or comma-separated objects
+                const wrappedData = `[${data}]`;
+                productList = JSON.parse(wrappedData);
+            }
         } catch (e) {
             try {
                 // If parsing fails, try to wrap it in an array and parse again
@@ -384,6 +389,7 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
                  return { createdCount: 0, updatedCount: 0, errors: [{ row: 0, message: "Error al parsear el archivo JSON. Asegúrate que sea un formato válido." }] };
             }
         }
+
         // After parsing, check for nested structures.
         if (productList.length > 0 && productList[0].categories && Array.isArray(productList[0].categories)) {
             // Handle the nested structure from the example
@@ -443,15 +449,15 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
                 rowData.price = rowData.price.replace(/[^0-9.,]/g, '').replace(',', '.');
             }
 
-            // Map category names to IDs
+            // Map category names to IDs, case-insensitively
             const categoryNames = (rowData.categories || '').split(';').map((c: string) => c.trim().toLowerCase());
             const categoryIds = categoryNames
                 .map((name: string) => categoryMap.get(name))
                 .filter((id): id is number => id !== undefined);
 
             if (categoryIds.length === 0 && rowData.categories) {
-                 console.warn(`No valid categories found for names: ${rowData.categories}. Attempting to create them.`);
-                 // Future enhancement: could create categories on the fly here.
+                 console.warn(`No valid categories found for names: ${rowData.categories}. Check spelling and if they exist.`);
+                 throw new Error(`Categoría no encontrada: ${rowData.categories}. Por favor, créala primero.`);
             }
 
             const images = [rowData.image1, rowData.image2, rowData.image3, rowData.image4, rowData.image5].filter(Boolean);
