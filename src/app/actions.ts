@@ -468,7 +468,7 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
             const productToValidate = {
                 id: rowData.id,
                 name: rowData.name,
-                description: rowData.description || rowData.name, // Use name as fallback for description
+                description: rowData.description || rowData.name,
                 shortDescription: rowData.shortDescription,
                 price: rowData.price,
                 stock: rowData.stock ?? 1, // Default stock to 1 if not provided
