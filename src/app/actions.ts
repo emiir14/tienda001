@@ -374,20 +374,26 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
         });
     } else if (format === 'json') {
         try {
-            const jsonData = JSON.parse(data);
-            // Adapt based on expected JSON structure
-            if (Array.isArray(jsonData)) {
-                productList = jsonData;
-            } else if (jsonData.categories && Array.isArray(jsonData.categories)) {
-                // Handle the nested structure from the example
-                productList = jsonData.categories.flatMap((cat: any) => 
-                    cat.products?.map((p: any) => ({ ...p, categoryName: cat.name })) || []
-                );
-            } else {
-                 throw new Error("Formato JSON no soportado.");
-            }
+            productList = JSON.parse(data);
         } catch (e) {
-             return { createdCount: 0, updatedCount: 0, errors: [{ row: 0, message: "Error al parsear el archivo JSON." }] };
+            try {
+                // If parsing fails, try to wrap it in an array and parse again
+                const wrappedData = `[${data}]`;
+                productList = JSON.parse(wrappedData);
+            } catch (e2) {
+                 return { createdCount: 0, updatedCount: 0, errors: [{ row: 0, message: "Error al parsear el archivo JSON. Asegúrate que sea un formato válido." }] };
+            }
+        }
+        // After parsing, check for nested structures.
+        if (productList.length > 0 && productList[0].categories && Array.isArray(productList[0].categories)) {
+            // Handle the nested structure from the example
+             productList = productList.flatMap((item: any) => 
+                item.categories.flatMap((cat: any) => 
+                    cat.products?.map((p: any) => ({ ...p, categoryName: cat.name })) || []
+                )
+             );
+        } else if (!Array.isArray(productList)) {
+             return { createdCount: 0, updatedCount: 0, errors: [{ row: 0, message: "Formato JSON no soportado." }] };
         }
     }
 
@@ -490,7 +496,7 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
                 createdCount++;
             }
         } catch (e: any) {
-            errors.push({ row: i + 2, message: e.message || "Error desconocido." });
+            errors.push({ row: i + (format === 'csv' ? 2 : 1), message: e.message || "Error desconocido." });
         }
     }
 
