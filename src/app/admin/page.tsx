@@ -853,11 +853,13 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
 
         setIsSubmitting(true);
         setImportResults(null);
+        
+        const fileType = importFile.name.endsWith('.json') ? 'json' : 'csv';
 
         const reader = new FileReader();
         reader.onload = async (event) => {
-            const csvData = event.target?.result as string;
-            const result = await importProductsAction(csvData);
+            const fileContent = event.target?.result as string;
+            const result = await importProductsAction(fileContent, fileType);
 
             setImportResults(result);
             toast({ title: 'Importación Completa', description: `Creados: ${result.createdCount}, Actualizados: ${result.updatedCount}, Errores: ${result.errors.length}`});
@@ -951,18 +953,19 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
             <Dialog open={dialogType === 'import'} onOpenChange={(isOpen) => { if (!isOpen) { handleCloseDialog(); setImportResults(null); setImportFile(null); } }}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>Importar Productos desde CSV</DialogTitle>
-                        <DialogDescription>Sube un archivo CSV para añadir o actualizar productos en masa.</DialogDescription>
+                        <DialogTitle>Importar Productos desde Archivo</DialogTitle>
+                        <DialogDescription>Sube un archivo CSV o JSON para añadir o actualizar productos en masa.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <Alert>
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Formato Requerido</AlertTitle>
                             <AlertDescription>
-                                El archivo debe ser un CSV con las columnas: `ID` (opcional), `Name`, `Short Description`, `Price`, `Stock`, `Categories` (separadas por punto y coma), `Featured` (Yes/No), y `Image URL 1` a `Image URL 5`.
+                                Para CSV, las columnas requeridas son `ID` (opcional), `Name`, `Price`, `Stock`, `Categories` (separadas por punto y coma), `Image URL 1`.
+                                Para JSON, proporciona un array de objetos con claves equivalentes.
                             </AlertDescription>
                         </Alert>
-                        <Input type="file" accept=".csv" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
+                        <Input type="file" accept=".csv,.json" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} className="cursor-pointer" />
                         
                         {importResults && (
                             <Card>

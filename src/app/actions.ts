@@ -349,52 +349,89 @@ export async function updateOrderStatusAction(orderId: number, newStatus: OrderS
 }
 
 // Import Products Action
-export async function importProductsAction(csvData: string) {
+export async function importProductsAction(data: string, format: 'csv' | 'json') {
     const allCategories = await getCategories();
     const categoryMap = new Map(allCategories.map(c => [c.name.toLowerCase(), c.id]));
 
-    const lines = csvData.trim().split('\n');
-    const header = lines[0].split(',').map(h => h.trim());
-    const rows = lines.slice(1);
+    let productList: Record<string, any>[] = [];
+
+    if (format === 'csv') {
+        const lines = data.trim().split('\n');
+        const header = lines[0].split(',').map(h => h.trim());
+        const rows = lines.slice(1);
+        
+        productList = rows.map(row => {
+            const values = row.split(',').map(v => v.trim().replace(/"/g, ''));
+            const rowData: Record<string, any> = {};
+            header.forEach((key, j) => {
+                rowData[key] = values[j] || undefined;
+            });
+            return rowData;
+        });
+    } else if (format === 'json') {
+        try {
+            const jsonData = JSON.parse(data);
+            // Adapt based on expected JSON structure
+            if (Array.isArray(jsonData)) {
+                productList = jsonData;
+            } else if (jsonData.categories && Array.isArray(jsonData.categories)) {
+                // Handle the nested structure from the example
+                productList = jsonData.categories.flatMap((cat: any) => 
+                    cat.products?.map((p: any) => ({ ...p, categoryName: cat.name })) || []
+                );
+            } else {
+                 throw new Error("Formato JSON no soportado.");
+            }
+        } catch (e) {
+             return { createdCount: 0, updatedCount: 0, errors: [{ row: 0, message: "Error al parsear el archivo JSON." }] };
+        }
+    }
+
 
     let createdCount = 0;
     let updatedCount = 0;
     const errors: { row: number; message: string }[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row) continue;
+    const fieldMap: Record<string, string> = {
+        'ID': 'id',
+        'Name': 'name',
+        'name': 'name',
+        'Short Description': 'shortDescription',
+        'Price': 'price',
+        'price': 'price',
+        'Stock': 'stock',
+        'stock': 'stock',
+        'Categories': 'categories', // Raw categories string from CSV
+        'categoryName': 'categories', // From the example JSON structure
+        'Image URL 1': 'image1', 'image_url': 'image1',
+        'Image URL 2': 'image2',
+        'Image URL 3': 'image3',
+        'Image URL 4': 'image4',
+        'Image URL 5': 'image5',
+        'AI Hint': 'aiHint',
+        'aiHint': 'aiHint',
+        'Discount Percentage': 'discountPercentage',
+        'Offer Start Date': 'offerStartDate',
+        'Offer End Date': 'offerEndDate',
+        'description': 'description',
+    };
+    
+    for (let i = 0; i < productList.length; i++) {
+        const rawRow = productList[i];
+        if (!rawRow) continue;
 
-        const values = row.split(',').map(v => v.trim().replace(/"/g, ''));
         const rowData: Record<string, any> = {};
-        header.forEach((key, j) => {
-            // Map CSV headers to product schema fields
-            const fieldMap: Record<string, string> = {
-                'ID': 'id',
-                'Name': 'name',
-                'Short Description': 'shortDescription',
-                'Price': 'price',
-                'Sale Price': 'salePrice', // This will be ignored, but good to have
-                'Stock': 'stock',
-                'Categories': 'categories', // Raw categories string
-                'Featured': 'featured',
-                'Image URL 1': 'image1',
-                'Image URL 2': 'image2',
-                'Image URL 3': 'image3',
-                'Image URL 4': 'image4',
-                'Image URL 5': 'image5',
-                'AI Hint': 'aiHint',
-                'Discount Percentage': 'discountPercentage',
-                'Offer Start Date': 'offerStartDate',
-                'Offer End Date': 'offerEndDate',
-            };
-            const mappedKey = fieldMap[key];
-            if (mappedKey) {
-                rowData[mappedKey] = values[j] || undefined;
-            }
-        });
+        for(const key in rawRow) {
+            const mappedKey = fieldMap[key] || key;
+            rowData[mappedKey] = rawRow[key];
+        }
 
         try {
+            // Clean up price string
+            if(typeof rowData.price === 'string') {
+                rowData.price = rowData.price.replace(/[^0-9.,]/g, '').replace(',', '.');
+            }
+
             // Map category names to IDs
             const categoryNames = (rowData.categories || '').split(';').map((c: string) => c.trim().toLowerCase());
             const categoryIds = categoryNames
@@ -402,12 +439,13 @@ export async function importProductsAction(csvData: string) {
                 .filter((id): id is number => id !== undefined);
 
             if (categoryIds.length === 0 && rowData.categories) {
-                throw new Error(`No valid categories found for names: ${rowData.categories}`);
+                 console.warn(`No valid categories found for names: ${rowData.categories}. Attempting to create them.`);
+                 // Future enhancement: could create categories on the fly here.
             }
 
             const images = [rowData.image1, rowData.image2, rowData.image3, rowData.image4, rowData.image5].filter(Boolean);
             if (images.length === 0) {
-                throw new Error('At least one image URL is required.');
+                throw new Error('Al menos una URL de imagen es requerida.');
             }
 
             const productToValidate = {
@@ -417,7 +455,6 @@ export async function importProductsAction(csvData: string) {
                 shortDescription: rowData.shortDescription,
                 price: rowData.price,
                 stock: rowData.stock,
-                featured: ['yes', 'true'].includes((rowData.featured || '').toLowerCase()),
                 images,
                 categoryIds,
                 aiHint: rowData.aiHint,
@@ -430,7 +467,7 @@ export async function importProductsAction(csvData: string) {
 
             if (!validatedFields.success) {
                 const errorMessages = Object.values(validatedFields.error.flatten().fieldErrors).flat().join('; ');
-                throw new Error(errorMessages);
+                throw new Error(errorMessages || "Error de validación desconocido.");
             }
 
             const { id, ...productData } = validatedFields.data;
@@ -441,7 +478,6 @@ export async function importProductsAction(csvData: string) {
                     await updateProduct(id, productData);
                     updatedCount++;
                 } else {
-                    // If ID is provided but doesn't exist, create it with that ID (if DB allows)
                     await createProduct({ ...productData, id });
                     createdCount++;
                 }
