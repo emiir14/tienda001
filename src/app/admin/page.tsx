@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Edit, Trash2, LogIn, LogOut, Loader2, Package, Tag, Wallet, Calendar as CalendarIcon, BarChart, AlertTriangle, ShoppingCart, Ticket, Badge as BadgeIcon, TrendingUp, DollarSign, CheckCircle, XCircle, Download, ExternalLink, Mail, Database, HardDrive, Folder, ChevronDown, ChevronRight, User, Truck, Home as HomeIcon } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, LogIn, LogOut, Loader2, Package, Tag, Wallet, Calendar as CalendarIcon, BarChart, AlertTriangle, ShoppingCart, Ticket, Badge as BadgeIcon, TrendingUp, DollarSign, CheckCircle, XCircle, Download, ExternalLink, Mail, Database, HardDrive, Folder, ChevronDown, ChevronRight, User, Truck, Home as HomeIcon, Upload } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -43,7 +44,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { addProductAction, updateProductAction, deleteProductAction, addCouponAction, updateCouponAction, deleteCouponAction, addCategoryAction, deleteCategoryAction, updateOrderStatusAction } from '@/app/actions';
+import { addProductAction, updateProductAction, deleteProductAction, addCouponAction, updateCouponAction, deleteCouponAction, addCategoryAction, deleteCategoryAction, updateOrderStatusAction, importProductsAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -56,6 +57,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import React from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type FieldErrors = Record<string, string[] | undefined>;
@@ -299,13 +301,14 @@ function MetricsTab({ products, salesMetrics, isLoading, categories }: { product
 // ############################################################################
 // Component: ProductsTab
 // ############################################################################
-function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onExport, categories }: { products: Product[], isLoading: boolean, onEdit: (p: Product) => void, onDelete: (id: number) => void, onAdd: () => void, onExport: () => void, categories: Category[] }) {
+function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onExport, onImport, categories }: { products: Product[], isLoading: boolean, onEdit: (p: Product) => void, onDelete: (id: number) => void, onAdd: () => void, onExport: () => void, onImport: () => void, categories: Category[] }) {
     return (
          <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div><CardTitle>Gestionar Productos</CardTitle><CardDescription>Añade, edita o elimina productos de tu catálogo.</CardDescription></div>
                 <div className="flex gap-2">
-                    <Button onClick={onExport} variant="outline"><Download className="mr-2 h-4 w-4" />Exportar a CSV</Button>
+                    <Button onClick={onImport} variant="outline"><Upload className="mr-2 h-4 w-4" />Importar</Button>
+                    <Button onClick={onExport} variant="outline"><Download className="mr-2 h-4 w-4" />Exportar</Button>
                     <Button onClick={onAdd}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
                 </div>
             </CardHeader>
@@ -492,12 +495,12 @@ function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { orders: Or
     
     const getStatusClasses = (status: Order['status']) => {
         switch (status) {
-            case 'paid': return "bg-blue-100 text-blue-800 border-blue-200"; // Using blue for paid as per original logic before delivered
+            case 'delivered': return "bg-green-100 text-green-800 border-green-200";
             case 'pending': return "bg-yellow-100 text-yellow-800 border-yellow-200";
             case 'failed': return "bg-red-100 text-red-800 border-red-200";
-            case 'cancelled': return "bg-red-100 text-red-800 border-red-200"; // Same as failed
+            case 'cancelled': return "bg-red-100 text-red-800 border-red-200";
+            case 'paid': return "bg-blue-100 text-blue-800 border-blue-200";
             case 'shipped': return "bg-purple-100 text-purple-800 border-purple-200";
-            case 'delivered': return "bg-green-100 text-green-800 border-green-200";
             default: return "bg-background border-input";
         }
     }
@@ -626,7 +629,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
     const [orders, setOrders] = useState<Order[]>([]);
     const [salesMetrics, setSalesMetrics] = useState<SalesMetrics | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [dialogType, setDialogType] = useState<'product' | 'coupon' | null>(null);
+    const [dialogType, setDialogType] = useState<'product' | 'coupon' | 'import' | null>(null);
     const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
     const [editingCoupon, setEditingCoupon] = useState<Coupon | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -671,6 +674,10 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
         setFormErrors({});
         setEditingCoupon(coupon);
         setDialogType('coupon');
+    };
+
+    const handleOpenImportDialog = () => {
+        setDialogType('import');
     };
 
     const handleCloseDialog = () => {
@@ -774,17 +781,20 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
     };
 
     const exportProductsToCSV = () => {
-        const headers = ['ID', 'Name', 'Short Description', 'Price', 'Sale Price', 'Stock', 'Categories', 'Featured', 'Image URL 1', 'Image URL 2', 'Image URL 3', 'Image URL 4', 'Image URL 5'];
+        const headers = ['ID', 'Name', 'Short Description', 'Price', 'Stock', 'Categories', 'Featured', 'Image URL 1', 'Image URL 2', 'Image URL 3', 'Image URL 4', 'Image URL 5', 'AI Hint', 'Discount Percentage', 'Offer Start Date', 'Offer End Date'];
         const rows = products.map(p => [
             p.id,
             `"${p.name.replace(/"/g, '""')}"`,
             `"${p.shortDescription?.replace(/"/g, '""') ?? ''}"`,
             p.price,
-            p.salePrice ?? '',
             p.stock,
-            `"${p.categoryIds.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).join(', ')}"`,
+            `"${p.categoryIds.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).join('; ')}"`,
             p.featured ? 'Yes' : 'No',
-            ...(p.images.slice(0, 5).map(img => `"${img}"`) ?? []),
+            ...(p.images.map(img => `"${img}"`).concat(Array(5 - p.images.length).fill(''))),
+            p.aiHint ?? '',
+            p.discountPercentage ?? '',
+            p.offerStartDate ? format(new Date(p.offerStartDate), 'yyyy-MM-dd') : '',
+            p.offerEndDate ? format(new Date(p.offerEndDate), 'yyyy-MM-dd') : '',
         ].join(','));
         
         const csvContent = [headers.join(','), ...rows].join('\n');
@@ -830,6 +840,37 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
         const csvContent = [headers.join(','), ...rows].join('\n');
         downloadCSV(csvContent, 'orders.csv');
         toast({ title: 'Éxito', description: 'Datos de órdenes exportados a CSV.' });
+    }
+
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importResults, setImportResults] = useState<{ createdCount: number, updatedCount: number, errors: { row: number, message: string }[] } | null>(null);
+
+    const handleImportSubmit = async () => {
+        if (!importFile) {
+            toast({ title: 'Error', description: 'Por favor, selecciona un archivo.', variant: 'destructive' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        setImportResults(null);
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const csvData = event.target?.result as string;
+            const result = await importProductsAction(csvData);
+
+            setImportResults(result);
+            toast({ title: 'Importación Completa', description: `Creados: ${result.createdCount}, Actualizados: ${result.updatedCount}, Errores: ${result.errors.length}`});
+            if (result.createdCount > 0 || result.updatedCount > 0) {
+                fetchData();
+            }
+            setIsSubmitting(false);
+        };
+        reader.onerror = () => {
+            toast({ title: 'Error', description: 'No se pudo leer el archivo.', variant: 'destructive' });
+            setIsSubmitting(false);
+        }
+        reader.readAsText(importFile);
     }
 
     return (
@@ -878,7 +919,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
                     <MetricsTab products={products} salesMetrics={salesMetrics} isLoading={isLoading} categories={categories} />
                 </TabsContent>
                 <TabsContent value="products" className="mt-6">
-                    <ProductsTab products={products} isLoading={isLoading} onAdd={() => handleOpenProductDialog()} onEdit={handleOpenProductDialog} onDelete={handleDeleteProduct} onExport={exportProductsToCSV} categories={categories} />
+                    <ProductsTab products={products} isLoading={isLoading} onAdd={() => handleOpenProductDialog()} onEdit={handleOpenProductDialog} onDelete={handleDeleteProduct} onExport={exportProductsToCSV} onImport={handleOpenImportDialog} categories={categories} />
                 </TabsContent>
                 <TabsContent value="categories" className="mt-6">
                     <CategoriesTab categories={categories} isLoading={isLoading} onAdd={handleAddCategory} onDelete={handleDeleteCategory} />
@@ -891,7 +932,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
                 </TabsContent>
             </Tabs>
 
-            <Dialog open={dialogType !== null} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
+            <Dialog open={dialogType !== null && dialogType !== 'import'} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
                 <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh] flex flex-col">
                     <DialogHeader>
                         <DialogTitle>{dialogType === 'product' ? (editingProduct ? 'Editar Producto' : 'Añadir Nuevo Producto') : (editingCoupon ? 'Editar Cupón' : 'Crear Nuevo Cupón')}</DialogTitle>
@@ -903,6 +944,56 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
                      <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                         <Button type="button" onClick={handleFormSubmit} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Guardar Cambios</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={dialogType === 'import'} onOpenChange={(isOpen) => { if (!isOpen) { handleCloseDialog(); setImportResults(null); setImportFile(null); } }}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Importar Productos desde CSV</DialogTitle>
+                        <DialogDescription>Sube un archivo CSV para añadir o actualizar productos en masa.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <Alert>
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Formato Requerido</AlertTitle>
+                            <AlertDescription>
+                                El archivo debe ser un CSV con las columnas: `ID` (opcional), `Name`, `Short Description`, `Price`, `Stock`, `Categories` (separadas por punto y coma), `Featured` (Yes/No), y `Image URL 1` a `Image URL 5`.
+                            </AlertDescription>
+                        </Alert>
+                        <Input type="file" accept=".csv" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
+                        
+                        {importResults && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Resultados de la Importación</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p><CheckCircle className="h-4 w-4 inline mr-2 text-green-500"/>{importResults.createdCount} productos creados.</p>
+                                    <p><Edit className="h-4 w-4 inline mr-2 text-blue-500"/>{importResults.updatedCount} productos actualizados.</p>
+                                    {importResults.errors.length > 0 && (
+                                        <>
+                                            <p><XCircle className="h-4 w-4 inline mr-2 text-destructive"/>{importResults.errors.length} filas con errores.</p>
+                                            <ScrollArea className="h-24 mt-2 border rounded-md p-2 bg-muted/50">
+                                                <ul className="text-xs space-y-1">
+                                                    {importResults.errors.map((err, i) => (
+                                                        <li key={i}><strong>Fila {err.row}:</strong> {err.message}</li>
+                                                    ))}
+                                                </ul>
+                                            </ScrollArea>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cerrar</Button></DialogClose>
+                        <Button type="button" onClick={handleImportSubmit} disabled={isSubmitting || !importFile}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Importar Archivo
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

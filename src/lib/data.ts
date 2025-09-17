@@ -32,7 +32,7 @@ import { unstable_noStore as noStore } from 'next/cache';
 // Helper Functions
 // ############################################################################
 
-function _calculateSalePrice(product: Omit<Product, 'salePrice'>): number | null {
+function _calculateSalePrice(product: Omit<Product, 'salePrice' | 'id'>): number | null {
     const now = new Date();
     const isOfferValid = 
         product.discountPercentage && product.discountPercentage > 0 &&
@@ -108,21 +108,34 @@ export async function getProductById(id: number): Promise<Product | undefined> {
     }
 }
 
-export async function createProduct(product: Omit<Product, 'id' | 'salePrice'>): Promise<Product> {
+export async function createProduct(product: Partial<Omit<Product, 'salePrice'>>): Promise<Product> {
     if (!isDbConnected) return createProductFromHardcodedData(product);
-    const { name, description, shortDescription, price, images, categoryIds, stock, aiHint, featured, discountPercentage, offerStartDate, offerEndDate } = product;
+    const { id, name, description, shortDescription, price, images, categoryIds, stock, aiHint, featured, discountPercentage, offerStartDate, offerEndDate } = product;
+
     try {
         const productResult = await db`
-            INSERT INTO products (name, description, short_description, price, images, stock, ai_hint, featured, discount_percentage, offer_start_date, offer_end_date, created_at)
-            VALUES (${name}, ${description}, ${shortDescription}, ${price}, ${images}, ${stock}, ${aiHint}, ${featured}, ${discountPercentage}, ${offerStartDate?.toISOString()}, ${offerEndDate?.toISOString()}, ${new Date().toISOString()})
+            INSERT INTO products (id, name, description, short_description, price, images, stock, ai_hint, featured, discount_percentage, offer_start_date, offer_end_date, created_at)
+            VALUES (${id || null}, ${name}, ${description}, ${shortDescription}, ${price}, ${images}, ${stock}, ${aiHint}, ${featured}, ${discountPercentage}, ${offerStartDate?.toISOString() || null}, ${offerEndDate?.toISOString() || null}, ${new Date().toISOString()})
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                description = EXCLUDED.description,
+                short_description = EXCLUDED.short_description,
+                price = EXCLUDED.price,
+                images = EXCLUDED.images,
+                stock = EXCLUDED.stock,
+                ai_hint = EXCLUDED.ai_hint,
+                featured = EXCLUDED.featured,
+                discount_percentage = EXCLUDED.discount_percentage,
+                offer_start_date = EXCLUDED.offer_start_date,
+                offer_end_date = EXCLUDED.offer_end_date
             RETURNING *;
         `;
         const newProduct = productResult[0];
 
         if (categoryIds && categoryIds.length > 0) {
-            // Fixed: Use individual INSERT statements instead of template literal concatenation
+            await db`DELETE FROM product_categories WHERE product_id = ${newProduct.id}`;
             for (const catId of categoryIds) {
-                await db`INSERT INTO product_categories (product_id, category_id) VALUES (${newProduct.id}, ${catId})`;
+                await db`INSERT INTO product_categories (product_id, category_id) VALUES (${newProduct.id}, ${catId}) ON CONFLICT DO NOTHING`;
             }
         }
 
@@ -134,7 +147,7 @@ export async function createProduct(product: Omit<Product, 'id' | 'salePrice'>):
 
     } catch (error) {
         console.error('Database Error:', error);
-        throw new Error('Failed to create product.');
+        throw new Error('Failed to create or update product.');
     }
 }
 
@@ -168,14 +181,12 @@ export async function updateProduct(id: number, productData: Partial<Omit<Produc
 
             // Insert new categories if any
             if (categoryIds && categoryIds.length > 0) {
-                // Fixed: Use individual INSERT statements instead of template literal concatenation
                 for (const catId of categoryIds) {
-                    await db`INSERT INTO product_categories (product_id, category_id) VALUES (${id}, ${catId})`;
+                    await db`INSERT INTO product_categories (product_id, category_id) VALUES (${id}, ${catId}) ON CONFLICT DO NOTHING`;
                 }
             }
         }
 
-        // Get the updated product
         const finalProduct = await getProductById(id);
         if (!finalProduct) {
             throw new Error('Product not found after update');
@@ -422,7 +433,7 @@ export async function restockItemsForOrder(orderId: number): Promise<void> {
         if (rows.length > 0) {
             const order = rows[0];
             // Only restock if the order is not already paid or shipped
-            if (order.status !== 'paid' && order.status !== 'shipped') {
+            if (order.status !== 'paid' && order.status !== 'shipped' && order.status !== 'delivered') {
                 const items = order.items as OrderData['items'];
                 for (const item of items) {
                     await db`UPDATE products SET stock = stock + ${item.quantity} WHERE id = ${item.product.id}`;
@@ -527,7 +538,7 @@ export async function getSalesMetrics(): Promise<SalesMetrics> {
     if (!isDbConnected) return getSalesMetricsFromHardcodedData();
     noStore();
     try {
-        const revenueResult = await db`SELECT SUM(total) as totalRevenue, COUNT(*) as totalSales FROM orders WHERE status = 'paid'`;
+        const revenueResult = await db`SELECT SUM(total) as totalRevenue, COUNT(*) as totalSales FROM orders WHERE status = 'paid' OR status = 'delivered'`;
         const { totalrevenue, totalsales } = revenueResult[0];
 
         const productsResult = await db`
@@ -536,7 +547,7 @@ export async function getSalesMetrics(): Promise<SalesMetrics> {
                 item->'product'->>'name' as name, 
                 SUM((item->>'quantity')::int) as count
             FROM orders, jsonb_array_elements(items) as item
-            WHERE status = 'paid'
+            WHERE status = 'paid' OR status = 'delivered'
             GROUP BY 1, 2
             ORDER BY count DESC
             LIMIT 5;

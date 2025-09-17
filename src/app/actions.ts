@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import DOMPurify from 'isomorphic-dompurify';
 import { addSubscriber } from "@/lib/subscribers";
-import { createProduct, updateProduct, deleteProduct, createCoupon, updateCoupon, deleteCoupon, createCategory, deleteCategory, updateOrderStatus } from '@/lib/data';
+import { createProduct, updateProduct, deleteProduct, createCoupon, updateCoupon, deleteCoupon, createCategory, deleteCategory, updateOrderStatus, getProductById, getCategories } from '@/lib/data';
 import type { Product, Coupon, OrderStatus } from '@/lib/types';
 
 // Helper function to sanitize form data
@@ -23,6 +23,7 @@ function sanitizeData(data: Record<string, any>): Record<string, any> {
 
 
 const productSchema = z.object({
+    id: z.coerce.number().optional(), // ID is optional for creation
     name: z.string().min(1, "El nombre es requerido."),
     description: z.string().min(1, "La descripción es requerida."),
     shortDescription: z.string().optional(),
@@ -120,6 +121,7 @@ export async function updateProductAction(id: number, formData: FormData) {
 
     const validatedFields = productSchema.safeParse({
         ...sanitizedData,
+        id, // Add id for validation
         featured: sanitizedData.featured === 'on',
         images,
         categoryIds,
@@ -329,7 +331,7 @@ export async function deleteCategoryAction(id: number) {
 }
 
 // Order Actions
-const orderStatusSchema = z.enum(['pending', 'paid', 'shipped', 'cancelled', 'failed', 'refunded', 'delivered']);
+const orderStatusSchema = z.enum(['pending', 'delivered', 'failed']);
 
 export async function updateOrderStatusAction(orderId: number, newStatus: OrderStatus) {
     const validatedStatus = orderStatusSchema.safeParse(newStatus);
@@ -345,6 +347,116 @@ export async function updateOrderStatusAction(orderId: number, newStatus: OrderS
         return { error: e.message || 'No se pudo actualizar el estado de la orden.' };
     }
 }
-    
 
-    
+// Import Products Action
+export async function importProductsAction(csvData: string) {
+    const allCategories = await getCategories();
+    const categoryMap = new Map(allCategories.map(c => [c.name.toLowerCase(), c.id]));
+
+    const lines = csvData.trim().split('\n');
+    const header = lines[0].split(',').map(h => h.trim());
+    const rows = lines.slice(1);
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    const errors: { row: number; message: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+
+        const values = row.split(',').map(v => v.trim().replace(/"/g, ''));
+        const rowData: Record<string, any> = {};
+        header.forEach((key, j) => {
+            // Map CSV headers to product schema fields
+            const fieldMap: Record<string, string> = {
+                'ID': 'id',
+                'Name': 'name',
+                'Short Description': 'shortDescription',
+                'Price': 'price',
+                'Sale Price': 'salePrice', // This will be ignored, but good to have
+                'Stock': 'stock',
+                'Categories': 'categories', // Raw categories string
+                'Featured': 'featured',
+                'Image URL 1': 'image1',
+                'Image URL 2': 'image2',
+                'Image URL 3': 'image3',
+                'Image URL 4': 'image4',
+                'Image URL 5': 'image5',
+                'AI Hint': 'aiHint',
+                'Discount Percentage': 'discountPercentage',
+                'Offer Start Date': 'offerStartDate',
+                'Offer End Date': 'offerEndDate',
+            };
+            const mappedKey = fieldMap[key];
+            if (mappedKey) {
+                rowData[mappedKey] = values[j] || undefined;
+            }
+        });
+
+        try {
+            // Map category names to IDs
+            const categoryNames = (rowData.categories || '').split(';').map((c: string) => c.trim().toLowerCase());
+            const categoryIds = categoryNames
+                .map((name: string) => categoryMap.get(name))
+                .filter((id): id is number => id !== undefined);
+
+            if (categoryIds.length === 0 && rowData.categories) {
+                throw new Error(`No valid categories found for names: ${rowData.categories}`);
+            }
+
+            const images = [rowData.image1, rowData.image2, rowData.image3, rowData.image4, rowData.image5].filter(Boolean);
+            if (images.length === 0) {
+                throw new Error('At least one image URL is required.');
+            }
+
+            const productToValidate = {
+                id: rowData.id,
+                name: rowData.name,
+                description: rowData.description || rowData.name, // Use name as fallback for description
+                shortDescription: rowData.shortDescription,
+                price: rowData.price,
+                stock: rowData.stock,
+                featured: ['yes', 'true'].includes((rowData.featured || '').toLowerCase()),
+                images,
+                categoryIds,
+                aiHint: rowData.aiHint,
+                discountPercentage: rowData.discountPercentage || null,
+                offerStartDate: rowData.offerStartDate || null,
+                offerEndDate: rowData.offerEndDate || null,
+            };
+
+            const validatedFields = productSchema.safeParse(productToValidate);
+
+            if (!validatedFields.success) {
+                const errorMessages = Object.values(validatedFields.error.flatten().fieldErrors).flat().join('; ');
+                throw new Error(errorMessages);
+            }
+
+            const { id, ...productData } = validatedFields.data;
+
+            if (id) {
+                const existingProduct = await getProductById(id);
+                if (existingProduct) {
+                    await updateProduct(id, productData);
+                    updatedCount++;
+                } else {
+                    // If ID is provided but doesn't exist, create it with that ID (if DB allows)
+                    await createProduct({ ...productData, id });
+                    createdCount++;
+                }
+            } else {
+                await createProduct(productData);
+                createdCount++;
+            }
+        } catch (e: any) {
+            errors.push({ row: i + 2, message: e.message || "Error desconocido." });
+        }
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/tienda");
+    revalidatePath("/");
+
+    return { createdCount, updatedCount, errors };
+}
