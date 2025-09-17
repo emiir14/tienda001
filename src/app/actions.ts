@@ -454,7 +454,7 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
                 description: rowData.description || rowData.name, // Use name as fallback for description
                 shortDescription: rowData.shortDescription,
                 price: rowData.price,
-                stock: rowData.stock,
+                stock: rowData.stock ?? 1, // Default stock to 1 if not provided
                 images,
                 categoryIds,
                 aiHint: rowData.aiHint,

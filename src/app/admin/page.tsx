@@ -781,7 +781,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
     };
 
     const exportProductsToCSV = () => {
-        const headers = ['ID', 'Name', 'Short Description', 'Price', 'Stock', 'Categories', 'Featured', 'Image URL 1', 'Image URL 2', 'Image URL 3', 'Image URL 4', 'Image URL 5', 'AI Hint', 'Discount Percentage', 'Offer Start Date', 'Offer End Date'];
+        const headers = ['ID', 'Name', 'Short Description', 'Price', 'Stock', 'Categories', 'Image URL 1', 'Image URL 2', 'Image URL 3', 'Image URL 4', 'Image URL 5', 'AI Hint', 'Discount Percentage', 'Offer Start Date', 'Offer End Date'];
         const rows = products.map(p => [
             p.id,
             `"${p.name.replace(/"/g, '""')}"`,
@@ -789,7 +789,6 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
             p.price,
             p.stock,
             `"${p.categoryIds.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).join('; ')}"`,
-            p.featured ? 'Yes' : 'No',
             ...(p.images.map(img => `"${img}"`).concat(Array(5 - p.images.length).fill(''))),
             p.aiHint ?? '',
             p.discountPercentage ?? '',
@@ -961,8 +960,9 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Formato Requerido</AlertTitle>
                             <AlertDescription>
-                                Para CSV, las columnas requeridas son `ID` (opcional), `Name`, `Price`, `Stock`, `Categories` (separadas por punto y coma), `Image URL 1`.
-                                Para JSON, proporciona un array de objetos con claves equivalentes.
+                                Columnas requeridas: `Name`, `Price`, `Categories`, `Image URL 1`. La columna `Stock` es opcional y por defecto será 1 si no se provee. Para actualizar, incluye una columna `ID`.
+                                <br />
+                                <strong>Ejemplo Fila CSV:</strong> `Mi Producto,99.99,"Perfumes; Hombre","https://url.com/imagen.jpg",10`
                             </AlertDescription>
                         </Alert>
                         <Input type="file" accept=".csv,.json" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} className="cursor-pointer" />
