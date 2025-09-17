@@ -167,7 +167,6 @@ function ProductForm({ product, formId, errors, categories }: { product?: Produc
                 <FormError message={errors.images?.[0]} />
             </div>
             <div><Label htmlFor="aiHint">AI Hint</Label><Input id="aiHint" name="aiHint" defaultValue={product?.aiHint} /></div>
-            <div className="flex items-center space-x-2"><Checkbox id="featured" name="featured" defaultChecked={product?.featured} /><Label htmlFor="featured">Producto Destacado</Label></div>
         </form>
     );
 }
@@ -1053,4 +1052,6 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
 
   return <AdminDashboard onLogout={handleLogout} dbConnected={dbConnected} />;
 }
+    
+
     

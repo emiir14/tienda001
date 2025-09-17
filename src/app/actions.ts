@@ -35,7 +35,6 @@ const productSchema = z.object({
     categoryIds: z.array(z.coerce.number()).min(1, "Se requiere al menos una categoría."),
     images: z.array(z.string().url("La URL de la imagen no es válida.")).min(1, "Se requiere al menos una imagen."),
     aiHint: z.string().optional(),
-    featured: z.boolean().optional(),
 });
 
 
@@ -70,8 +69,11 @@ export async function addProductAction(formData: FormData) {
         };
     }
 
+    // @ts-ignore - featured is not in the schema anymore, but we don't want to break if it's passed
+    const { featured, ...productData } = validatedFields.data;
+
     try {
-        await createProduct(validatedFields.data);
+        await createProduct(productData);
         revalidatePath("/admin");
         revalidatePath("/tienda");
         revalidatePath("/");
@@ -122,7 +124,6 @@ export async function updateProductAction(id: number, formData: FormData) {
     const validatedFields = productSchema.safeParse({
         ...sanitizedData,
         id, // Add id for validation
-        featured: sanitizedData.featured === 'on',
         images,
         categoryIds,
     });
@@ -137,9 +138,12 @@ export async function updateProductAction(id: number, formData: FormData) {
     
     console.log("[Action] Data validated successfully. Attempting to update product in DB.");
     console.log("[Action] Payload:", JSON.stringify(validatedFields.data, null, 2));
+    
+    // @ts-ignore - featured is not in the schema anymore
+    const { featured, ...productData } = validatedFields.data;
 
     try {
-        await updateProduct(id, validatedFields.data);
+        await updateProduct(id, productData);
         console.log(`[Action] Successfully updated product ID: ${id}. Revalidating paths.`);
         revalidatePath("/admin");
         revalidatePath(`/products/${id}`);
@@ -496,3 +500,5 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
 
     return { createdCount, updatedCount, errors };
 }
+
+    
