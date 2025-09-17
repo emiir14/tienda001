@@ -413,6 +413,7 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
         'stock': 'stock',
         'Categories': 'categories', // Raw categories string from CSV
         'categoryName': 'categories', // From the example JSON structure
+        'category': 'categories',
         'Image URL 1': 'image1', 'image_url': 'image1',
         'Image URL 2': 'image2',
         'Image URL 3': 'image3',
@@ -506,5 +507,7 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
 
     return { createdCount, updatedCount, errors };
 }
+
+    
 
     
