@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Edit, Trash2, LogIn, LogOut, Loader2, Package, Tag, Wallet, Calendar as CalendarIcon, BarChart, AlertTriangle, ShoppingCart, Ticket, Badge as BadgeIcon, TrendingUp, DollarSign, CheckCircle, XCircle, Download, ExternalLink, Mail, Database, HardDrive, Folder, ChevronDown, ChevronRight, User, Truck, Home as HomeIcon, Upload } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, LogIn, LogOut, Loader2, Package, Tag, Wallet, Calendar as CalendarIcon, BarChart, AlertTriangle, ShoppingCart, Ticket, Badge as BadgeIcon, TrendingUp, DollarSign, CheckCircle, XCircle, Download, ExternalLink, Mail, Database, HardDrive, Folder, ChevronDown, ChevronRight, User, Truck, Home as HomeIcon, Upload, Eye } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -842,6 +842,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
 
     const [importFile, setImportFile] = useState<File | null>(null);
     const [importResults, setImportResults] = useState<{ createdCount: number, updatedCount: number, errors: { row: number, message: string }[] } | null>(null);
+    const [showImportExamples, setShowImportExamples] = useState(false);
 
     const handleImportSubmit = async () => {
         if (!importFile) {
@@ -872,6 +873,18 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
         }
         reader.readAsText(importFile);
     }
+    
+    const jsonExample = `[
+  {
+    "Name": "Producto de Ejemplo JSON",
+    "Price": "150.99",
+    "Categories": "Perfumes; Hombre",
+    "Image URL 1": "https://i.imgur.com/your-image.jpg"
+  }
+]`;
+    const csvExample = `Name,Price,Categories,Image URL 1,Stock
+"Producto de Ejemplo CSV",99.99,"Joyas; Anillos","https://i.imgur.com/your-image.jpg",10`;
+
 
     return (
         <div className="space-y-6">
@@ -948,7 +961,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={dialogType === 'import'} onOpenChange={(isOpen) => { if (!isOpen) { handleCloseDialog(); setImportResults(null); setImportFile(null); } }}>
+            <Dialog open={dialogType === 'import'} onOpenChange={(isOpen) => { if (!isOpen) { handleCloseDialog(); setImportResults(null); setImportFile(null); setShowImportExamples(false); } }}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Importar Productos desde Archivo</DialogTitle>
@@ -959,12 +972,31 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Formato Requerido</AlertTitle>
                             <AlertDescription>
-                                Columnas requeridas: `Name`, `Price`, `Categories`, `Image URL 1`. La columna `Stock` es opcional y por defecto será 1 si no se provee. Para actualizar, incluye una columna `ID`.
-                                <br />
-                                <strong>Ejemplo Fila CSV:</strong> `Mi Producto,99.99,"Perfumes; Hombre","https://url.com/imagen.jpg",10`
+                                Columnas requeridas: `Name`, `Price`, `Categories`, `Image URL 1`. Las columnas `Description` y `Stock` son opcionales. El stock por defecto será 1 si no se provee. Para actualizar, incluye una columna `ID`.
                             </AlertDescription>
                         </Alert>
                         <Input type="file" accept=".csv,.json" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} className="cursor-pointer" />
+                         <Button variant="link" onClick={() => setShowImportExamples(!showImportExamples)} className="p-0 h-auto">
+                            <Eye className="mr-2 h-4 w-4" />
+                            {showImportExamples ? 'Ocultar Ejemplos' : 'Ver Ejemplos de Formato'}
+                        </Button>
+                        
+                        {showImportExamples && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Ejemplo CSV</CardTitle></CardHeader>
+                                    <CardContent className="bg-muted p-4 rounded-md">
+                                        <pre className="text-xs whitespace-pre-wrap"><code>{csvExample}</code></pre>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Ejemplo JSON</CardTitle></CardHeader>
+                                    <CardContent className="bg-muted p-4 rounded-md">
+                                        <pre className="text-xs whitespace-pre-wrap"><code>{jsonExample}</code></pre>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
                         
                         {importResults && (
                             <Card>
@@ -1052,6 +1084,4 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
 
   return <AdminDashboard onLogout={handleLogout} dbConnected={dbConnected} />;
 }
-    
-
     
