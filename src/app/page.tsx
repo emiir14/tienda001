@@ -40,7 +40,7 @@ export default async function Home() {
                     )}
                 </section>
 
-                <Separator className="w-1/2 mx-auto my-16"/>
+                <Separator className="w-1/2 mx-auto my-12"/>
 
                 {/* Instagram Section */}
                 <section id="instagram" className="text-center space-y-4 py-4">
@@ -55,7 +55,7 @@ export default async function Home() {
                     </Button>
                 </section>
 
-                <Separator className="w-1/2 mx-auto my-16"/>
+                <Separator className="w-1/2 mx-auto my-12"/>
 
                 {/* About Us Section */}
                 <section id="about" className="grid md:grid-cols-2 gap-12 items-center py-16">
