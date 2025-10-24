@@ -43,16 +43,22 @@ export default async function Home() {
                 <Separator className="w-1/2 mx-auto my-12"/>
 
                 {/* Instagram Section */}
-                <section id="instagram" className="text-center space-y-4 py-4">
-                    <div className="flex justify-center items-center gap-3">
-                        <Instagram className="h-7 w-7 text-muted-foreground" />
-                        <h3 className="text-3xl font-headline text-muted-foreground tracking-wider">alquimiapiezasdeplata</h3>
+                <section id="instagram" className="py-4">
+                    <div className="flex items-center justify-center gap-8">
+                        <Separator className="flex-1" />
+                        <div className="text-center space-y-4 flex-shrink-0">
+                            <div className="flex justify-center items-center gap-3">
+                                <Instagram className="h-7 w-7 text-muted-foreground" />
+                                <h3 className="text-3xl font-headline text-muted-foreground tracking-wider">alquimiapiezasdeplata</h3>
+                            </div>
+                            <Button asChild variant="outline" size="lg" className="rounded-full px-10 py-6 text-lg tracking-widest">
+                                <Link href="https://instagram.com/alquimiapiezasdeplata" target="_blank" rel="noopener noreferrer">
+                                    SEGUINOS
+                                </Link>
+                            </Button>
+                        </div>
+                        <Separator className="flex-1" />
                     </div>
-                    <Button asChild variant="outline" size="lg" className="rounded-full px-10 py-6 text-lg tracking-widest">
-                        <Link href="https://instagram.com/alquimiapiezasdeplata" target="_blank" rel="noopener noreferrer">
-                            SEGUINOS
-                        </Link>
-                    </Button>
                 </section>
 
                 <Separator className="w-1/2 mx-auto my-12"/>
