@@ -19,6 +19,7 @@ import { getProducts } from '@/lib/data';
 import type { Product } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 export default function Header() {
   const { cartCount, setIsSidebarOpen } = useCart();
@@ -77,7 +78,7 @@ export default function Header() {
                   <SheetHeader>
                       <SheetTitle>
                           <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
-                              <span className="font-bold font-headline text-2xl">Joya</span>
+                              <Image src="/osadia-logo.png" alt="OSADÍA Logo" width={120} height={40} />
                           </Link>
                       </SheetTitle>
                   </SheetHeader>
@@ -101,7 +102,7 @@ export default function Header() {
         {/* Center Section: Logo */}
         <div className="flex-1 flex justify-center">
              <Link href="/" className="flex items-center space-x-2">
-                <span className="font-bold font-headline text-2xl">Joya</span>
+                <Image src="/osadia-logo.png" alt="OSADÍA Logo" width={140} height={50} priority />
              </Link>
         </div>
 

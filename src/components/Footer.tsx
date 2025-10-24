@@ -8,6 +8,7 @@ import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { addSubscriberAction } from "@/app/actions";
 import { useRef } from "react";
+import Image from 'next/image';
 
 const mailchimpConfigured = !!process.env.NEXT_PUBLIC_MAILCHIMP_CONFIGURED;
 
@@ -63,8 +64,8 @@ export default function Footer() {
       <div className="container py-8 md:py-12 text-secondary-foreground">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="space-y-4 md:col-span-1">
-                <h3 className="font-headline text-2xl font-semibold">Joya</h3>
-                <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Joya. Todos los derechos reservados.</p>
+                <Image src="/osadia-logo.png" alt="OSADÍA Logo" width={120} height={40} />
+                <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Osadía. Todos los derechos reservados.</p>
                  <div className="flex gap-4">
                     <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors"><Instagram className="h-6 w-6"/></Link>
                     <Link href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-muted-foreground hover:text-primary transition-colors"><Facebook className="h-6 w-6"/></Link>
