@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Menu, User } from 'lucide-react';
+import { ShoppingCart, Menu } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, Suspense } from 'react';
@@ -18,11 +18,13 @@ import { GlobalSearch } from './GlobalSearch';
 import { getProducts } from '@/lib/data';
 import type { Product } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export default function Header() {
   const { cartCount, setIsSidebarOpen } = useCart();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -34,6 +36,13 @@ export default function Header() {
         }
     }
     fetchData();
+
+    const handleScroll = () => {
+        setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const navLinks = [
@@ -43,11 +52,15 @@ export default function Header() {
     { href: '/pages/garantia', label: 'Garantía' },
     { href: '/pages/preguntas-frecuentes', label: 'Preguntas Frecuentes' },
     { href: '/pages/como-comprar', label: 'Cómo Comprar' },
+    { href: '/admin', label: 'Admin' },
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-20 items-center">
+    <header className={cn(
+        "sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60 transition-all duration-300",
+        isScrolled ? 'h-16' : 'h-20'
+    )}>
+      <div className="container flex h-full items-center">
         
         {/* Left Section: Mobile Menu and Search Bar */}
         <div className="flex items-center gap-2 flex-1">
@@ -94,12 +107,6 @@ export default function Header() {
 
         {/* Right Section: Icons */}
         <div className="flex items-center justify-end space-x-1 flex-1">
-          <Button variant="ghost" size="icon" asChild className="hidden md:inline-flex">
-            <Link href="/admin">
-              <User />
-              <span className='sr-only'>Mi Cuenta</span>
-            </Link>
-          </Button>
           <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} aria-label="Carrito de compras">
             <div className="relative">
