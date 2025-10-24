@@ -43,7 +43,7 @@ export default async function Home() {
                 <Separator className="w-1/2 mx-auto my-16"/>
 
                 {/* Instagram Section */}
-                <section id="instagram" className="text-center space-y-6 py-8">
+                <section id="instagram" className="text-center space-y-4 py-4">
                     <div className="flex justify-center items-center gap-3">
                         <Instagram className="h-7 w-7 text-muted-foreground" />
                         <h3 className="text-3xl font-headline text-muted-foreground tracking-wider">alquimiapiezasdeplata</h3>
