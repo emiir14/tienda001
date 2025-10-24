@@ -64,7 +64,7 @@ export default function Footer() {
       <div className="container py-8 md:py-12 text-secondary-foreground">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="space-y-4 md:col-span-1">
-                <Image src="/osadia-logo.png" alt="OSADÍA Logo" width={120} height={40} />
+                <Image src="https://placehold.co/120x40/png?text=OSADÍA" alt="OSADÍA Logo" width={120} height={40} />
                 <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Osadía. Todos los derechos reservados.</p>
                  <div className="flex gap-4">
                     <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors"><Instagram className="h-6 w-6"/></Link>

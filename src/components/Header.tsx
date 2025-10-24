@@ -78,7 +78,7 @@ export default function Header() {
                   <SheetHeader>
                       <SheetTitle>
                           <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
-                              <Image src="/osadia-logo.png" alt="OSADÍA Logo" width={120} height={40} />
+                              <Image src="https://placehold.co/140x50/png?text=OSADÍA" alt="OSADÍA Logo" width={120} height={40} />
                           </Link>
                       </SheetTitle>
                   </SheetHeader>
@@ -102,7 +102,7 @@ export default function Header() {
         {/* Center Section: Logo */}
         <div className="flex-1 flex justify-center">
              <Link href="/" className="flex items-center space-x-2">
-                <Image src="/osadia-logo.png" alt="OSADÍA Logo" width={140} height={50} priority />
+                <Image src="https://placehold.co/140x50/png?text=OSADÍA" alt="OSADÍA Logo" width={140} height={50} priority />
              </Link>
         </div>
 
