@@ -4,30 +4,30 @@
 @tailwind utilities;
 
 body {
-  font-family: 'Alegreya', serif;
+  font-family: 'Madeleina Sans', sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 224 71.4% 4.1%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 180 82% 35%; /* Teal */
+    --background: 240 14% 94%;
+    --foreground: 0 0% 18%;
+    --card: 240 14% 94%;
+    --card-foreground: 0 0% 18%;
+    --popover: 240 14% 94%;
+    --popover-foreground: 0 0% 18%;
+    --primary: 96 3% 54%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 215 28% 96%;
-    --secondary-foreground: 224 71.4% 4.1%;
+    --secondary: 26 9% 48%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 215 28% 94%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 38 92% 60%; /* Warm Sand */
-    --accent-foreground: 224 71.4% 4.1%;
+    --accent: 26 9% 48%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 215 20% 90%;
     --input: 215 20% 90%;
-    --ring: 180 82% 35%;
+    --ring: 96 3% 54%;
     --radius: 0.5rem;
   }
  
