@@ -10,6 +10,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import Script from 'next/script';
 import CartSidebar from '@/components/CartSidebar';
+import TopBar from '@/components/TopBar';
 
 export const metadata: Metadata = {
   title: 'Joya - Elegancia Atemporal',
@@ -37,8 +38,9 @@ export default function RootLayout({
         >
             <CartProvider>
               <div className="relative flex min-h-dvh flex-col bg-background/80 backdrop-blur-sm">
+                <TopBar />
                 <Header />
-                <main className="flex-1 container py-8">
+                <main className="flex-1">
                   {children}
                 </main>
                 <Footer />

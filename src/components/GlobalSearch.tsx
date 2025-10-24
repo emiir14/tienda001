@@ -10,6 +10,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import type { Product } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { Button } from './ui/button';
 
 export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
   const router = useRouter();
@@ -70,18 +71,20 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
 
   return (
     <div className="relative w-full max-w-sm" ref={searchContainerRef}>
-      <form onSubmit={handleSearchSubmit}>
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+      <form onSubmit={handleSearchSubmit} className="relative">
         <Input
           type="search"
-          placeholder="Buscar productos..."
+          placeholder="Buscar..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => setIsFocused(true)}
-          className="pl-10 w-full"
+          className="h-10 w-full rounded-full border-2 border-border focus:border-primary pl-4 pr-10"
           aria-label="Buscar productos"
           autoComplete="off"
         />
+        <Button type="submit" size="icon" variant="ghost" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full">
+            <Search className="h-4 w-4 text-muted-foreground" />
+        </Button>
       </form>
       {suggestions.length > 0 && (
         <div className={cn(
