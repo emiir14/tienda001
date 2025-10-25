@@ -4,7 +4,6 @@
 /node_modules
 /.pnp
 .pnp.js
-.yarn/install-state.gz
 
 # Testing
 /coverage
@@ -16,37 +15,16 @@
 # Production
 /build
 
-# Misc
+# Miscellaneous
 .DS_Store
 *.pem
 
-# Local .env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Environment Variables
+.env
+.env*.local
+!.env.example
 
 # Log files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-
-# Editor directories and files
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Firebase
-.firebase
-firebase.json
-database-debug.log
-storage-debug.log
-firestore-debug.log
-
-# Genkit
-.genkit/
-.genkit-cache/
