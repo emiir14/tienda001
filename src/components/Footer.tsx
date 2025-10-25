@@ -67,7 +67,7 @@ export default function Footer() {
                 <Image src="https://i.imgur.com/iYTQ6pp.png" alt="OSADÍA Logo" width={120} height={40} />
                 <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Osadía. Todos los derechos reservados.</p>
                  <div className="flex gap-4">
-                    <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors"><Instagram className="h-6 w-6"/></Link>
+                    <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors"><Instagram className="h-6 w-6"/></Link>
                     <Link href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-muted-foreground hover:text-primary transition-colors"><Facebook className="h-6 w-6"/></Link>
                 </div>
             </div>

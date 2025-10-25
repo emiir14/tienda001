@@ -49,10 +49,10 @@ export default async function Home() {
                         <div className="text-center space-y-4 flex-shrink-0">
                             <div className="flex justify-center items-center gap-3">
                                 <Instagram className="h-7 w-7 text-muted-foreground" />
-                                <h3 className="text-3xl font-headline text-muted-foreground tracking-wider">alquimiapiezasdeplata</h3>
+                                <h3 className="text-3xl font-headline text-muted-foreground tracking-wider">osadia.cta</h3>
                             </div>
                             <Button asChild variant="outline" size="lg" className="rounded-full px-10 py-6 text-lg tracking-widest">
-                                <Link href="https://instagram.com/alquimiapiezasdeplata" target="_blank" rel="noopener noreferrer">
+                                <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer">
                                     SEGUINOS
                                 </Link>
                             </Button>
@@ -88,7 +88,7 @@ export default async function Home() {
                         </p>
                         <div className='flex flex-wrap gap-4 pt-4'>
                              <Button asChild className="shadow-md" size="lg">
-                                <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer">
+                                <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer">
                                     <Instagram className="mr-2" /> Síguenos en Instagram
                                 </Link>
                             </Button>
