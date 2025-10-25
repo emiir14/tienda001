@@ -67,7 +67,7 @@ export default async function Home() {
                 <section id="about" className="grid md:grid-cols-2 gap-12 items-center py-16">
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl">
                          <iframe
-                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d105073.45344445679!2d-58.503338254488!3d-34.6158237244917!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bcca3b4ef90cbd%3A0xa0b3812e88e88e87!2sBuenos%20Aires%2C%20CABA%2C%20Argentina!5e0!3m2!1sen!2sus!4v1718042456479!5m2!1sen!2sus"
+                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3489.178726265741!2d-65.77926212459999!3d-28.47352947579177!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x942428a23075253b%3A0xe5449751e343a443!2sLa%20Rioja%20416%2C%20K4700BBI%20San%20Fernando%20del%20Valle%20de%20Catamarca%2C%20Catamarca%2C%20Argentina!5e0!3m2!1sen!2sus!4v1718043689408!5m2!1sen!2sus"
                             width="100%"
                             height="100%"
                             style={{ border: 0 }}
