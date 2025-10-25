@@ -93,7 +93,7 @@ export default async function Home() {
                                 </Link>
                             </Button>
                              <Button asChild variant="outline" className="shadow-md" size="lg">
-                                <Link href="#featured">
+                                <Link href="/tienda">
                                     <MapPin className="mr-2" /> Nuestros Productos
                                 </Link>
                             </Button>
