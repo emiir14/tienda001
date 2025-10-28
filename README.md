@@ -45,6 +45,10 @@ To get a local copy up and running on your computer, follow these simple steps.
     # --- DATABASE (OPTIONAL FOR LOCAL DEV) ---
     # If this is not set, the app will use hardcoded sample data.
     # POSTGRES_URL="postgres://..."
+
+    # --- ADMIN CREDENTIALS (REQUIRED FOR ADMIN PANEL) ---
+    ADMIN_EMAIL="admin@joya.com"
+    ADMIN_PASSWORD="password123"
     
     # --- MERCADO PAGO (USE TEST CREDENTIALS) ---
     MERCADOPAGO_ACCESS_TOKEN="YOUR_TEST_ACCESS_TOKEN"
@@ -112,6 +116,9 @@ Now, we'll connect Vercel to your GitHub repository, create a database, and tell
 
 3.  **Configure Other Environment Variables:**
     *   This is the most important step. In the "Environment Variables" section, you will add your secret keys.
+    *   **Admin Credentials (Required):**
+        *   `ADMIN_EMAIL`: The email you want to use to log in to the admin panel.
+        *   `ADMIN_PASSWORD`: The secure password for the admin panel.
     *   **Mercado Pago Variables:** Get these from your [Mercado Pago Developer Dashboard](https://www.mercadopago.com/developers). Use your **Production** credentials.
         *   `MERCADOPAGO_ACCESS_TOKEN`: Your Production "Access Token".
         *   `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY`: Your Production "Public Key".

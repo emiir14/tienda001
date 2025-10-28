@@ -100,6 +100,8 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_MAILCHIMP_CONFIGURED: String(!!(process.env.MAILCHIMP_API_KEY && process.env.MAILCHIMP_SERVER_PREFIX && process.env.MAILCHIMP_AUDIENCE_ID)),
+    NEXT_PUBLIC_ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+    NEXT_PUBLIC_ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
   },
   async headers() {
     return [

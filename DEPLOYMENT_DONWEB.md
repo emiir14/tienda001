@@ -139,6 +139,10 @@ Configura las variables. **Esto es específico para cada tienda.**
 # Usa los datos que creaste en el paso 1.
 POSTGRES_URL="postgres://usuario_tienda:contraseña_segura@localhost:5432/nombre_tienda_db"
 
+# --- CREDENCIALES DE ADMIN (OBLIGATORIO EN PRODUCCIÓN) ---
+ADMIN_EMAIL="tu_email_de_admin@dominio.com"
+ADMIN_PASSWORD="una_contraseña_muy_segura"
+
 # --- MERCADO PAGO (CREDENCIALES DE PRODUCCIÓN) ---
 MERCADOPAGO_ACCESS_TOKEN="TU_ACCESS_TOKEN_DE_PRODUCCION"
 NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="TU_PUBLIC_KEY_DE_PRODUCCION"
@@ -247,4 +251,3 @@ Para actualizar el código de una tienda:
 3.  Instala nuevas dependencias (si las hay): `npm install`
 4.  Re-construye la aplicación: `npm run build`
 5.  Reinicia la aplicación con PM2: `pm2 restart nombre_tienda_app`
-```

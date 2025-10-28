@@ -1038,6 +1038,9 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
 // ############################################################################
 // Component: AdminPage (Login and main export)
 // ############################################################################
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@joya.com';
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'password123';
+
 export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState('');
@@ -1046,7 +1049,7 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'admin@joya.com' && password === 'password123') {
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
         setIsAuthenticated(true);
         setError('');
     } else {
@@ -1073,7 +1076,6 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
                         <div className="space-y-2"><Label htmlFor='email'>Email</Label><Input id="email" type="email" placeholder="email@ejemplo.com" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                         <div className="space-y-2"><Label htmlFor='password'>Contraseña</Label><Input id="password" type="password" required placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
                         {error && <p className="text-sm text-destructive">{error}</p>}
-                        <p className="text-xs text-muted-foreground text-center pt-2">Hint: admin@joya.com / password123</p>
                         <Button type="submit" className="w-full"><LogIn className="mr-2 h-4 w-4" />Iniciar Sesión</Button>
                     </form>
                 </CardContent>
