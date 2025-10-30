@@ -18,22 +18,29 @@ function CheckoutSuccessClient() {
 
   const paymentId = searchParams.get('payment_id');
   const status = searchParams.get('status');
+  const externalReference = searchParams.get('external_reference');
   const merchantOrderId = searchParams.get('merchant_order_id');
   const preferenceId = searchParams.get('preference_id');
 
   useEffect(() => {
+    // Only clear the cart if the payment was explicitly approved.
     if (status === 'approved') {
+      console.log('Payment approved, clearing cart.');
       clearCart();
     }
     
-    if (paymentId && status) {
+    if (paymentId) {
       fetchPaymentDetails();
     } else {
+      // If there's no payment_id, it's likely not a valid success redirect.
+      // However, we show a generic success message just in case, but don't fetch.
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentId, status]);
 
   const fetchPaymentDetails = async () => {
+    setLoading(true);
     try {
       const response = await fetch('/api/payment-status', {
         method: 'POST',
@@ -47,7 +54,7 @@ function CheckoutSuccessClient() {
       } else {
         toast({
           title: "Advertencia",
-          description: "No se pudieron obtener los detalles del pago, pero tu compra fue exitosa.",
+          description: "No se pudieron obtener los detalles del pago, pero tu compra fue registrada.",
           variant: "default"
         });
       }
@@ -55,7 +62,7 @@ function CheckoutSuccessClient() {
       console.error('Error fetching payment details:', error);
       toast({
         title: "Advertencia",
-        description: "No se pudieron obtener los detalles del pago, pero tu compra fue exitosa.",
+        description: "No se pudieron obtener los detalles del pago, pero tu compra fue registrada.",
         variant: "default"
       });
     } finally {
@@ -64,25 +71,13 @@ function CheckoutSuccessClient() {
   };
 
   const getStatusMessage = () => {
-    if (status === 'approved' || !status) {
-      return {
-        title: '¡Pago Exitoso!',
-        message: 'Tu compra ha sido procesada correctamente.',
-        color: 'text-green-600'
-      };
-    } else if (status === 'pending') {
-      return {
-        title: 'Pago Pendiente',
-        message: 'Tu pago está siendo procesado. Te notificaremos cuando se confirme.',
-        color: 'text-yellow-600'
-      };
-    } else {
-      return {
-        title: 'Estado del Pago',
-        message: 'Tu pago ha sido registrado.',
-        color: 'text-blue-600'
-      };
-    }
+    // The "success" page should primarily handle the approved case.
+    // Other cases are handled by their respective pages (pending, failure).
+    return {
+      title: '¡Gracias por tu compra!',
+      message: 'Tu pago ha sido procesado exitosamente.',
+      color: 'text-green-600'
+    };
   };
 
   if (loading) {
@@ -116,18 +111,16 @@ function CheckoutSuccessClient() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" />Detalles del Pedido</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {paymentId && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">ID del Pago</p>
-                  <p className="font-mono text-sm">{paymentId}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Estado</p>
-                  <p className="font-semibold capitalize">{status}</p>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">ID del Pago</p>
+                <p className="font-mono text-sm">{paymentData.id}</p>
               </div>
-            )}
+              <div>
+                <p className="text-sm text-muted-foreground">Estado</p>
+                <p className="font-semibold capitalize">{paymentData.status}</p>
+              </div>
+            </div>
             
             {paymentData.transaction_amount && (
               <div className="grid grid-cols-2 gap-4">
@@ -142,10 +135,10 @@ function CheckoutSuccessClient() {
               </div>
             )}
 
-            {merchantOrderId && (
+            {externalReference && (
               <div>
-                <p className="text-sm text-muted-foreground">Número de Orden</p>
-                <p className="font-mono text-sm">{merchantOrderId}</p>
+                <p className="text-sm text-muted-foreground">ID de Orden</p>
+                <p className="font-mono text-sm">{externalReference}</p>
               </div>
             )}
           </CardContent>

@@ -81,11 +81,17 @@ export async function POST(request: NextRequest) {
         failure: `${BASE_URL}/checkout/failure`, 
         pending: `${BASE_URL}/checkout/pending`
       },
-      auto_return: "approved" as const,
+      // CRITICAL FIX: Changed from "approved" to "all" to ensure redirect happens for all payment statuses
+      auto_return: "all" as const,
       // Use the order ID from our DB as the external reference. This is crucial for linking webhooks.
       external_reference: String(orderId), 
       statement_descriptor: 'TIENDA SIMPLE',
       notification_url: `${BASE_URL}/api/mercadopago-webhook`,
+      // OPTIONAL: Add metadata for additional tracking
+      metadata: {
+        order_id: orderId,
+        customer_email: shippingInfo.email
+      }
     };
 
     // 5. Create the preference using the MercadoPago SDK.
@@ -96,12 +102,17 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to create payment preference - no ID returned from MercadoPago.');
     }
     
-    console.log('Preference created successfully:', { id: response.id, init_point: response.init_point });
+    console.log('Preference created successfully:', { 
+      id: response.id, 
+      init_point: response.init_point,
+      order_id: orderId 
+    });
 
     // 6. Return the preference details to the client.
     return NextResponse.json({ 
         preferenceId: response.id,
-        initPoint: response.init_point
+        initPoint: response.init_point,
+        orderId: orderId // Include orderId in response for tracking
     });
 
   } catch (error: any) {
@@ -116,5 +127,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
-
-    

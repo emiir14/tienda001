@@ -46,6 +46,7 @@ export default function CheckoutPage() {
   const [preferenceData, setPreferenceData] = useState<{
     preferenceId: string;
     initPoint: string;
+    orderId: number;
   } | null>(null);
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
   
@@ -120,11 +121,12 @@ export default function CheckoutPage() {
         throw new Error("No se recibió el ID de preferencia del servidor");
       }
 
-      console.log("Preference created successfully:", data.preferenceId);
+      console.log("Preference created successfully:", data);
       
       setPreferenceData({
         preferenceId: data.preferenceId,
-        initPoint: data.initPoint || ''
+        initPoint: data.initPoint || '',
+        orderId: data.orderId
       });
       
     } catch (error) {
@@ -453,5 +455,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    
