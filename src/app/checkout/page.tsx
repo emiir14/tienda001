@@ -290,9 +290,8 @@ export default function CheckoutPage() {
               <CardTitle className="text-blue-800 text-lg">🧪 Modo de Prueba Activo</CardTitle>
             </CardHeader>
             <CardContent className="text-blue-700 space-y-2">
+              <p className="text-sm"><strong>Nota:</strong> Para que las redirecciones de Mercado Pago funcionen, asegúrate que la variable `NEXT_PUBLIC_SITE_URL` en tu archivo `.env.local` coincida con la URL de tu servidor de desarrollo (ej: `http://localhost:9002`).</p>
               <p className="text-sm"><strong>Email de prueba:</strong> {MP_TEST_USERS.buyer}</p>
-              <p className="text-sm"><strong>Usuario MP:</strong> TESTUSER2602352930</p>
-              <p className="text-sm"><strong>Contraseña MP:</strong> qatest6321</p>
               <div className="mt-3 p-3 bg-white rounded text-xs">
                 <p><strong>Tarjetas de prueba:</strong></p>
                 <p>✅ Aprobada: 4509 9535 6623 3704</p>

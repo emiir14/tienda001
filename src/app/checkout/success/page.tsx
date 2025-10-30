@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Mail, Home, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCart } from '@/hooks/useCart';
+import { useCart } from '@/hooks/use-cart';
 
 function CheckoutSuccessClient() {
   const searchParams = useSearchParams();
