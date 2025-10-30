@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     let newStatus: OrderStatus;
 
     // Check if the order already exists in our database
-    let order: Order | undefined = await getOrderById(orderId);
+    let order: Order | undefined | null = await getOrderById(orderId);
 
     if (!order) {
       // If order doesn't exist, create it. This is a fallback for race conditions.
