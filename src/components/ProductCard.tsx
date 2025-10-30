@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useCart } from '@/hooks/useCart';
+import { useCart } from '@/hooks/use-cart';
 import { Eye, ShoppingCart, Ban } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';

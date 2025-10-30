@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { ShoppingCart, Menu } from 'lucide-react';
-import { useCart } from '@/hooks/useCart';
+import { useCart } from '@/hooks/use-cart';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, Suspense } from 'react';
 import {
