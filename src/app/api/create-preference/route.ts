@@ -1,4 +1,5 @@
 
+
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { createOrder } from '@/lib/data';
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
   
   try {
     // 1. Validate environment variables first.
-    if (!process.env.MERCADOPAGO_ACCESS_TOKEN || !process.env.NEXT_PUBLIC_SITE_URL) {
+    if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
       console.error('Missing required environment variables for payment processing.');
       return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
     }
@@ -61,14 +62,32 @@ export async function POST(request: NextRequest) {
     console.log(`Created pending order with ID: ${orderId}`);
 
     // 4. Prepare the data for the MercadoPago preference.
-    const preferenceItems = cartItems.map((item: CartItem) => ({
-      id: String(item.product.id),
-      title: item.product.name,
-      quantity: item.quantity,
-      unit_price: item.product.salePrice ?? item.product.price,
-      currency_id: "ARS",
-      description: item.product.shortDescription || item.product.name,
-    }));
+    const preferenceItems = cartItems.map((item: CartItem) => {
+      const price = item.product.salePrice ?? item.product.price;
+      // Ensure unit_price has max 2 decimal places as a best practice.
+      const roundedPrice = Math.round(price * 100) / 100;
+
+      return {
+        id: String(item.product.id),
+        title: item.product.name,
+        quantity: item.quantity,
+        unit_price: roundedPrice,
+        currency_id: "ARS",
+        description: item.product.shortDescription || item.product.name,
+      }
+    });
+
+    // Check if a discount is applied and add it as a negative item.
+    if (discount > 0) {
+        preferenceItems.push({
+            id: appliedCoupon?.code || 'DISCOUNT',
+            title: 'Descuento por Cupón',
+            quantity: 1,
+            unit_price: -Math.round(discount * 100) / 100, // The discount amount as a negative value
+            currency_id: 'ARS',
+            description: `Cupón aplicado: ${appliedCoupon?.code}`,
+        });
+    }
 
     const preferenceBody = {
       items: preferenceItems,
@@ -76,22 +95,18 @@ export async function POST(request: NextRequest) {
         name: shippingInfo.name,
         email: shippingInfo.email,
       },
+      payment_methods: {
+        excluded_payment_types: [],
+        installments: 6,
+      },
       back_urls: {
         success: `${BASE_URL}/checkout/success`,
         failure: `${BASE_URL}/checkout/failure`, 
         pending: `${BASE_URL}/checkout/pending`
       },
-      // CRITICAL FIX: Changed from "approved" to "all" to ensure redirect happens for all payment statuses
-      auto_return: "all" as const,
-      // Use the order ID from our DB as the external reference. This is crucial for linking webhooks.
       external_reference: String(orderId), 
-      statement_descriptor: 'TIENDA SIMPLE',
+      statement_descriptor: 'OSADIA',
       notification_url: `${BASE_URL}/api/mercadopago-webhook`,
-      // OPTIONAL: Add metadata for additional tracking
-      metadata: {
-        order_id: orderId,
-        customer_email: shippingInfo.email
-      }
     };
 
     // 5. Create the preference using the MercadoPago SDK.
@@ -102,17 +117,12 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to create payment preference - no ID returned from MercadoPago.');
     }
     
-    console.log('Preference created successfully:', { 
-      id: response.id, 
-      init_point: response.init_point,
-      order_id: orderId 
-    });
+    console.log('Preference created successfully:', { id: response.id, init_point: response.init_point });
 
     // 6. Return the preference details to the client.
     return NextResponse.json({ 
         preferenceId: response.id,
-        initPoint: response.init_point,
-        orderId: orderId // Include orderId in response for tracking
+        initPoint: response.init_point
     });
 
   } catch (error: any) {
