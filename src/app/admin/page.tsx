@@ -504,10 +504,10 @@ function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { orders: Or
         }
     }
 
-    const orderStatuses: OrderStatus[] = ['pending', 'delivered', 'failed'];
+    const orderStatuses: OrderStatus[] = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'failed','refunded'];
     const statusLabels: Record<OrderStatus, string> = {
         pending: 'Pendiente',
-        paid: 'Pagado',
+        paid: 'Abonado',
         shipped: 'Enviado',
         delivered: 'Entregado',
         cancelled: 'Cancelado',
@@ -703,7 +703,9 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
             result = await action(formData);
         }
 
-        if (result?.error) {
+        if (!result) {
+            toast({ title: 'Error', description: 'La operación falló de forma inesperada.', variant: 'destructive' });
+        } else if (result.error) {
             toast({ title: 'Error al Guardar', description: result.error, variant: 'destructive' });
             if (result.fieldErrors) {
                 setFormErrors(result.fieldErrors);
@@ -713,6 +715,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
             handleCloseDialog();
             fetchData();
         }
+
         setIsSubmitting(false);
     };
 
