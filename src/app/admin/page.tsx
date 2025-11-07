@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Edit, Trash2, LogIn, LogOut, Loader2, Package, Tag, Wallet, Calendar as CalendarIcon, BarChart, AlertTriangle, ShoppingCart, Ticket, Badge as BadgeIcon, TrendingUp, DollarSign, CheckCircle, XCircle, Download, ExternalLink, Mail, Database, HardDrive, Folder, ChevronDown, ChevronRight, User, Truck, Home as HomeIcon, Upload, Eye } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, LogIn, RefreshCw, LogOut, Loader2, Package, Tag, Wallet, Calendar as CalendarIcon, BarChart, AlertTriangle, ShoppingCart, Ticket, Badge as BadgeIcon, TrendingUp, DollarSign, CheckCircle, XCircle, Download, ExternalLink, Mail, Database, HardDrive, Folder, ChevronDown, ChevronRight, User, Truck, Home as HomeIcon, Upload, Eye } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -920,7 +920,14 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
                          )}
                     </div>
                 </div>
-                <Button variant="outline" onClick={onLogout}><LogOut className="mr-2 h-4 w-4" />Cerrar Sesión</Button>
+                
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        <span className="sr-only">Actualizar Datos</span>
+                    </Button>
+                    <Button variant="outline" onClick={onLogout}><LogOut className="mr-2 h-4 w-4" />Cerrar Sesión</Button>
+                </div>
             </div>
 
             <Tabs defaultValue="overview">
