@@ -20,7 +20,6 @@ import {
     getSalesMetrics as getSalesMetricsFromHardcodedData,
     createOrder as createOrderFromHardcodedData,
     updateOrderStatus as updateOrderStatusFromHardcodedData,
-    restockItemsForOrder as restockItemsForOrderFromHardcodedData,
     getOrders as getOrdersFromHardcodedData,
     getOrderById as getOrderByIdFromHardcodedData,
     createOrderFromWebhook as createOrderFromWebhookFromHardcodedData,
@@ -371,27 +370,23 @@ export async function createOrder(orderData: OrderData): Promise<{orderId?: numb
     if (!isDbConnected) return createOrderFromHardcodedData(orderData);
     
     try {
-        // Check stock availability first
+        // Step 1: Check stock availability first. No changes are made yet.
         for (const item of orderData.items) {
-            const productResult = await db`SELECT stock FROM products WHERE id = ${item.product.id}`;
+            const productResult = await db`SELECT stock, name FROM products WHERE id = ${item.product.id}`;
             if (productResult.length === 0) {
-                throw new Error(`Product not found: ${item.product.id}`);
+                return { error: `Producto no encontrado: ${item.product.id}` };
             }
             if (productResult[0].stock < item.quantity) {
-                throw new Error(`Insufficient stock for product "${item.product.name}". Available: ${productResult[0].stock}, Requested: ${item.quantity}`);
+                return { error: `Stock insuficiente para el producto "${productResult[0].name}". Disponible: ${productResult[0].stock}, Solicitado: ${item.quantity}` };
             }
         }
 
-        // Decrease stock for all items
-        for (const item of orderData.items) {
-            await db`UPDATE products SET stock = stock - ${item.quantity} WHERE id = ${item.product.id}`;
-        }
-        
+        // Step 2: Create the order with 'pending' status. Stock is NOT updated here.
         const { customerName, customerEmail, total, status, items, couponCode, discountAmount, shippingAddress, shippingCity, shippingPostalCode } = orderData;
         
         const orderResult = await db`
             INSERT INTO orders (customer_name, customer_email, total, status, items, coupon_code, discount_amount, shipping_address, shipping_city, shipping_postal_code, created_at)
-            VALUES (${customerName}, ${customerEmail}, ${total}, ${status}, ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
+            VALUES (${customerName}, ${customerEmail}, ${total}, 'pending', ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
             RETURNING id;
         `;
 
@@ -399,18 +394,32 @@ export async function createOrder(orderData: OrderData): Promise<{orderId?: numb
 
     } catch (error: any) {
         console.error('Database Error during order creation:', error);
-        // Attempt to restock items on failure
-        console.log('Attempting to restock items due to order creation failure...');
-        for (const item of orderData.items) {
-            try {
-                await db`UPDATE products SET stock = stock + ${item.quantity} WHERE id = ${item.product.id}`;
-            } catch (restockError) {
-                console.error(`CRITICAL: Failed to restock product ID ${item.product.id} after order failure. Manual intervention required.`, restockError);
-            }
-        }
         return { error: error.message || 'Failed to create order due to a database error.' };
     }
 }
+
+export async function deductStockForOrder(orderId: number): Promise<void> {
+    if (!isDbConnected) return; // Or handle hardcoded data if necessary
+    try {
+        const orderRows = await db`SELECT items FROM orders WHERE id = ${orderId}`;
+        if (orderRows.length > 0) {
+            const items = orderRows[0].items as OrderData['items'];
+            for (const item of items) {
+                await db`
+                    UPDATE products 
+                    SET stock = stock - ${item.quantity} 
+                    WHERE id = ${item.product.id} AND stock >= ${item.quantity}
+                `;
+            }
+            console.log(`Stock deducted for approved order ${orderId}`);
+        }
+    } catch (error) {
+        console.error(`CRITICAL: Failed to deduct stock for order ${orderId}. Manual intervention required.`, error);
+        // Optionally, you could add a flag to the order to indicate a stock deduction issue.
+        throw new Error('Failed to deduct stock for the order.');
+    }
+}
+
 
 export async function updateOrderStatus(orderId: number, status: OrderStatus, paymentId?: string | null): Promise<void> {
     if (!isDbConnected) return updateOrderStatusFromHardcodedData(orderId, status, paymentId);
@@ -423,29 +432,6 @@ export async function updateOrderStatus(orderId: number, status: OrderStatus, pa
     } catch (error) {
         console.error('Database Error:', error);
         throw new Error('Failed to update order status.');
-    }
-}
-
-export async function restockItemsForOrder(orderId: number): Promise<void> {
-    if (!isDbConnected) return restockItemsForOrderFromHardcodedData(orderId);
-     try {
-        const rows = await db`SELECT items, status FROM orders WHERE id = ${orderId}`;
-        if (rows.length > 0) {
-            const order = rows[0];
-            // Only restock if the order is not already paid or shipped
-            if (order.status !== 'paid' && order.status !== 'shipped' && order.status !== 'delivered') {
-                const items = order.items as OrderData['items'];
-                for (const item of items) {
-                    await db`UPDATE products SET stock = stock + ${item.quantity} WHERE id = ${item.product.id}`;
-                }
-                console.log(`Restocked items for cancelled/failed order ${orderId}`);
-            } else {
-                 console.log(`Skipped restocking for order ${orderId} with status ${order.status}`);
-            }
-        }
-    } catch (error) {
-        console.error('Database Error:', error);
-        throw new Error('Failed to restock items.');
     }
 }
 
