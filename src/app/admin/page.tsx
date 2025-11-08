@@ -342,7 +342,8 @@ function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onExport, o
                                     )}
                                 </TableCell>
                                 <TableCell>
-                                    {product.discountPercentage && product.discountPercentage > 0 && (
+                                    {/* --- ESTA ES LA LÍNEA CORREGIDA --- */}
+                                    {product.salePrice && product.discountPercentage && (
                                         <Badge variant="destructive">-{product.discountPercentage}%</Badge>
                                     )}
                                 </TableCell>
