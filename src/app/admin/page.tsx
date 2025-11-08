@@ -313,21 +313,39 @@ function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onExport, o
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
-                    <Table><TableHeader><TableRow><TableHead>Imagen</TableHead><TableHead>Nombre</TableHead><TableHead>Precio</TableHead><TableHead>Stock</TableHead><TableHead>Categorías</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader><TableBody>
+                    <Table><TableHeader><TableRow><TableHead>Imagen</TableHead><TableHead>Nombre</TableHead><TableHead>Precio</TableHead><TableHead>Descuento</TableHead><TableHead>Stock</TableHead><TableHead>Categorías</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader><TableBody>
                         {products.map(product => (
                             <TableRow key={product.id}>
                                 <TableCell>
-                                    <Image 
-                                        src={product.images[0] ?? "https://placehold.co/40x40.png"} 
-                                        alt={product.name} 
-                                        width={40} 
-                                        height={40} 
-                                        className="rounded-md object-cover" 
-                                        data-ai-hint={product.aiHint} 
+                                    <Image
+                                        src={product.images[0] ?? "https://placehold.co/40x40.png"}
+                                        alt={product.name}
+                                        width={40}
+                                        height={40}
+                                        className="rounded-md object-cover"
+                                        data-ai-hint={product.aiHint}
                                     />
                                 </TableCell>
                                 <TableCell className="font-medium">{product.name}</TableCell>
-                                <TableCell>${(product.salePrice ?? product.price).toLocaleString('es-AR')}</TableCell>
+                                <TableCell>
+                                    {product.salePrice ? (
+                                        <div className="flex flex-col">
+                                            <span className="line-through text-muted-foreground text-xs">
+                                                ${product.price.toLocaleString('es-AR')}
+                                            </span>
+                                            <span className="font-bold text-base text-destructive">
+                                                ${product.salePrice.toLocaleString('es-AR')}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        `$${product.price.toLocaleString('es-AR')}`
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {product.discountPercentage && product.discountPercentage > 0 && (
+                                        <Badge variant="destructive">-{product.discountPercentage}%</Badge>
+                                    )}
+                                </TableCell>
                                 <TableCell>{product.stock}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-wrap gap-1">
@@ -363,6 +381,7 @@ function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onExport, o
         </Card>
     );
 }
+
 
 // ############################################################################
 // Component: CategoriesTab
