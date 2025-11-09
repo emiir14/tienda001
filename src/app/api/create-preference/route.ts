@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
-import { createOrder } from '@/lib/data';
+import { createOrder, updateOrderStatus  } from '@/lib/data';
 import type { CartItem } from '@/lib/types';
 
 
@@ -112,18 +112,25 @@ export async function POST(request: NextRequest) {
     // 5. Create the preference using the MercadoPago SDK.
     const preference = await initializeMercadoPago();
     const response = await preference.create({ body: preferenceBody });
-    
+
     if (!response.id) {
       throw new Error('Failed to create payment preference - no ID returned from MercadoPago.');
     }
-    
-    console.log('Preference created successfully:', { id: response.id, init_point: response.init_point });
 
-    // 6. Return the preference details to the client.
+    // 6. NOW, UPDATE our order with the payment/preference ID
+    await updateOrderStatus(orderId, 'pending', response.id); // ¡Línea clave!
+
+    console.log(`Preference created: ${response.id}. Updated order ${orderId} with this payment ID.`);
+
+    // 7. Return the preference details to the client.
     return NextResponse.json({ 
-        preferenceId: response.id,
-        initPoint: response.init_point
+    preferenceId: response.id,
+    initPoint: response.init_point
     });
+
+
+
+
 
   } catch (error: any) {
     console.error('Error creating MercadoPago preference:', error);

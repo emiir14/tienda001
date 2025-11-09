@@ -505,6 +505,39 @@ export async function getOrderById(id: number): Promise<Order | undefined> {
     }
 }
 
+
+
+export async function getOrderByPaymentId(paymentId: string): Promise<Order | undefined> {
+    if (!isDbConnected || !db) return undefined; // O manejar datos hardcodeados
+    noStore();
+    try {
+        // Busca una orden que coincida con el payment_id O el preference_id
+        const result = await db`SELECT * FROM orders WHERE payment_id = ${paymentId}`;
+        if (result.length === 0) return undefined;
+        const row = result[0];
+        // Reutilizamos la lógica de mapeo que ya tienes en getOrderById
+        return {
+            id: row.id,
+            customerName: row.customer_name,
+            customerEmail: row.customer_email,
+            total: parseFloat(row.total),
+            status: row.status as OrderStatus,
+            createdAt: new Date(row.created_at),
+            items: row.items,
+            couponCode: row.coupon_code,
+            discountAmount: row.discount_amount ? parseFloat(row.discount_amount) : undefined,
+            paymentId: row.payment_id || undefined,
+            shippingAddress: row.shipping_address,
+            shippingCity: row.shipping_city,
+            shippingPostalCode: row.shipping_postal_code,
+        };
+    } catch (error) {
+        console.error('Database Error:', error);
+        throw new Error('Failed to fetch order by payment ID.');
+    }
+}
+
+
 export async function createOrderFromWebhook(paymentData: any): Promise<{newOrder?: Order, error?: string}> {
     if (!isDbConnected || !db) return createOrderFromWebhookFromHardcodedData(paymentData);
 

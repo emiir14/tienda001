@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
-import { updateOrderStatus, deductStockForOrder, getOrderById } from '@/lib/data';
+import { updateOrderStatus, deductStockForOrder, getOrderByPaymentId, getOrderById } from '@/lib/data'; // Asegúrate de importar getOrderByPaymentId
 import type { OrderStatus } from '@/lib/types';
 
 const client = new MercadoPagoConfig({
@@ -29,18 +29,30 @@ export async function POST(request: NextRequest) {
       external_reference: paymentData.external_reference,
     });
 
-    if (!paymentData.external_reference) {
-        console.warn(`[WEBHOOK] Payment ${paymentId} is missing an external_reference. Cannot process order logic.`);
-        return NextResponse.json({ received: true });
-    }
+    // --- INICIO DE LA LÓGICA MODIFICADA ---
 
-    const orderId = parseInt(paymentData.external_reference, 10);
-    const order = await getOrderById(orderId);
+    // Primero, intentamos obtener la orden usando el ID del pago (que es lo más común).
+    // MP puede notificar sobre el `payment` o sobre el `merchant_order`. El `paymentId` es más fiable.
+    let order = await getOrderByPaymentId(String(paymentId));
+    
+    // Si no la encontramos con el paymentId (quizás la notificación llegó antes de que actualizáramos la orden),
+    // usamos el external_reference como un método de respaldo.
+    if (!order && paymentData.external_reference) {
+        console.log(`[WEBHOOK] Order not found by payment_id ${paymentId}. Trying fallback with external_reference: ${paymentData.external_reference}`);
+        const orderIdFromRef = parseInt(paymentData.external_reference, 10);
+        if (!isNaN(orderIdFromRef)) {
+            order = await getOrderById(orderIdFromRef);
+        }
+    }
 
     if (!order) {
-        console.error(`[WEBHOOK] Order with ID ${orderId} not found in database.`);
+        console.error(`[WEBHOOK] CRITICAL: Order with payment_id ${paymentId} (or fallback ref) not found in database.`);
         return NextResponse.json({ received: true });
     }
+    
+    const orderId = order.id;
+
+    // --- FIN DE LA LÓGICA MODIFICADA ---
 
     // Idempotency Check: Prevent processing an order that is already in a final state.
     if (order.status === 'paid' || order.status === 'delivered' || order.status === 'shipped' || order.status === 'failed' || order.status === 'cancelled') {
@@ -62,8 +74,6 @@ export async function POST(request: NextRequest) {
         
       case 'in_process':
       case 'pending':
-        // The order is already 'pending', so no DB update is needed.
-        // We just log that we received the notification.
         console.log(`[WEBHOOK] Payment ${paymentId} for order ${orderId} is '${paymentData.status}'. No action taken.`);
         break;
         
@@ -88,7 +98,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
     
   } catch (error) {
-    // Return 200 to prevent MercadoPago from sending retries for a failing webhook.
     console.error('[WEBHOOK] CRITICAL ERROR:', error);
     return NextResponse.json({ error: 'Webhook processing failed but acknowledging receipt to prevent retries.' }, { status: 200 });
   }
