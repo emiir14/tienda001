@@ -79,7 +79,7 @@ export async function addProductAction(formData: FormData) {
     }
 
     // @ts-ignore - featured is not in the schema anymore, but we don't want to break if it's passed
-    const { featured, ...productData } = validatedFields.data;
+    const { id, featured, ...productData } = validatedFields.data;
 
     try {
         await createProduct(productData);
@@ -187,7 +187,7 @@ const couponSchema = z.object({
     discountType: z.enum(['percentage', 'fixed'], { required_error: "El tipo de descuento es requerido."}),
     discountValue: z.coerce.number({ required_error: "El valor es requerido." }).positive("El valor del descuento debe ser un número positivo."),
     expiryDate: z.string().optional().nullable().transform(val => val ? new Date(val) : null),
-    isActive: z.boolean().optional(),
+    isActive: z.boolean(),
 }).refine(data => {
     if (data.discountType === 'percentage') {
         return data.discountValue <= 100;
@@ -463,7 +463,7 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
             const categoryNames = (rowData.categories || '').split(';').map((c: string) => c.trim().toLowerCase());
             const categoryIds = categoryNames
                 .map((name: string) => categoryMap.get(name))
-                .filter((id): id is number => id !== undefined);
+                .filter((id: number | undefined): id is number => id !== undefined);
 
             if (categoryIds.length === 0 && rowData.categories) {
                  console.warn(`No valid categories found for names: ${rowData.categories}. Check spelling and if they exist.`);
