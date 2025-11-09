@@ -63,10 +63,18 @@ export async function addProductAction(formData: FormData) {
 
     if (!validatedFields.success) {
         console.error("Validation failed", validatedFields.error.flatten().fieldErrors);
+        // --- INICIO DE LA MODIFICACIÓN ---
+        // Crea un mensaje de error detallado para mostrar en el panel
+        const fieldErrors = validatedFields.error.flatten().fieldErrors;
+        const errorMessages = Object.entries(fieldErrors)
+            .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+            .join(' | ');
+
         return {
-            error: "Datos inválidos. Por favor, revisa los campos.",
-            fieldErrors: validatedFields.error.flatten().fieldErrors,
+            error: `Error de validación. Detalles: ${errorMessages}`,
+            fieldErrors: fieldErrors,
         };
+        // --- FIN DE LA MODIFICACIÓN ---
     }
 
     // @ts-ignore - featured is not in the schema anymore, but we don't want to break if it's passed
