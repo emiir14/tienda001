@@ -27,6 +27,28 @@ import {
 import type { Product, Coupon, SalesMetrics, OrderData, OrderStatus, Order, Category } from './types';
 import { unstable_noStore as noStore } from 'next/cache';
 
+function mapProductFromDb(product: any): Product {
+    return {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        shortDescription: product.short_description,
+        price: parseFloat(product.price),
+        salePrice: product.sale_price ? parseFloat(product.sale_price) : null,
+        images: product.images,
+        stock: product.stock,
+        // categoryIds se manejarán por separado después de la consulta
+        categoryIds: [], 
+        aiHint: product.ai_hint,
+        featured: product.featured,
+        discountPercentage: product.discount_percentage,
+        offerStartDate: product.offer_start_date ? new Date(product.offer_start_date) : null,
+        offerEndDate: product.offer_end_date ? new Date(product.offer_end_date) : null,
+        createdAt: new Date(product.created_at),
+    };
+}
+
+
 // ############################################################################
 // Helper Functions
 // ############################################################################
@@ -107,48 +129,72 @@ export async function getProductById(id: number): Promise<Product | undefined> {
     }
 }
 
-export async function createProduct(product: Partial<Omit<Product, 'salePrice'>>): Promise<Product> {
-    if (!isDbConnected || !db) return createProductFromHardcodedData(product as any);
-    const { id, name, description, shortDescription, price, images, categoryIds, stock, aiHint, featured, discountPercentage, offerStartDate, offerEndDate } = product;
+
+
+
+export async function createProduct(productData: any): Promise<Product> {
+    const { 
+        categoryIds, 
+        ...newProductData 
+    } = productData;
+
+    if (!db) {
+        console.log("Database not connected. Using hardcoded data for createProduct.");
+        return createProductFromHardcodedData(productData);
+    }
 
     try {
+        // Nota: NO usamos db.transaction() porque necesitamos que la segunda
+        // consulta (insertar categorías) dependa del resultado de la primera (obtener el id).
+        // Ejecutamos las consultas de forma secuencial.
+
+        // Paso 1: Insertar el producto y obtener la fila completa de vuelta con RETURNING *.
         const productResult = await db`
-            INSERT INTO products (id, name, description, short_description, price, images, stock, ai_hint, featured, discount_percentage, offer_start_date, offer_end_date, created_at)
-            VALUES (${id || null}, ${name}, ${description}, ${shortDescription}, ${price}, ${images}, ${stock}, ${aiHint}, ${featured}, ${discountPercentage}, ${offerStartDate?.toISOString() || null}, ${offerEndDate?.toISOString() || null}, ${new Date().toISOString()})
-            ON CONFLICT (id) DO UPDATE SET
-                name = EXCLUDED.name,
-                description = EXCLUDED.description,
-                short_description = EXCLUDED.short_description,
-                price = EXCLUDED.price,
-                images = EXCLUDED.images,
-                stock = EXCLUDED.stock,
-                ai_hint = EXCLUDED.ai_hint,
-                featured = EXCLUDED.featured,
-                discount_percentage = EXCLUDED.discount_percentage,
-                offer_start_date = EXCLUDED.offer_start_date,
-                offer_end_date = EXCLUDED.offer_end_date
+            INSERT INTO products (
+                name, description, short_description, price, images, stock,
+                ai_hint, featured, discount_percentage, offer_start_date, offer_end_date
+            ) VALUES (
+                ${newProductData.name}, ${newProductData.description}, ${newProductData.shortDescription}, 
+                ${newProductData.price}, ${newProductData.images}, ${newProductData.stock},
+                ${newProductData.aiHint}, ${newProductData.featured || false}, ${newProductData.discountPercentage}, 
+                ${newProductData.offerStartDate}, ${newProductData.offerEndDate}
+            )
             RETURNING *;
         `;
-        const newProduct = productResult[0];
+        
+        const createdProductRow = productResult[0];
 
+        if (!createdProductRow || !createdProductRow.id) {
+            throw new Error("Falló la creación del producto en la base de datos, no se pudo obtener el ID.");
+        }
+
+        // Paso 2: Con el ID ya en nuestra posesión, vinculamos las categorías.
         if (categoryIds && categoryIds.length > 0) {
-            await db`DELETE FROM product_categories WHERE product_id = ${newProduct.id}`;
-            for (const catId of categoryIds) {
-                await db`INSERT INTO product_categories (product_id, category_id) VALUES (${newProduct.id}, ${catId}) ON CONFLICT DO NOTHING`;
-            }
+            // Esta sintaxis es una forma eficiente de insertar múltiples filas a la vez en PostgreSQL
+            await db`
+                INSERT INTO product_categories (product_id, category_id)
+                SELECT * FROM UNNEST(
+                    ${Array(categoryIds.length).fill(createdProductRow.id)}::int[],
+                    ${categoryIds}::int[]
+                )
+            `;
         }
 
-        const finalProduct = await getProductById(newProduct.id);
-        if (!finalProduct) {
-            throw new Error('Failed to fetch product after creation.');
-        }
-        return finalProduct;
+        // Paso 3: Mapear el resultado de la base de datos a nuestro tipo Product.
+        const mappedProduct = mapProductFromDb(createdProductRow);
+        mappedProduct.categoryIds = categoryIds || [];
+        
+        return mappedProduct;
 
     } catch (error) {
-        console.error('Database Error:', error);
-        throw new Error('Failed to create or update product.');
+        console.error('Database Error (Neon/direct): Failed to create product.', error);
+        throw new Error('Failed to create product.');
     }
 }
+
+
+
+
 
 export async function updateProduct(id: number, productData: Partial<Omit<Product, 'id' | 'salePrice'>>): Promise<Product> {
     if (!isDbConnected || !db) return updateProductFromHardcodedData(id, productData);

@@ -20,6 +20,7 @@ export type Product = {
   discountPercentage?: number | null;
   offerStartDate?: Date | null;
   offerEndDate?: Date | null;
+  createdAt?: Date;
 };
 
 export type CartItem = {
