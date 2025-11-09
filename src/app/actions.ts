@@ -23,7 +23,7 @@ function sanitizeData(data: Record<string, any>): Record<string, any> {
 
 
 const productSchema = z.object({
-    id: z.coerce.number().optional(), // ID is optional for creation
+    id: z.coerce.number().optional(), // ID es opcional aquí
     name: z.string().min(1, "El nombre es requerido."),
     description: z.string().min(1, "La descripción es requerida."),
     shortDescription: z.string().optional(),
@@ -36,6 +36,9 @@ const productSchema = z.object({
     images: z.array(z.string().url("La URL de la imagen no es válida.")).min(1, "Se requiere al menos una imagen."),
     aiHint: z.string().optional(),
 });
+
+const createProductSchema = productSchema.omit({ id: true });
+
 
 
 export async function addProductAction(formData: FormData) {
@@ -54,7 +57,7 @@ export async function addProductAction(formData: FormData) {
     }
     const categoryIds = formData.getAll('categoryIds').map(id => Number(id));
 
-    const validatedFields = productSchema.safeParse({
+    const validatedFields = createProductSchema.safeParse({
       ...sanitizedData,
       featured: sanitizedData.featured === 'on',
       images,
@@ -63,7 +66,6 @@ export async function addProductAction(formData: FormData) {
 
     if (!validatedFields.success) {
         console.error("Validation failed", validatedFields.error.flatten().fieldErrors);
-        // --- INICIO DE LA MODIFICACIÓN ---
         // Crea un mensaje de error detallado para mostrar en el panel
         const fieldErrors = validatedFields.error.flatten().fieldErrors;
         const errorMessages = Object.entries(fieldErrors)
@@ -74,7 +76,6 @@ export async function addProductAction(formData: FormData) {
             error: `Error de validación. Detalles: ${errorMessages}`,
             fieldErrors: fieldErrors,
         };
-        // --- FIN DE LA MODIFICACIÓN ---
     }
 
     // @ts-ignore - featured is not in the schema anymore, but we don't want to break if it's passed
