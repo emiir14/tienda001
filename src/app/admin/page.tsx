@@ -98,7 +98,7 @@ function ProductForm({ product, formId, errors, categories }: { product?: Produc
             <input type="hidden" name="offerEndDate" value={endDate?.toISOString() ?? ''} />
         </>
     );
-    
+
     return (
         <form id={formId} className="space-y-4">
              <HiddenDateInputs />
@@ -114,9 +114,7 @@ function ProductForm({ product, formId, errors, categories }: { product?: Produc
                     <Label>Inicio de Oferta</Label>
                      <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground", errors.offerStartDate && "border-destructive")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />{startDate ? format(startDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
-                            </Button>
+                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground", errors.offerStartDate && "border-destructive")}>\n                                    <CalendarIcon className="mr-2 h-4 w-4" />{startDate ? format(startDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}\n                                </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus fromDate={new Date()} /></PopoverContent>
                     </Popover>
@@ -126,9 +124,7 @@ function ProductForm({ product, formId, errors, categories }: { product?: Produc
                     <Label>Fin de Oferta</Label>
                      <Popover>
                         <PopoverTrigger asChild>
-                             <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground", errors.offerEndDate && "border-destructive")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />{endDate ? format(endDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
-                            </Button>
+                             <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground", errors.offerEndDate && "border-destructive")}>\n                                    <CalendarIcon className="mr-2 h-4 w-4" />{endDate ? format(endDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}\n                                </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus fromDate={startDate || new Date()} /></PopoverContent>
                     </Popover>
@@ -141,11 +137,11 @@ function ProductForm({ product, formId, errors, categories }: { product?: Produc
                     <div className="space-y-2">
                         {categories.map(category => (
                             <div key={category.id} className="flex items-center space-x-2">
-                                <Checkbox 
-                                    id={`category-${category.id}`} 
-                                    name="categoryIds" 
+                                <Checkbox
+                                    id={`category-${category.id}`}
+                                    name="categoryIds"
                                     value={category.id}
-                                    defaultChecked={product?.categoryIds.includes(category.id)}
+                                    defaultChecked={(product?.categoryIds ?? []).includes(category.id)}
                                 />
                                 <Label htmlFor={`category-${category.id}`}>{category.name}</Label>
                             </div>
@@ -170,6 +166,7 @@ function ProductForm({ product, formId, errors, categories }: { product?: Produc
         </form>
     );
 }
+
 
 // ############################################################################
 // Component: CouponForm
