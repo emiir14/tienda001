@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
-import { CartItem } from '@/types/types';
+import { CartItem } from '@/lib/types';
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL!;
@@ -16,10 +16,10 @@ export async function POST(request: NextRequest) {
 
         const preferenceBody = {
             items: items.map((item: CartItem) => ({
-                id: item.id.toString(),
-                title: item.name,
-                quantity: item.quantity,
-                unit_price: item.price,
+                id: item.product.id.toString(), // CORREGIDO
+                title: item.product.name,       // CORREGIDO
+                quantity: item.quantity,            // Esto estaba bien
+                unit_price: item.product.price,     // CORREGIDO
             })),
             payer: {
                 name: customer.name,
