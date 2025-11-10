@@ -11,9 +11,31 @@ const client = new MercadoPagoConfig({
 const payment = new Payment(client);
 
 export async function POST(request: NextRequest) {
+  // Log #1: ¡La función se ha iniciado!
+  console.log('[WEBHOOK] Function invoked. Method:', request.method);
+  
+  // Log #2: Registrar las cabeceras para ver qué nos llega.
+  const headers: { [key: string]: string } = {};
+  request.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+  console.log('[WEBHOOK] Incoming headers:', JSON.stringify(headers, null, 2));
+
   try {
-    const body = await request.json();
-    console.log('[WEBHOOK] Received notification:', JSON.stringify(body, null, 2));
+    // Log #3: Intentando leer el cuerpo de la petición como texto.
+    const rawBody = await request.text();
+    console.log('[WEBHOOK] Raw body received:', rawBody);
+
+    // Es crucial no dejar el body vacío antes de intentar parsearlo.
+    if (!rawBody) {
+        console.log('[WEBHOOK] Ignoring notification: Empty body.');
+        return NextResponse.json({ received: true, message: "Empty body." });
+    }
+    
+    const body = JSON.parse(rawBody);
+    console.log('[WEBHOOK] Body parsed successfully:', JSON.stringify(body, null, 2));
+
+    // --- El resto de tu código sigue igual desde aquí ---
 
     if (body.type !== 'payment' || !body.data || !body.data.id) {
       console.log('[WEBHOOK] Ignoring notification: Not a valid payment update.');
@@ -21,6 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const paymentId = body.data.id;
+    const payment = new Payment(client); // client está definido arriba en tu archivo
     const paymentData = await payment.get({ id: paymentId });
     
     console.log(`[WEBHOOK] Fetched payment details for ${paymentId}:`, {
@@ -29,16 +52,10 @@ export async function POST(request: NextRequest) {
       external_reference: paymentData.external_reference,
     });
 
-    // --- INICIO DE LA LÓGICA MODIFICADA ---
-
-    // Primero, intentamos obtener la orden usando el ID del pago (que es lo más común).
-    // MP puede notificar sobre el `payment` o sobre el `merchant_order`. El `paymentId` es más fiable.
     let order = await getOrderByPaymentId(String(paymentId));
     
-    // Si no la encontramos con el paymentId (quizás la notificación llegó antes de que actualizáramos la orden),
-    // usamos el external_reference como un método de respaldo.
     if (!order && paymentData.external_reference) {
-        console.log(`[WEBHOOK] Order not found by payment_id ${paymentId}. Trying fallback with external_reference: ${paymentData.external_reference}`);
+        console.log(`[WEBHOOK] Order not found by payment_id. Trying fallback with external_reference: ${paymentData.external_reference}`);
         const orderIdFromRef = parseInt(paymentData.external_reference, 10);
         if (!isNaN(orderIdFromRef)) {
             order = await getOrderById(orderIdFromRef);
@@ -46,59 +63,44 @@ export async function POST(request: NextRequest) {
     }
 
     if (!order) {
-        console.error(`[WEBHOOK] CRITICAL: Order with payment_id ${paymentId} (or fallback ref) not found in database.`);
-        return NextResponse.json({ received: true });
+        console.error(`[WEBHOOK] CRITICAL: Order with payment_id ${paymentId} (or fallback ref) not found.`);
+        return NextResponse.json({ received: true, message: "Order not found." });
     }
     
     const orderId = order.id;
 
-    // --- FIN DE LA LÓGICA MODIFICADA ---
-
-    // Idempotency Check: Prevent processing an order that is already in a final state.
     if (order.status === 'paid' || order.status === 'delivered' || order.status === 'shipped' || order.status === 'failed' || order.status === 'cancelled') {
         console.log(`[WEBHOOK] Order ${orderId} is already in a final state ('${order.status}'). No update needed.`);
         return NextResponse.json({ received: true });
     }
 
     let newStatus: OrderStatus | null = null;
-
     switch (paymentData.status) {
       case 'approved':
         newStatus = 'paid';
-        console.log(`[WEBHOOK] Payment ${paymentId} for order ${orderId} is 'approved'.`);
         await updateOrderStatus(orderId, newStatus, String(paymentId));
-        console.log(`[WEBHOOK] DB updated. Now deducting stock for order ${orderId}.`);
         await deductStockForOrder(orderId);
-        console.log(`[WEBHOOK] Stock deducted for order ${orderId}.`);
         break;
-        
-      case 'in_process':
-      case 'pending':
-        console.log(`[WEBHOOK] Payment ${paymentId} for order ${orderId} is '${paymentData.status}'. No action taken.`);
-        break;
-        
       case 'rejected':
-        newStatus = 'failed';
-        console.log(`[WEBHOOK] Payment ${paymentId} for order ${orderId} is 'rejected'.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-        console.log(`[WEBHOOK] Successfully updated order ${orderId} status to 'failed' in DB.`);
-        break;
-        
       case 'cancelled':
-        newStatus = 'cancelled';
-        console.log(`[WEBHOOK] Payment ${paymentId} for order ${orderId} is 'cancelled'.`);
+        newStatus = paymentData.status === 'rejected' ? 'failed' : 'cancelled';
         await updateOrderStatus(orderId, newStatus, String(paymentId));
-        console.log(`[WEBHOOK] Successfully updated order ${orderId} status to 'cancelled' in DB.`);
         break;
-        
       default:
-        console.log(`[WEBHOOK] Ignoring unhandled payment status '${paymentData.status}' for payment ${paymentId}.`);
+        console.log(`[WEBHOOK] Ignoring unhandled payment status '${paymentData.status}'.`);
     }
-
+    
+    console.log(`[WEBHOOK] Process finished for payment ${paymentId}.`);
     return NextResponse.json({ received: true });
     
-  } catch (error) {
-    console.error('[WEBHOOK] CRITICAL ERROR:', error);
-    return NextResponse.json({ error: 'Webhook processing failed but acknowledging receipt to prevent retries.' }, { status: 200 });
+  } catch (error: any) {
+    // Log #4: Si algo falla, registra el error específico.
+    console.error('[WEBHOOK] CRITICAL ERROR:', {
+        message: error.message,
+        stack: error.stack
+    });
+    // Aún así respondemos 200 OK para que MP no reintente.
+    return NextResponse.json({ error: 'Webhook processing failed but acknowledging receipt.' }, { status: 200 });
   }
 }
+
