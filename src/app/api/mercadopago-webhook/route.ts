@@ -1,49 +1,80 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
-import { updateOrderStatus, deductStockForOrder, getOrderByPaymentId, getOrderById } from '@/lib/data'; // Asegúrate de importar getOrderByPaymentId
+import { updateOrderStatus, deductStockForOrder, getOrderByPaymentId, getOrderById } from '@/lib/data';
 import type { OrderStatus } from '@/lib/types';
+import crypto from 'crypto';
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
 });
 
-const payment = new Payment(client);
+// Función para verificar la firma de Mercado Pago
+async function verifySignature(request: NextRequest, rawBody: string): Promise<boolean> {
+    // FIX 1: Check for the secret inside the function
+    const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+    if (!secret) {
+        console.error('[WEBHOOK] CRITICAL: MERCADOPAGO_WEBHOOK_SECRET is not defined.');
+        return false;
+    }
+
+    const signatureHeader = request.headers.get('x-signature');
+    if (!signatureHeader) {
+        console.error('[WEBHOOK] Missing x-signature header');
+        return false;
+    }
+
+    const parts = signatureHeader.split(',').reduce((acc, part) => {
+        const [key, value] = part.split('=');
+        acc[key.trim()] = value.trim();
+        return acc;
+    }, {} as Record<string, string>);
+
+    const timestamp = parts['ts'];
+    const signature = parts['v1'];
+
+    if (!timestamp || !signature) {
+        console.error('[WEBHOOK] Invalid signature header format');
+        return false;
+    }
+
+    const manifest = `id:${(JSON.parse(rawBody)).data.id};request-id:${request.headers.get('x-request-id')};ts:${timestamp};`;
+
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(manifest);
+    const computedSignature = hmac.digest('hex');
+    
+    return crypto.timingSafeEqual(Buffer.from(computedSignature), Buffer.from(signature));
+}
 
 export async function POST(request: NextRequest) {
-  // Log #1: ¡La función se ha iniciado!
-  console.log('[WEBHOOK] Function invoked. Method:', request.method);
-  
-  // Log #2: Registrar las cabeceras para ver qué nos llega.
-  const headers: { [key: string]: string } = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  console.log('[WEBHOOK] Incoming headers:', JSON.stringify(headers, null, 2));
+  console.log('[WEBHOOK] Invoked. Method:', request.method);
 
   try {
-    // Log #3: Intentando leer el cuerpo de la petición como texto.
     const rawBody = await request.text();
     console.log('[WEBHOOK] Raw body received:', rawBody);
 
-    // Es crucial no dejar el body vacío antes de intentar parsearlo.
     if (!rawBody) {
         console.log('[WEBHOOK] Ignoring notification: Empty body.');
         return NextResponse.json({ received: true, message: "Empty body." });
     }
     
+    const isSignatureValid = await verifySignature(request, rawBody);
+    if (!isSignatureValid) {
+        console.error('[WEBHOOK] INVALID SIGNATURE. Request ignored.');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+    }
+    console.log('[WEBHOOK] Signature validated successfully.');
+
     const body = JSON.parse(rawBody);
-    console.log('[WEBHOOK] Body parsed successfully:', JSON.stringify(body, null, 2));
 
-    // --- El resto de tu código sigue igual desde aquí ---
-
-    if (body.type !== 'payment' || !body.data || !body.data.id) {
-      console.log('[WEBHOOK] Ignoring notification: Not a valid payment update.');
+    if (body.type !== 'payment') {
+      console.log('[WEBHOOK] Ignoring notification: Not a payment update.');
       return NextResponse.json({ received: true });
     }
 
     const paymentId = body.data.id;
-    const payment = new Payment(client); // client está definido arriba en tu archivo
+    const payment = new Payment(client);
     const paymentData = await payment.get({ id: paymentId });
     
     console.log(`[WEBHOOK] Fetched payment details for ${paymentId}:`, {
@@ -69,38 +100,33 @@ export async function POST(request: NextRequest) {
     
     const orderId = order.id;
 
-    if (order.status === 'paid' || order.status === 'delivered' || order.status === 'shipped' || order.status === 'failed' || order.status === 'cancelled') {
+    // Si la orden ya está pagada o en un estado final, no hacemos nada.
+    if (order.status === 'paid' || order.status === 'delivered' || order.status === 'shipped') {
         console.log(`[WEBHOOK] Order ${orderId} is already in a final state ('${order.status}'). No update needed.`);
         return NextResponse.json({ received: true });
     }
 
     let newStatus: OrderStatus | null = null;
-    switch (paymentData.status) {
-      case 'approved':
+    
+    // FIX 2: Removed redundant 'order.status !== 'paid'' check.
+    if (paymentData.status === 'approved') {
         newStatus = 'paid';
+        console.log(`[WEBHOOK] Updating order ${orderId} to 'paid'.`);
         await updateOrderStatus(orderId, newStatus, String(paymentId));
         await deductStockForOrder(orderId);
-        break;
-      case 'rejected':
-      case 'cancelled':
+    } else if ((paymentData.status === 'rejected' || paymentData.status === 'cancelled') && order.status !== 'failed' && order.status !== 'cancelled') {
         newStatus = paymentData.status === 'rejected' ? 'failed' : 'cancelled';
+        console.log(`[WEBHOOK] Updating order ${orderId} to '${newStatus}'.`);
         await updateOrderStatus(orderId, newStatus, String(paymentId));
-        break;
-      default:
-        console.log(`[WEBHOOK] Ignoring unhandled payment status '${paymentData.status}'.`);
+    } else {
+        console.log(`[WEBHOOK] Ignoring unhandled or duplicate status '${paymentData.status}' for order ${orderId} with status '${order.status}'.`);
     }
     
     console.log(`[WEBHOOK] Process finished for payment ${paymentId}.`);
     return NextResponse.json({ received: true });
     
   } catch (error: any) {
-    // Log #4: Si algo falla, registra el error específico.
-    console.error('[WEBHOOK] CRITICAL ERROR:', {
-        message: error.message,
-        stack: error.stack
-    });
-    // Aún así respondemos 200 OK para que MP no reintente.
+    console.error('[WEBHOOK] CRITICAL ERROR:', { message: error.message, stack: error.stack });
     return NextResponse.json({ error: 'Webhook processing failed but acknowledging receipt.' }, { status: 200 });
   }
 }
-

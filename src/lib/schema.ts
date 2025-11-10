@@ -9,8 +9,16 @@ import {
   boolean,
   primaryKey,
   jsonb,
+  pgEnum
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+
+// ############################################################################
+// ENUMS
+// ############################################################################
+
+export const orderStatusEnum = pgEnum('order_status', ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'failed', 'refunded']);
+export const discountTypeEnum = pgEnum('discount_type', ['percentage', 'fixed']);
 
 // ############################################################################
 // PRODUCTS
@@ -25,13 +33,14 @@ export const products = pgTable('products', {
   offerStartDate: timestamp('offer_start_date'),
   offerEndDate: timestamp('offer_end_date'),
   stock: integer('stock').notNull().default(0),
-  images: jsonb('images').default('[]').$type<string[]>(),
+  images: jsonb('images').default('[]').$type<string[]>().notNull(),
   aiHint: text('ai_hint'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const productsRelations = relations(products, ({ many }) => ({
   productCategories: many(productCategories),
+  orderItems: many(orderItems),
 }));
 
 // ############################################################################
@@ -40,7 +49,8 @@ export const productsRelations = relations(products, ({ many }) => ({
 export const categories = pgTable('categories', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
-  parentId: integer('parent_id').references(() => categories.id), // For subcategories
+  // FIX: Self-referencing foreign key
+  parentId: integer('parent_id').references((): any => categories.id), 
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -59,32 +69,17 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
 // ############################################################################
 // PRODUCT <-> CATEGORIES (Many-to-Many Junction Table)
 // ############################################################################
-export const productCategories = pgTable(
-  'product_categories',
-  {
-    productId: integer('product_id')
-      .notNull()
-      .references(() => products.id, { onDelete: 'cascade' }),
-    categoryId: integer('category_id')
-      .notNull()
-      .references(() => categories.id, { onDelete: 'cascade' }),
+export const productCategories = pgTable('product_categories',{
+    productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+    categoryId: integer('category_id').notNull().references(() => categories.id, { onDelete: 'cascade' }),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.productId, t.categoryId] }),
-  })
+  (t) => ({ pk: primaryKey({ columns: [t.productId, t.categoryId] }) })
 );
 
 export const productCategoriesRelations = relations(productCategories, ({ one }) => ({
-  product: one(products, {
-    fields: [productCategories.productId],
-    references: [products.id],
-  }),
-  category: one(categories, {
-    fields: [productCategories.categoryId],
-    references: [categories.id],
-  }),
+  product: one(products, { fields: [productCategories.productId], references: [products.id] }),
+  category: one(categories, { fields: [productCategories.categoryId], references: [categories.id] }),
 }));
-
 
 // ############################################################################
 // COUPONS
@@ -92,13 +87,12 @@ export const productCategoriesRelations = relations(productCategories, ({ one })
 export const coupons = pgTable('coupons', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 50 }).notNull().unique(),
-  discountType: varchar('discount_type', { enum: ['percentage', 'fixed'] }).notNull(),
+  discountType: discountTypeEnum('discount_type').notNull(),
   discountValue: decimal('discount_value', { precision: 10, scale: 2 }).notNull(),
   expiryDate: timestamp('expiry_date'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
-
 
 // ############################################################################
 // ORDERS
@@ -111,9 +105,7 @@ export const orders = pgTable('orders', {
     shippingCity: varchar('shipping_city', { length: 100 }).notNull(),
     shippingPostalCode: varchar('shipping_postal_code', { length: 20 }).notNull(),
     total: decimal('total', { precision: 10, scale: 2 }).notNull(),
-    status: varchar('status', {
-        enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'failed', 'refunded']
-    }).notNull().default('pending'),
+    status: orderStatusEnum('status').notNull().default('pending'),
     paymentId: varchar('payment_id', { length: 255 }),
     couponCode: varchar('coupon_code', { length: 50 }),
     discountAmount: decimal('discount_amount', { precision: 10, scale: 2 }),
@@ -130,18 +122,14 @@ export const ordersRelations = relations(orders, ({ many }) => ({
 export const orderItems = pgTable('order_items', {
     id: serial('id').primaryKey(),
     orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
-    productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'set null' }), // Set null if product is deleted
+    // productId can be null if the product is deleted after the purchase
+    productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }), 
     quantity: integer('quantity').notNull(),
-    priceAtPurchase: decimal('price_at_purchase', { precision: 10, scale: 2 }).notNull(), // Price of the product when the order was made
+    // Price of the product when the order was made
+    priceAtPurchase: decimal('price_at_purchase', { precision: 10, scale: 2 }).notNull(), 
 });
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
-    order: one(orders, {
-        fields: [orderItems.orderId],
-        references: [orders.id],
-    }),
-    product: one(products, {
-        fields: [orderItems.productId],
-        references: [products.id],
-    }),
+    order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
+    product: one(products, { fields: [orderItems.productId], references: [products.id] }),
 }));
