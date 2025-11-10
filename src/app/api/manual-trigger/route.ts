@@ -15,21 +15,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { paymentId, status: simulatedStatus } = body;
 
-    if (!paymentId || !simulatedStatus) {
-      return NextResponse.json({ error: 'Se requiere "paymentId" y "status" en el cuerpo de la petición.' }, { status: 400 });
+    if (!paymentId || !simulatedStatus || typeof simulatedStatus !== 'string') {
+      return NextResponse.json({ error: 'Se requiere "paymentId" y "status" (string) en el cuerpo de la petición.' }, { status: 400 });
     }
     
     console.log(`[MANUAL-TRIGGER] Iniciando disparo manual para Payment ID: ${paymentId} con estado simulado: ${simulatedStatus}`);
 
-    // --- Lógica principal copiada del webhook ---
-    
     let order = await getOrderByPaymentId(String(paymentId));
     
-    // Fallback por si la orden aún no tiene el paymentId
     if (!order) {
         console.log(`[MANUAL-TRIGGER] Orden no encontrada por payment_id. Buscando por ID de orden en MercadoPago...`);
-        // Para el fallback, necesitamos consultar a MP para obtener el external_reference
-        // Esto requiere el SDK de MP
         try {
             const { MercadoPagoConfig, Payment } = await import('mercadopago');
             const client = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! });
@@ -56,40 +51,51 @@ export async function POST(request: NextRequest) {
     const orderId = order.id;
     console.log(`[MANUAL-TRIGGER] Orden encontrada con ID: ${orderId}. Estado actual: "${order.status}".`);
 
-    let newStatus: OrderStatus = simulatedStatus as OrderStatus;
+    // --- INICIO DE LA CORRECCIÓN ---
+    let finalStatus: OrderStatus | null = null;
 
-    switch (newStatus) {
-      case 'paid': // 'approved' de MP se mapea a 'paid' nuestro
+    switch (simulatedStatus) {
       case 'approved':
-        newStatus = 'paid';
+        finalStatus = 'paid';
         console.log(`[MANUAL-TRIGGER] El estado simulado es 'approved'. Actualizando orden a 'paid'.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
+        await updateOrderStatus(orderId, finalStatus, String(paymentId));
         console.log(`[MANUAL-TRIGGER] Descontando stock para la orden ${orderId}.`);
         await deductStockForOrder(orderId);
         console.log(`[MANUAL-TRIGGER] ¡Stock descontado! Proceso completado.`);
         break;
       
-      case 'failed':
       case 'rejected':
-        newStatus = 'failed';
+        finalStatus = 'failed';
         console.log(`[MANUAL-TRIGGER] El estado simulado es 'rejected'. Actualizando orden a 'failed'.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
+        await updateOrderStatus(orderId, finalStatus, String(paymentId));
         console.log(`[MANUAL-TRIGGER] Proceso completado.`);
         break;
       
       case 'cancelled':
-        newStatus = 'cancelled';
-         console.log(`[MANUAL-TRIGGER] El estado simulado es 'cancelled'. Actualizando orden a 'cancelled'.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
+        finalStatus = 'cancelled';
+        console.log(`[MANUAL-TRIGGER] El estado simulado es 'cancelled'. Actualizando orden a 'cancelled'.`);
+        await updateOrderStatus(orderId, finalStatus, String(paymentId));
         console.log(`[MANUAL-TRIGGER] Proceso completado.`);
         break;
 
-      default:
-        console.log(`[MANUAL-TRIGGER] Estado simulado no manejado: '${newStatus}'.`);
-        return NextResponse.json({ message: `Estado simulado no manejado: ${newStatus}` });
-    }
+      // También permite simular con nuestros propios estados internos
+      case 'paid':
+      case 'failed':
+        finalStatus = simulatedStatus;
+        await updateOrderStatus(orderId, finalStatus, String(paymentId));
+        if (finalStatus === 'paid') {
+          await deductStockForOrder(orderId);
+        }
+        console.log(`[MANUAL-TRIGGER] Proceso para estado interno '${finalStatus}' completado.`);
+        break;
 
-    return NextResponse.json({ success: true, orderId: orderId, newStatus: newStatus });
+      default:
+        console.log(`[MANUAL-TRIGGER] Estado simulado no manejado: '${simulatedStatus}'.`);
+        return NextResponse.json({ message: `Estado simulado no manejado: ${simulatedStatus}` });
+    }
+    // --- FIN DE LA CORRECCIÓN ---
+
+    return NextResponse.json({ success: true, orderId: orderId, newStatus: finalStatus });
 
   } catch (error) {
     console.error('[MANUAL-TRIGGER] CRITICAL ERROR:', error);
