@@ -1,7 +1,7 @@
 
 'use server';
 
-import { db, isDbConnected } from './db';
+import { getDb, isDbConfigured } from './db';
 import {
     getProducts as getProductsFromHardcodedData,
     getProductById as getProductByIdFromHardcodedData,
@@ -37,7 +37,6 @@ function mapProductFromDb(product: any): Product {
         salePrice: product.sale_price ? parseFloat(product.sale_price) : null,
         images: product.images,
         stock: product.stock,
-        // categoryIds se manejarán por separado después de la consulta
         categoryIds: [], 
         aiHint: product.ai_hint,
         featured: product.featured,
@@ -47,11 +46,6 @@ function mapProductFromDb(product: any): Product {
         createdAt: new Date(product.created_at),
     };
 }
-
-
-// ############################################################################
-// Helper Functions
-// ############################################################################
 
 function _calculateSalePrice(product: Omit<Product, 'salePrice' | 'id'>): number | null {
     const now = new Date();
@@ -88,14 +82,11 @@ function _mapDbRowToProduct(row: any): Product {
     return product;
 }
 
-// ############################################################################
-// Product Functions
-// ############################################################################
-
 export async function getProducts(): Promise<Product[]> {
-    if (!isDbConnected || !db) return getProductsFromHardcodedData();
+    if (!isDbConfigured) return getProductsFromHardcodedData();
     noStore();
     try {
+        const db = getDb();
         const rows = await db`
             SELECT p.*, COALESCE(array_agg(pc.category_id) FILTER (WHERE pc.category_id IS NOT NULL), '{}') as category_ids
             FROM products p
@@ -111,9 +102,10 @@ export async function getProducts(): Promise<Product[]> {
 }
 
 export async function getProductById(id: number): Promise<Product | undefined> {
-    if (!isDbConnected || !db) return getProductByIdFromHardcodedData(id);
+    if (!isDbConfigured) return getProductByIdFromHardcodedData(id);
     noStore();
     try {
+         const db = getDb();
          const rows = await db`
             SELECT p.*, COALESCE(array_agg(pc.category_id) FILTER (WHERE pc.category_id IS NOT NULL), '{}') as category_ids
             FROM products p
@@ -129,26 +121,11 @@ export async function getProductById(id: number): Promise<Product | undefined> {
     }
 }
 
-
-
-
 export async function createProduct(productData: any): Promise<Product> {
-    const { 
-        categoryIds, 
-        ...newProductData 
-    } = productData;
-
-    if (!db) {
-        console.log("Database not connected. Using hardcoded data for createProduct.");
-        return createProductFromHardcodedData(productData);
-    }
-
+    if (!isDbConfigured) return createProductFromHardcodedData(productData);
+    const { categoryIds, ...newProductData } = productData;
     try {
-        // Nota: NO usamos db.transaction() porque necesitamos que la segunda
-        // consulta (insertar categorías) dependa del resultado de la primera (obtener el id).
-        // Ejecutamos las consultas de forma secuencial.
-
-        // Paso 1: Insertar el producto y obtener la fila completa de vuelta con RETURNING *.
+        const db = getDb();
         const productResult = await db`
             INSERT INTO products (
                 name, description, short_description, price, images, stock,
@@ -161,16 +138,11 @@ export async function createProduct(productData: any): Promise<Product> {
             )
             RETURNING *;
         `;
-        
         const createdProductRow = productResult[0];
-
         if (!createdProductRow || !createdProductRow.id) {
             throw new Error("Falló la creación del producto en la base de datos, no se pudo obtener el ID.");
         }
-
-        // Paso 2: Con el ID ya en nuestra posesión, vinculamos las categorías.
         if (categoryIds && categoryIds.length > 0) {
-            // Esta sintaxis es una forma eficiente de insertar múltiples filas a la vez en PostgreSQL
             await db`
                 INSERT INTO product_categories (product_id, category_id)
                 SELECT * FROM UNNEST(
@@ -179,29 +151,20 @@ export async function createProduct(productData: any): Promise<Product> {
                 )
             `;
         }
-
-        // Paso 3: Mapear el resultado de la base de datos a nuestro tipo Product.
         const mappedProduct = mapProductFromDb(createdProductRow);
         mappedProduct.categoryIds = categoryIds || [];
-        
         return mappedProduct;
-
     } catch (error) {
         console.error('Database Error (Neon/direct): Failed to create product.', error);
         throw new Error('Failed to create product.');
     }
 }
 
-
-
-
-
 export async function updateProduct(id: number, productData: Partial<Omit<Product, 'id' | 'salePrice'>>): Promise<Product> {
-    if (!isDbConnected || !db) return updateProductFromHardcodedData(id, productData);
-    
+    if (!isDbConfigured) return updateProductFromHardcodedData(id, productData);
     const { name, description, shortDescription, price, images, categoryIds, stock, aiHint, featured, discountPercentage, offerStartDate, offerEndDate } = productData;
-    
     try {
+        const db = getDb();
         await db`
             UPDATE products
             SET name = COALESCE(${name}, name), 
@@ -217,34 +180,27 @@ export async function updateProduct(id: number, productData: Partial<Omit<Produc
                 offer_end_date = ${offerEndDate?.toISOString() || null}
             WHERE id = ${id}
         `;
-        
         if (categoryIds !== undefined) {
             await db`DELETE FROM product_categories WHERE product_id = ${id}`;
-
             if (categoryIds && categoryIds.length > 0) {
                 for (const catId of categoryIds) {
                     await db`INSERT INTO product_categories (product_id, category_id) VALUES (${id}, ${catId}) ON CONFLICT DO NOTHING`;
                 }
             }
         }
-
         const finalProduct = await getProductById(id);
-        if (!finalProduct) {
-            throw new Error('Product not found after update');
-        }
-        
+        if (!finalProduct) throw new Error('Product not found after update');
         return finalProduct;
-
     } catch (error) {
         console.error('Database Error:', error);
-        console.error('Error details:', (error as Error).message, (error as Error).stack);
         throw new Error('Failed to update product.');
     }
 }
 
 export async function deleteProduct(id: number): Promise<void> {
-    if (!isDbConnected || !db) return deleteProductFromHardcodedData(id);
+    if (!isDbConfigured) return deleteProductFromHardcodedData(id);
     try {
+        const db = getDb();
         await db`DELETE FROM product_categories WHERE product_id = ${id}`;
         await db`DELETE FROM products WHERE id = ${id}`;
     } catch (error) {
@@ -253,22 +209,15 @@ export async function deleteProduct(id: number): Promise<void> {
     }
 }
 
-// ############################################################################
-// Category Functions
-// ############################################################################
-
 function _mapDbRowToCategory(row: any): Category {
-    return {
-        id: row.id,
-        name: row.name,
-        parentId: row.parent_id
-    };
+    return { id: row.id, name: row.name, parentId: row.parent_id };
 }
 
 export async function getCategories(): Promise<Category[]> {
-    if (!isDbConnected || !db) return getCategoriesFromHardcodedData();
+    if (!isDbConfigured) return getCategoriesFromHardcodedData();
     noStore();
     try {
+        const db = getDb();
         const rows = await db`SELECT * FROM categories ORDER BY parent_id, name ASC`;
         return rows.map(_mapDbRowToCategory);
     } catch (error) {
@@ -278,14 +227,13 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 export async function createCategory(name: string): Promise<Category> {
-    if (!isDbConnected || !db) return createCategoryFromHardcodedData(name);
+    if (!isDbConfigured) return createCategoryFromHardcodedData(name);
     try {
-        const result = await db`
-            INSERT INTO categories (name) VALUES (${name}) RETURNING *;
-        `;
+        const db = getDb();
+        const result = await db`INSERT INTO categories (name) VALUES (${name}) RETURNING *;`;
         return _mapDbRowToCategory(result[0]);
     } catch (error: any) {
-         if (error.message.includes('duplicate key value violates unique constraint')) {
+        if (error.message.includes('duplicate key value')) {
             throw new Error(`La categoría '${name}' ya existe.`);
         }
         console.error('Database Error:', error);
@@ -294,11 +242,12 @@ export async function createCategory(name: string): Promise<Category> {
 }
 
 export async function deleteCategory(id: number): Promise<{ success: boolean; message?: string }> {
-    if (!isDbConnected || !db) return deleteCategoryFromHardcodedData(id);
+    if (!isDbConfigured) return deleteCategoryFromHardcodedData(id);
     try {
+        const db = getDb();
         const products = await db`SELECT 1 FROM product_categories WHERE category_id = ${id} LIMIT 1`;
         if (products.length > 0) {
-            return { success: false, message: 'No se puede eliminar la categoría porque está asignada a uno o más productos.' };
+            return { success: false, message: 'Categoría asignada a productos.' };
         }
         await db`DELETE FROM categories WHERE id = ${id}`;
         return { success: true };
@@ -307,10 +256,6 @@ export async function deleteCategory(id: number): Promise<{ success: boolean; me
         throw new Error('Failed to delete category.');
     }
 }
-
-// ############################################################################
-// Coupon Functions
-// ############################################################################
 
 function _mapDbRowToCoupon(row: any): Coupon {
     return {
@@ -324,9 +269,10 @@ function _mapDbRowToCoupon(row: any): Coupon {
 }
 
 export async function getCoupons(): Promise<Coupon[]> {
-    if (!isDbConnected || !db) return getCouponsFromHardcodedData();
+    if (!isDbConfigured) return getCouponsFromHardcodedData();
     noStore();
     try {
+        const db = getDb();
         const rows = await db`SELECT * FROM coupons ORDER BY created_at DESC`;
         return rows.map(_mapDbRowToCoupon);
     } catch (error) {
@@ -336,9 +282,10 @@ export async function getCoupons(): Promise<Coupon[]> {
 }
 
 export async function getCouponByCode(code: string): Promise<Coupon | undefined> {
-    if (!isDbConnected || !db) return getCouponByCodeFromHardcodedData(code);
+    if (!isDbConfigured) return getCouponByCodeFromHardcodedData(code);
     noStore();
     try {
+        const db = getDb();
         const rows = await db`
             SELECT * FROM coupons 
             WHERE code = ${code.toUpperCase()} AND is_active = TRUE AND (expiry_date IS NULL OR expiry_date > NOW())
@@ -352,9 +299,10 @@ export async function getCouponByCode(code: string): Promise<Coupon | undefined>
 }
 
 export async function createCoupon(coupon: Omit<Coupon, 'id'>): Promise<Coupon> {
-    if (!isDbConnected || !db) return createCouponFromHardcodedData(coupon);
+    if (!isDbConfigured) return createCouponFromHardcodedData(coupon);
     const { code, discountType, discountValue, expiryDate, isActive } = coupon;
     try {
+        const db = getDb();
         const result = await db`
             INSERT INTO coupons (code, discount_type, discount_value, expiry_date, is_active)
             VALUES (${code.toUpperCase()}, ${discountType}, ${discountValue}, ${expiryDate?.toISOString()}, ${isActive})
@@ -362,7 +310,7 @@ export async function createCoupon(coupon: Omit<Coupon, 'id'>): Promise<Coupon> 
         `;
         return _mapDbRowToCoupon(result[0]);
     } catch (error: any) {
-        if (error.message.includes('duplicate key value violates unique constraint')) {
+        if (error.message.includes('duplicate key value')) {
             throw new Error(`El código de cupón '${coupon.code}' ya existe.`);
         }
         console.error('Database Error:', error);
@@ -371,9 +319,10 @@ export async function createCoupon(coupon: Omit<Coupon, 'id'>): Promise<Coupon> 
 }
 
 export async function updateCoupon(id: number, couponData: Partial<Omit<Coupon, 'id'>>): Promise<Coupon> {
-    if (!isDbConnected || !db) return updateCouponFromHardcodedData(id, couponData);
+    if (!isDbConfigured) return updateCouponFromHardcodedData(id, couponData);
     const { code, discountType, discountValue, expiryDate, isActive } = couponData;
     try {
+        const db = getDb();
         const result = await db`
             UPDATE coupons
             SET code = COALESCE(${code?.toUpperCase()}, code), 
@@ -386,7 +335,7 @@ export async function updateCoupon(id: number, couponData: Partial<Omit<Coupon, 
         `;
         return _mapDbRowToCoupon(result[0]);
     } catch (error: any) {
-        if (error.message.includes('duplicate key value violates unique constraint')) {
+        if (error.message.includes('duplicate key value')) {
              throw new Error(`El código de cupón '${couponData.code}' ya existe.`);
         }
         console.error('Database Error:', error);
@@ -395,8 +344,9 @@ export async function updateCoupon(id: number, couponData: Partial<Omit<Coupon, 
 }
 
 export async function deleteCoupon(id: number): Promise<void> {
-    if (!isDbConnected || !db) return deleteCouponFromHardcodedData(id);
+    if (!isDbConfigured) return deleteCouponFromHardcodedData(id);
     try {
+        const db = getDb();
         await db`DELETE FROM coupons WHERE id = ${id}`;
     } catch (error) {
         console.error('Database Error:', error);
@@ -404,68 +354,55 @@ export async function deleteCoupon(id: number): Promise<void> {
     }
 }
 
-// ############################################################################
-// Order & Sales Functions
-// ############################################################################
-
 export async function createOrder(orderData: OrderData): Promise<{orderId?: number, error?: string}> {
-    if (!isDbConnected || !db) return createOrderFromHardcodedData(orderData);
-    
+    if (!isDbConfigured) return createOrderFromHardcodedData(orderData);
     try {
-        // Step 1: Check stock availability first. No changes are made yet.
+        const db = getDb();
         for (const item of orderData.items) {
             const productResult = await db`SELECT stock, name FROM products WHERE id = ${item.product.id}`;
-            if (productResult.length === 0) {
-                return { error: `Producto no encontrado: ${item.product.id}` };
-            }
+            if (productResult.length === 0) return { error: `Producto no encontrado: ${item.product.id}` };
             if (productResult[0].stock < item.quantity) {
-                return { error: `Stock insuficiente para el producto "${productResult[0].name}". Disponible: ${productResult[0].stock}, Solicitado: ${item.quantity}` };
+                return { error: `Stock insuficiente para "${productResult[0].name}".` };
             }
         }
-
-        // Step 2: Create the order with 'pending' status. Stock is NOT updated here.
         const { customerName, customerEmail, total, items, couponCode, discountAmount, shippingAddress, shippingCity, shippingPostalCode } = orderData;
-        
         const orderResult = await db`
             INSERT INTO orders (customer_name, customer_email, total, status, items, coupon_code, discount_amount, shipping_address, shipping_city, shipping_postal_code, created_at)
             VALUES (${customerName}, ${customerEmail}, ${total}, 'pending', ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
             RETURNING id;
         `;
-
         return { orderId: orderResult[0].id };
-
     } catch (error: any) {
-        console.error('Database Error during order creation:', error);
-        return { error: error.message || 'Failed to create order due to a database error.' };
+        console.error('Database Error:', error);
+        return { error: error.message || 'Failed to create order.' };
     }
 }
 
 export async function deductStockForOrder(orderId: number): Promise<void> {
-    if (!isDbConnected || !db) return; // Or handle hardcoded data if necessary
+    if (!isDbConfigured) return;
     try {
+        const db = getDb();
         const orderRows = await db`SELECT items FROM orders WHERE id = ${orderId}`;
         if (orderRows.length > 0) {
             const items = orderRows[0].items as OrderData['items'];
             for (const item of items) {
                 await db`
-                    UPDATE products 
-                    SET stock = stock - ${item.quantity} 
+                    UPDATE products SET stock = stock - ${item.quantity} 
                     WHERE id = ${item.product.id} AND stock >= ${item.quantity}
                 `;
             }
-            console.log(`Stock deducted for approved order ${orderId}`);
+            console.log(`Stock deducted for order ${orderId}`);
         }
     } catch (error) {
-        console.error(`CRITICAL: Failed to deduct stock for order ${orderId}. Manual intervention required.`, error);
-        // Optionally, you could add a flag to the order to indicate a stock deduction issue.
-        throw new Error('Failed to deduct stock for the order.');
+        console.error(`CRITICAL: Failed to deduct stock for order ${orderId}.`, error);
+        throw new Error('Failed to deduct stock.');
     }
 }
 
-
 export async function updateOrderStatus(orderId: number, status: OrderStatus, paymentId?: string | null): Promise<void> {
-    if (!isDbConnected || !db) return updateOrderStatusFromHardcodedData(orderId, status, paymentId || undefined);
+    if (!isDbConfigured) return updateOrderStatusFromHardcodedData(orderId, status, paymentId || undefined);
     try {
+        const db = getDb();
         if (paymentId !== undefined) {
              await db`UPDATE orders SET status = ${status}, payment_id = COALESCE(${paymentId}, payment_id) WHERE id = ${orderId}`;
         } else {
@@ -477,141 +414,98 @@ export async function updateOrderStatus(orderId: number, status: OrderStatus, pa
     }
 }
 
+function mapOrderFromDb(row: any): Order {
+    return {
+        id: row.id,
+        customerName: row.customer_name,
+        customerEmail: row.customer_email,
+        total: parseFloat(row.total),
+        status: row.status as OrderStatus,
+        createdAt: new Date(row.created_at),
+        items: row.items,
+        couponCode: row.coupon_code,
+        discountAmount: row.discount_amount ? parseFloat(row.discount_amount) : undefined,
+        paymentId: row.payment_id || undefined,
+        shippingAddress: row.shipping_address,
+        shippingCity: row.shipping_city,
+        shippingPostalCode: row.shipping_postal_code,
+    };
+}
+
 export async function getOrderById(id: number): Promise<Order | undefined> {
-    if (!isDbConnected || !db) return getOrderByIdFromHardcodedData(id);
+    if (!isDbConfigured) return getOrderByIdFromHardcodedData(id);
     noStore();
     try {
+        const db = getDb();
         const result = await db`SELECT * FROM orders WHERE id = ${id}`;
         if (result.length === 0) return undefined;
-        const row = result[0];
-        return {
-            id: row.id,
-            customerName: row.customer_name,
-            customerEmail: row.customer_email,
-            total: parseFloat(row.total),
-            status: row.status as OrderStatus,
-            createdAt: new Date(row.created_at),
-            items: row.items,
-            couponCode: row.coupon_code,
-            discountAmount: row.discount_amount ? parseFloat(row.discount_amount) : undefined,
-            paymentId: row.payment_id || undefined,
-            shippingAddress: row.shipping_address,
-            shippingCity: row.shipping_city,
-            shippingPostalCode: row.shipping_postal_code,
-        };
+        return mapOrderFromDb(result[0]);
     } catch (error) {
         console.error('Database Error:', error);
         throw new Error('Failed to fetch order.');
     }
 }
 
-
-
 export async function getOrderByPaymentId(paymentId: string): Promise<Order | undefined> {
-    if (!isDbConnected || !db) return undefined; // O manejar datos hardcodeados
+    if (!isDbConfigured) return undefined;
     noStore();
     try {
-        // Busca una orden que coincida con el payment_id O el preference_id
+        const db = getDb();
         const result = await db`SELECT * FROM orders WHERE payment_id = ${paymentId}`;
         if (result.length === 0) return undefined;
-        const row = result[0];
-        // Reutilizamos la lógica de mapeo que ya tienes en getOrderById
-        return {
-            id: row.id,
-            customerName: row.customer_name,
-            customerEmail: row.customer_email,
-            total: parseFloat(row.total),
-            status: row.status as OrderStatus,
-            createdAt: new Date(row.created_at),
-            items: row.items,
-            couponCode: row.coupon_code,
-            discountAmount: row.discount_amount ? parseFloat(row.discount_amount) : undefined,
-            paymentId: row.payment_id || undefined,
-            shippingAddress: row.shipping_address,
-            shippingCity: row.shipping_city,
-            shippingPostalCode: row.shipping_postal_code,
-        };
+        return mapOrderFromDb(result[0]);
     } catch (error) {
         console.error('Database Error:', error);
         throw new Error('Failed to fetch order by payment ID.');
     }
 }
 
-
 export async function createOrderFromWebhook(paymentData: any): Promise<{newOrder?: Order, error?: string}> {
-    if (!isDbConnected || !db) return createOrderFromWebhookFromHardcodedData(paymentData);
-
-    const {
-        payer,
-        additional_info,
-        transaction_amount,
-        external_reference,
-        id: paymentId,
-    } = paymentData;
-
+    if (!isDbConfigured) return createOrderFromWebhookFromHardcodedData(paymentData);
+    const { payer, additional_info, transaction_amount, external_reference, id: paymentId } = paymentData;
     if (!external_reference || !additional_info?.items || additional_info.items.length === 0) {
-        return { error: 'Webhook data is missing required fields to create an order.' };
+        return { error: 'Webhook data is missing fields to create an order.' };
     }
-
-    const orderData: OrderData = {
+    const orderData = {
         customerName: payer.first_name ? `${payer.first_name} ${payer.last_name}` : 'N/A',
         customerEmail: payer.email,
         total: transaction_amount,
-        status: 'pending', // Will be updated immediately after by the webhook logic
-        items: additional_info.items.map((item: any) => ({
-            product: {
-                id: parseInt(item.id),
-                name: item.title,
-                price: parseFloat(item.unit_price),
-            },
-            quantity: parseInt(item.quantity)
-        })),
-        shippingAddress: 'N/A',
-        shippingCity: 'N/A',
-        shippingPostalCode: 'N/A',
+        status: 'pending',
+        items: additional_info.items.map((item: any) => ({ product: { id: parseInt(item.id), name: item.title, price: parseFloat(item.unit_price) }, quantity: parseInt(item.quantity) })),
+        shippingAddress: 'N/A', city: 'N/A', postalCode: 'N/A', // Simplified
         paymentId: String(paymentId)
     };
-    
     try {
+        const db = getDb();
         const orderResult = await db`
             INSERT INTO orders (id, customer_name, customer_email, total, status, items, payment_id, shipping_address, shipping_city, shipping_postal_code, created_at)
-            VALUES (${external_reference}, ${orderData.customerName}, ${orderData.customerEmail}, ${orderData.total}, ${orderData.status}, ${JSON.stringify(orderData.items)}::jsonb, ${orderData.paymentId}, ${orderData.shippingAddress}, ${orderData.shippingCity}, ${orderData.shippingPostalCode}, ${new Date().toISOString()})
-            ON CONFLICT (id) DO NOTHING
-            RETURNING *;
+            VALUES (${external_reference}, ${orderData.customerName}, ${orderData.customerEmail}, ${orderData.total}, 'pending', ${JSON.stringify(orderData.items)}::jsonb, ${orderData.paymentId}, ${orderData.shippingAddress}, ${orderData.city}, ${orderData.postalCode}, ${new Date().toISOString()})
+            ON CONFLICT (id) DO NOTHING RETURNING *;
         `;
-         if (orderResult.length === 0) {
-             console.log(`Order ${external_reference} already existed. Skipped creation.`);
-             const existingOrder = await getOrderById(parseInt(String(external_reference), 10));
-             return { newOrder: existingOrder };
+        if (orderResult.length === 0) {
+            const existingOrder = await getOrderById(parseInt(String(external_reference), 10));
+            return { newOrder: existingOrder };
         }
-        const newOrder = await getOrderById(orderResult[0].id);
-        return { newOrder };
-
+        return { newOrder: mapOrderFromDb(orderResult[0]) };
     } catch (error: any) {
-        console.error('Database Error in createOrderFromWebhook:', error);
+        console.error('Database Error:', error);
         return { error: error.message || 'Failed to create order from webhook.' };
     }
 }
 
 export async function getSalesMetrics(): Promise<SalesMetrics> {
-    if (!isDbConnected || !db) return getSalesMetricsFromHardcodedData();
+    if (!isDbConfigured) return getSalesMetricsFromHardcodedData();
     noStore();
     try {
-        const revenueResult = await db`SELECT SUM(total) as totalRevenue, COUNT(*) as totalSales FROM orders WHERE status = 'paid' OR status = 'delivered'`;
+        const db = getDb();
+        const revenueResult = await db`SELECT SUM(total) as totalRevenue, COUNT(*) as totalSales FROM orders WHERE status IN ('paid', 'delivered')`;
         const { totalrevenue, totalsales } = revenueResult[0];
-
         const productsResult = await db`
-            SELECT 
-                (item->'product'->>'id')::int as "productId", 
-                item->'product'->>'name' as name, 
-                SUM((item->>'quantity')::int) as count
+            SELECT (item->'product'->>'id')::int as "productId", item->'product'->>'name' as name, SUM((item->>'quantity')::int) as count
             FROM orders, jsonb_array_elements(items) as item
-            WHERE status = 'paid' OR status = 'delivered'
-            GROUP BY 1, 2
-            ORDER BY count DESC
-            LIMIT 5;
+            WHERE status IN ('paid', 'delivered')
+            GROUP BY 1, 2 ORDER BY count DESC LIMIT 5;
         `;
-        
         return {
             totalRevenue: parseFloat(totalrevenue) || 0,
             totalSales: parseInt(totalsales) || 0,
@@ -624,28 +518,12 @@ export async function getSalesMetrics(): Promise<SalesMetrics> {
 }
 
 export async function getOrders(): Promise<Order[]> {
-    if (!isDbConnected || !db) return getOrdersFromHardcodedData();
+    if (!isDbConfigured) return getOrdersFromHardcodedData();
     noStore();
     try {
-        const rows = await db`
-            SELECT * FROM orders 
-            ORDER BY created_at DESC
-        `;
-        return rows.map(row => ({
-            id: row.id,
-            customerName: row.customer_name,
-            customerEmail: row.customer_email,
-            total: parseFloat(row.total),
-            status: row.status as OrderStatus,
-            createdAt: new Date(row.created_at),
-            items: row.items,
-            couponCode: row.coupon_code,
-            discountAmount: row.discount_amount ? parseFloat(row.discount_amount) : undefined,
-            paymentId: row.payment_id,
-            shippingAddress: row.shipping_address,
-            shippingCity: row.shipping_city,
-            shippingPostalCode: row.shipping_postal_code,
-        }));
+        const db = getDb();
+        const rows = await db`SELECT * FROM orders ORDER BY created_at DESC`;
+        return rows.map(mapOrderFromDb);
     } catch (error) {
         console.error('Database Error:', error);
         throw new Error('Failed to fetch orders.');
