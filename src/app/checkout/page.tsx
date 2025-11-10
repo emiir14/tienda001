@@ -23,7 +23,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Ticket, ArrowLeft, ShoppingCart, CreditCard, AlertTriangle, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { createOrder } from "@/app/actions"; // 1. IMPORTAR LA ACCIÓN PARA CREAR LA ORDEN
+import { createOrder } from "@/lib/data"; // 1. RUTA DE IMPORTACIÓN CORREGIDA
 
 const shippingSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
@@ -40,11 +40,10 @@ const MP_TEST_USERS = {
 };
 
 export default function CheckoutPage() {
-  const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount, clearCart } = useCart(); // Añadir clearCart
+  const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount, clearCart } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
   
   const form = useForm<ShippingFormData>({
@@ -52,7 +51,6 @@ export default function CheckoutPage() {
     defaultValues: { name: "", email: "", address: "", city: "", postalCode: "" },
   });
 
-  // Ad blocker detection
   useEffect(() => {
     const checkAdBlocker = async () => {
       try {
@@ -74,8 +72,7 @@ export default function CheckoutPage() {
         throw new Error("El carrito está vacío");
       }
       
-      // 2. CREAR LA ORDEN PRIMERO
-      const orderData = {
+      const orderDataForDb = {
         customerName: values.name,
         customerEmail: process.env.NODE_ENV === 'development' ? MP_TEST_USERS.buyer : values.email,
         total: totalPrice,
@@ -88,63 +85,57 @@ export default function CheckoutPage() {
         discountAmount: discount,
       };
 
-      const newOrder = await createOrder(orderData);
-      console.log("Order created successfully:", newOrder);
+      // 2. MANEJAR LA RESPUESTA DE createOrder
+      const orderResponse = await createOrder(orderDataForDb);
+      if (orderResponse.error || !orderResponse.orderId) {
+        throw new Error(orderResponse.error || "No se pudo obtener el ID de la orden.");
+      }
+      console.log("Order created successfully with ID:", orderResponse.orderId);
 
-      // 3. CONSTRUIR EL BODY CORRECTO PARA LA API
-      const requestBody = {
-        items: cartItems,      // Nombre correcto: items
-        customer: {            // Nombre correcto: customer
+      const requestBodyForMp = {
+        items: cartItems,
+        customer: {
           name: values.name,
           email: process.env.NODE_ENV === 'development' ? MP_TEST_USERS.buyer : values.email,
         },
-        orderId: newOrder.id  // Usar el ID de la orden recién creada
+        orderId: orderResponse.orderId 
       };
 
-      console.log("Creating payment preference with:", requestBody);
+      console.log("Creating Mercado Pago preference with:", requestBodyForMp);
 
       const response = await fetch('/api/create-preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(requestBodyForMp),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        // Si falla la creación de la preferencia, intenta cancelar la orden
         throw new Error(errorData.error || `Error del servidor: ${response.status}`);
       }
 
-      const data = await response.json();
+      const preferenceData = await response.json();
       
-      if (!data.id) { // El ID de preferencia viene en la propiedad 'id'
-        throw new Error("No se recibió el ID de preferencia del servidor");
+      if (!preferenceData.id || !preferenceData.init_point) {
+        throw new Error("Datos de preferencia de pago inválidos recibidos del servidor");
       }
 
-      console.log("Preference created successfully:", data);
+      console.log("Preference created successfully, redirecting...", preferenceData);
       
-      // Limpiar el carrito después de crear la orden y la preferencia
+      // Limpiar el carrito solo después de tener la URL de pago lista
       clearCart();
 
-      // Redirigir directamente al init_point de Mercado Pago
-      window.location.href = data.init_point; 
+      window.location.href = preferenceData.init_point;
       
     } catch (error) {
       console.error("Error during checkout process:", error);
       let errorMessage = (error instanceof Error) ? error.message : "Error desconocido";
-      toast({ title: "Error", description: errorMessage, variant: "destructive" });
-      setIsLoading(false); // Detener la carga solo si hay un error
+      toast({ title: "Error en el Checkout", description: errorMessage, variant: "destructive" });
+      setIsLoading(false);
     }
-    // No poner setIsLoading(false) aquí para que el usuario no vea la pantalla de nuevo antes de redirigir
   };
   
-  useEffect(() => {
-    if (cartCount === 0 && !isLoading) {
-        // Ya no se necesita esta lógica porque se limpia el carrito y se redirige
-    }
-  }, [cartCount, router, isLoading, toast]);
-
-  // ... (El resto del código JSX permanece mayormente igual, solo se simplificará el flujo de UI)
-
   if (cartCount === 0 && !isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
@@ -155,173 +146,173 @@ export default function CheckoutPage() {
     );
   }
 
-  // ... (El resto del código JSX se puede pegar aquí tal cual estaba)
-    if (!process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY) {
-        return (
-          <div className="text-center py-12 text-destructive">
-            <h1 className="text-2xl font-semibold">Error de Configuración</h1>
-            <p className="text-muted-foreground mt-2">
-              El sistema de pagos no está configurado. Por favor, contacta al administrador.
-            </p>
-          </div>
-        );
-      }
-    
-      const renderOrderSummary = () => (
-        <div className="lg:col-span-1">
-          <div className="sticky top-24">
-            <h2 className="text-3xl font-headline font-bold mb-6">Resumen de tu compra</h2>
-            <Card className="shadow-lg">
-              <CardContent className="p-6 space-y-4">
-                {cartItems.map(item => (
-                  <div key={item.product.id} className="flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      <div className="relative w-16 h-16 rounded-md overflow-hidden border">
-                        <Image 
-                          src={item.product.images[0] ?? "https://placehold.co/100x100.png"} 
-                          alt={item.product.name} 
-                          fill 
-                          className="object-cover" 
-                        />
-                      </div>
-                      <div>
-                        <p className="font-semibold">{item.product.name}</p>
-                        <p className="text-sm text-muted-foreground">Cantidad: {item.quantity}</p>
-                      </div>
-                    </div>
-                    <p className="font-medium text-right">
-                      ${((item.product.salePrice ?? item.product.price) * item.quantity).toLocaleString('es-AR')}
-                    </p>
+  if (!process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY) {
+    return (
+      <div className="text-center py-12 text-destructive">
+        <h1 className="text-2xl font-semibold">Error de Configuración</h1>
+        <p className="text-muted-foreground mt-2">
+          El sistema de pagos no está configurado. Por favor, contacta al administrador.
+        </p>
+      </div>
+    );
+  }
+
+  const renderOrderSummary = () => (
+    <div className="lg:col-span-1">
+      <div className="sticky top-24">
+        <h2 className="text-3xl font-headline font-bold mb-6">Resumen de tu compra</h2>
+        <Card className="shadow-lg">
+          <CardContent className="p-6 space-y-4">
+            {cartItems.map(item => (
+              <div key={item.product.id} className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="relative w-16 h-16 rounded-md overflow-hidden border">
+                    <Image 
+                      src={item.product.images[0] ?? "https://placehold.co/100x100.png"} 
+                      alt={item.product.name} 
+                      fill 
+                      className="object-cover" 
+                    />
                   </div>
-                ))}
-                <Separator className="my-4"/>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <p className="text-muted-foreground">Subtotal</p>
-                    <p>${subtotal.toLocaleString('es-AR')}</p>
-                  </div>
-                  {appliedCoupon && (
-                    <div className="flex justify-between text-primary">
-                      <div className="flex items-center gap-2">
-                        <Ticket className="h-4 w-4"/>
-                        <span>Cupón: {appliedCoupon.code}</span>
-                      </div>
-                      <span>-${discount.toLocaleString('es-AR')}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <p className="text-muted-foreground">Envío</p>
-                    <p>A coordinar</p>
-                  </div>
-                  <Separator className="my-4"/>
-                  <div className="flex justify-between font-bold text-xl">
-                    <p>Total</p>
-                    <p>${totalPrice.toLocaleString('es-AR')}</p>
+                  <div>
+                    <p className="font-semibold">{item.product.name}</p>
+                    <p className="text-sm text-muted-foreground">Cantidad: {item.quantity}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-            
-            <div className="mt-4 p-4 bg-muted rounded-lg">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CreditCard className="h-4 w-4" />
-                <span>Pagos seguros procesados por Mercado Pago</span>
+                <p className="font-medium text-right">
+                  ${((item.product.salePrice ?? item.product.price) * item.quantity).toLocaleString('es-AR')}
+                </p>
+              </div>
+            ))}
+            <Separator className="my-4"/>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <p className="text-muted-foreground">Subtotal</p>
+                <p>${subtotal.toLocaleString('es-AR')}</p>
+              </div>
+              {appliedCoupon && (
+                <div className="flex justify-between text-primary">
+                  <div className="flex items-center gap-2">
+                    <Ticket className="h-4 w-4"/>
+                    <span>Cupón: {appliedCoupon.code}</span>
+                  </div>
+                  <span>-${discount.toLocaleString('es-AR')}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <p className="text-muted-foreground">Envío</p>
+                <p>A coordinar</p>
+              </div>
+              <Separator className="my-4"/>
+              <div className="flex justify-between font-bold text-xl">
+                <p>Total</p>
+                <p>${totalPrice.toLocaleString('es-AR')}</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+        
+        <div className="mt-4 p-4 bg-muted rounded-lg">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CreditCard className="h-4 w-4" />
+            <span>Pagos seguros procesados por Mercado Pago</span>
           </div>
         </div>
-      );
-    
-      return (
-        <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
-          <div className="lg:col-span-1">
-            <h1 className="text-3xl font-headline font-bold mb-6">Finalizar Compra</h1>
-    
-            {showAdBlockerWarning && (
-              <Card className="border-yellow-200 bg-yellow-50 mb-6">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 text-yellow-800">
-                    <AlertTriangle className="h-5 w-5" />
-                    <p className="text-sm">
-                      <strong>Importante:</strong> Detectamos un bloqueador de anuncios activo. 
-                      Por favor desactívalo para este sitio para asegurar que el sistema de pagos funcione correctamente.
-                    </p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto py-8">
+      <div className="lg:col-span-1">
+        <h1 className="text-3xl font-headline font-bold mb-6">Finalizar Compra</h1>
+
+        {showAdBlockerWarning && (
+          <Card className="border-yellow-200 bg-yellow-50 mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-yellow-800">
+                <AlertTriangle className="h-5 w-5" />
+                <p className="text-sm">
+                  <strong>Importante:</strong> Detectamos un bloqueador de anuncios activo. 
+                  Por favor desactívalo para este sitio para asegurar que el sistema de pagos funcione correctamente.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {isLoading ? (
+          <div className="flex flex-col justify-center items-center h-96 gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground">Procesando tu orden y preparando el pago...</p>
+            <p className="text-sm text-muted-foreground mt-2">No cierres esta ventana.</p>
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleShippingSubmit)} className="space-y-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Información de Envío y Contacto</CardTitle>
+                  <CardDescription>Completa tus datos para el envío y la confirmación del pedido.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField control={form.control} name="name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre Completo</FormLabel>
+                      <FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="address" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dirección</FormLabel>
+                      <FormControl><Input {...field} placeholder="Av. Corrientes 1234" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}/>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="city" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ciudad</FormLabel>
+                        <FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField control={form.control} name="postalCode" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Código Postal</FormLabel>
+                        <FormControl><Input {...field} placeholder="1001" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
                   </div>
                 </CardContent>
+                <CardFooter>
+                  <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Procesando...
+                      </>
+                    ) : (
+                      "Continuar y Pagar con Mercado Pago"
+                    )}
+                  </Button>
+                </CardFooter>
               </Card>
-            )}
-            
-            {isLoading ? (
-              <div className="flex flex-col justify-center items-center h-96 gap-4">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-muted-foreground">Procesando tu orden y preparando el pago...</p>
-              </div>
-            ) : (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleShippingSubmit)} className="space-y-8">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>1. Información de Envío</CardTitle>
-                      <CardDescription>Completa tus datos para el envío del pedido</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <FormField control={form.control} name="name" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nombre Completo</FormLabel>
-                          <FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}/>
-                      <FormField control={form.control} name="email" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}/>
-                      <FormField control={form.control} name="address" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Dirección</FormLabel>
-                          <FormControl><Input {...field} placeholder="Av. Corrientes 1234" /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}/>
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField control={form.control} name="city" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Ciudad</FormLabel>
-                            <FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}/>
-                        <FormField control={form.control} name="postalCode" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Código Postal</FormLabel>
-                            <FormControl><Input {...field} placeholder="1001" /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}/>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Procesando...
-                          </>
-                        ) : (
-                          "Continuar y Pagar con Mercado Pago"
-                        )}
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </form>
-              </Form>
-            )}
-          </div>
-    
-          {renderOrderSummary()}
-        </div>
-      );
+            </form>
+          </Form>
+        )}
+      </div>
+
+      {renderOrderSummary()}
+    </div>
+  );
 }
