@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       },
       external_reference: String(orderId), 
       statement_descriptor: 'OSADIA',
-      notification_url: "https://webhook.site/9b058181-5bfc-4000-a389-d640c09a059d",
+      notification_url: `${BASE_URL}/api/mercadopago-webhook`,
     };
 
     // 5. Create the preference using the MercadoPago SDK.
