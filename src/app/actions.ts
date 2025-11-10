@@ -344,7 +344,7 @@ export async function deleteCategoryAction(id: number) {
 }
 
 // Order Actions
-const orderStatusSchema = z.enum(['pending', 'delivered', 'failed']);
+const orderStatusSchema = z.enum(['pending', 'paid', 'failed', 'cancelled', 'shipped', 'delivered', 'refunded']);
 
 export async function updateOrderStatusAction(orderId: number, newStatus: OrderStatus) {
     const validatedStatus = orderStatusSchema.safeParse(newStatus);
