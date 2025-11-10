@@ -23,7 +23,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Ticket, ArrowLeft, ShoppingCart, CreditCard, AlertTriangle, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { createOrder } from "@/lib/data"; // 1. RUTA DE IMPORTACIÓN CORREGIDA
+import { createOrder } from "@/lib/data";
 
 const shippingSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
@@ -74,7 +74,7 @@ export default function CheckoutPage() {
       
       const orderDataForDb = {
         customerName: values.name,
-        customerEmail: process.env.NODE_ENV === 'development' ? MP_TEST_USERS.buyer : values.email,
+        customerEmail: values.email, // Guardamos el email real en nuestra BD
         total: totalPrice,
         status: 'pending' as const,
         items: cartItems,
@@ -85,10 +85,9 @@ export default function CheckoutPage() {
         discountAmount: discount,
       };
 
-      // 2. MANEJAR LA RESPUESTA DE createOrder
       const orderResponse = await createOrder(orderDataForDb);
       if (orderResponse.error || !orderResponse.orderId) {
-        throw new Error(orderResponse.error || "No se pudo obtener el ID de la orden.");
+        throw new Error(orderResponse.error || "No se pudo crear la orden en la base de datos.");
       }
       console.log("Order created successfully with ID:", orderResponse.orderId);
 
@@ -96,12 +95,13 @@ export default function CheckoutPage() {
         items: cartItems,
         customer: {
           name: values.name,
-          email: process.env.NODE_ENV === 'development' ? MP_TEST_USERS.buyer : values.email,
+          // FORZAMOS EL EMAIL DEL COMPRADOR DE PRUEBA PARA MERCADO PAGO
+          email: MP_TEST_USERS.buyer, 
         },
         orderId: orderResponse.orderId 
       };
 
-      console.log("Creating Mercado Pago preference with:", requestBodyForMp);
+      console.log("Creating Mercado Pago preference with test buyer:", requestBodyForMp);
 
       const response = await fetch('/api/create-preference', {
         method: 'POST',
@@ -111,7 +111,6 @@ export default function CheckoutPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        // Si falla la creación de la preferencia, intenta cancelar la orden
         throw new Error(errorData.error || `Error del servidor: ${response.status}`);
       }
 
@@ -123,9 +122,7 @@ export default function CheckoutPage() {
 
       console.log("Preference created successfully, redirecting...", preferenceData);
       
-      // Limpiar el carrito solo después de tener la URL de pago lista
       clearCart();
-
       window.location.href = preferenceData.init_point;
       
     } catch (error) {
@@ -150,9 +147,7 @@ export default function CheckoutPage() {
     return (
       <div className="text-center py-12 text-destructive">
         <h1 className="text-2xl font-semibold">Error de Configuración</h1>
-        <p className="text-muted-foreground mt-2">
-          El sistema de pagos no está configurado. Por favor, contacta al administrador.
-        </p>
+        <p className="text-muted-foreground mt-2">El sistema de pagos no está configurado.</p>
       </div>
     );
   }
