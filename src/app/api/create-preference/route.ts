@@ -4,7 +4,8 @@ import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { CartItem } from '@/lib/types';
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL!;
+// CORREGIDO: Usar la variable de entorno correcta que ya tienes configurada
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 
 export async function POST(request: NextRequest) {
     try {
@@ -12,6 +13,10 @@ export async function POST(request: NextRequest) {
 
         if (!items || !customer || !orderId) {
             return NextResponse.json({ error: 'Missing required data: items, customer, or orderId' }, { status: 400 });
+        }
+        
+        if (!SITE_URL) {
+            throw new Error('La variable de entorno NEXT_PUBLIC_SITE_URL no está configurada.');
         }
 
         const preferenceBody = {
@@ -27,26 +32,24 @@ export async function POST(request: NextRequest) {
             },
             payment_methods: {
                 excluded_payment_types: [],
-                installments: 6,
+                installments: 6, // Puedes configurar esto según tus necesidades
             },
             back_urls: {
-                success: `${BASE_URL}/checkout/success`,
-                failure: `${BASE_URL}/checkout/failure`,
-                pending: `${BASE_URL}/checkout/pending`,
+                success: `${SITE_URL}/checkout/success`,
+                failure: `${SITE_URL}/checkout/failure`,
+                pending: `${SITE_URL}/checkout/pending`,
             },
             external_reference: orderId.toString(),
-            notification_url: `${BASE_URL}/api/test-webhook`,
+            notification_url: `${SITE_URL}/api/webhook/mercadopago`, // Apuntando al webhook real
         };
 
         const preference = new Preference(client);
         const result = await preference.create({ body: preferenceBody });
 
-        // DEVOLVER TANTO EL ID COMO EL INIT_POINT
         return NextResponse.json({ id: result.id, init_point: result.init_point });
 
     } catch (error: any) {
         console.error("Error creating preference:", error);
-        // Si el error viene de Mercado Pago, su API a menudo devuelve detalles útiles
         const errorMessage = error.cause?.message || error.message || 'Failed to create preference';
         const status = error.statusCode || 500;
         return NextResponse.json({ error: errorMessage }, { status });
