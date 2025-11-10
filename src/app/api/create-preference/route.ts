@@ -16,10 +16,10 @@ export async function POST(request: NextRequest) {
 
         const preferenceBody = {
             items: items.map((item: CartItem) => ({
-                id: item.product.id.toString(), // CORREGIDO
-                title: item.product.name,       // CORREGIDO
-                quantity: item.quantity,            // Esto estaba bien
-                unit_price: item.product.price,     // CORREGIDO
+                id: item.product.id.toString(),
+                title: item.product.name,
+                quantity: item.quantity,
+                unit_price: item.product.price,
             })),
             payer: {
                 name: customer.name,
@@ -35,16 +35,20 @@ export async function POST(request: NextRequest) {
                 pending: `${BASE_URL}/checkout/pending`,
             },
             external_reference: orderId.toString(),
-            notification_url: `${BASE_URL}/api/test-webhook`, // APUNTANDO AL NUEVO ENDPOINT
+            notification_url: `${BASE_URL}/api/test-webhook`,
         };
 
         const preference = new Preference(client);
         const result = await preference.create({ body: preferenceBody });
 
-        return NextResponse.json({ id: result.id });
+        // DEVOLVER TANTO EL ID COMO EL INIT_POINT
+        return NextResponse.json({ id: result.id, init_point: result.init_point });
 
     } catch (error: any) {
         console.error("Error creating preference:", error);
-        return NextResponse.json({ error: `Failed to create preference: ${error.message}` }, { status: 500 });
+        // Si el error viene de Mercado Pago, su API a menudo devuelve detalles útiles
+        const errorMessage = error.cause?.message || error.message || 'Failed to create preference';
+        const status = error.statusCode || 500;
+        return NextResponse.json({ error: errorMessage }, { status });
     }
 }
