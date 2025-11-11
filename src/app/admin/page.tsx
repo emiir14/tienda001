@@ -44,7 +44,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { addProductAction, updateProductAction, deleteProductAction, addCouponAction, updateCouponAction, deleteCouponAction, addCategoryAction, deleteCategoryAction, updateOrderStatusAction, importProductsAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -1115,7 +1114,6 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
   return (
     <>
       <AdminDashboard onLogout={handleLogout} dbConnected={dbConnected} />
-      <ScrollToTopButton />
     </>
   );
 

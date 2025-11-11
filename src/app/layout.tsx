@@ -9,6 +9,7 @@ import Footer from '@/components/Footer';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import Script from 'next/script';
+import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import CartSidebar from '@/components/CartSidebar';
 import TopBar from '@/components/TopBar';
 
@@ -47,6 +48,7 @@ export default function RootLayout({
               </div>
               <CartSidebar />
               <WhatsAppButton />
+              <ScrollToTopButton />
               <Toaster />
             </CartProvider>
         </ThemeProvider>
