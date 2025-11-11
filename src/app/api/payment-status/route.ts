@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    // The client will send the paymentId
     const { paymentId } = body;
 
     console.log('Fetching payment status for:', { paymentId });
@@ -27,7 +26,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch payment details from MercadoPago API
     const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       method: 'GET',
       headers: {
@@ -52,10 +50,8 @@ export async function POST(request: NextRequest) {
       external_reference: paymentData.external_reference
     });
 
-    // --- BUSINESS LOGIC ADDED ---
     if (!paymentData.external_reference) {
         console.warn(`Payment ${paymentId} is missing an external_reference. Cannot process order logic.`);
-        // Still return the data to the client, as the primary function of this endpoint is to provide status
         return NextResponse.json(paymentData);
     }
 
@@ -75,40 +71,55 @@ export async function POST(request: NextRequest) {
 
     let newStatus: OrderStatus;
 
+    // The function will now return from within the switch to allow for custom responses.
     switch (paymentData.status) {
       case 'approved':
         newStatus = 'paid';
         console.log(`Payment ${paymentId} approved for order ${orderId}. Updating status and deducting stock.`);
         await updateOrderStatus(orderId, newStatus, String(paymentId));
         await deductStockForOrder(orderId);
-        break;
+        // Return original data; no cart restoration needed.
+        return NextResponse.json(paymentData);
         
       case 'in_process':
       case 'pending':
-        newStatus = 'pending';
-        console.log(`Payment ${paymentId} is pending for order ${orderId}. Updating status.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-        break;
-        
       case 'rejected':
-        newStatus = 'failed';
-        console.log(`Payment ${paymentId} rejected for order ${orderId}. Updating status.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-        break;
-        
       case 'cancelled':
-        newStatus = 'cancelled';
-        console.log(`Payment ${paymentId} cancelled for order ${orderId}. Updating status.`);
+        if (paymentData.status === 'in_process' || paymentData.status === 'pending') {
+          newStatus = 'pending';
+        } else if (paymentData.status === 'rejected') {
+          newStatus = 'failed';
+        } else { // 'cancelled'
+          newStatus = 'cancelled';
+        }
+        
+        console.log(`Payment ${paymentId} has status '${paymentData.status}' for order ${orderId}.`);
         await updateOrderStatus(orderId, newStatus, String(paymentId));
-        break;
+
+        // --- Start of Cart Restoration Logic ---
+        let restorableCartItems = null;
+        if (order && order.items) {
+          console.log(`Preparing ${order.items.length} item(s) for cart restoration for order ${orderId}.`);
+          restorableCartItems = order.items.map(item => ({
+            ...item.product,
+            quantity: item.quantity,
+          }));
+        } else {
+          console.warn(`Could not find items for order ${orderId} to restore cart.`);
+        }
+
+        // Return payment data PLUS the items to restore.
+        return NextResponse.json({
+          ...paymentData,
+          restorableCartItems,
+        });
+        // --- End of Cart Restoration Logic ---
         
       default:
         console.log(`Ignoring unhandled payment status '${paymentData.status}' for payment ${paymentId}.`);
+        // For any other status, just return the data without modification.
+        return NextResponse.json(paymentData);
     }
-    // --- END OF BUSINESS LOGIC ---
-
-    // Return the full payment data to the client, which might need it for the UI.
-    return NextResponse.json(paymentData);
 
   } catch (error: any) {
     console.error('❌ Error in payment-status endpoint:', error);
