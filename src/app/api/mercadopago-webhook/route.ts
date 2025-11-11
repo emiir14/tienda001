@@ -5,7 +5,7 @@ import { updateOrderStatus, deductStockForOrder, getOrderByPaymentId, getOrderBy
 import type { OrderStatus } from '@/lib/types';
 import crypto from 'crypto';
 
-// Función para verificar la firma de Mercado Pago
+// Función para verificar la firma de Mercado Pago (AHORA SÍ, CORREGIDA)
 async function verifySignature(request: NextRequest, rawBody: string): Promise<boolean> {
     const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
     if (!secret) {
@@ -31,27 +31,31 @@ async function verifySignature(request: NextRequest, rawBody: string): Promise<b
         return false;
     }
 
-    // Construir el manifiesto para la firma
     const manifest = `id:${(JSON.parse(rawBody)).data.id};request-id:${request.headers.get('x-request-id')};ts:${timestamp};`;
-    
-    // Calcular nuestra propia firma
     const hmac = crypto.createHmac('sha256', secret);
     hmac.update(manifest);
     const computedSignature = hmac.digest('hex');
 
-    // *** SOLUCIÓN DEFINITIVA: Implementación manual de comparación segura ***
-    // `crypto.timingSafeEqual` no está disponible en el Edge Runtime de Vercel.
+    // *** LA VERDADERA SOLUCIÓN DEFINITIVA ***
+    // Reemplazamos crypto.timingSafeEqual con una implementación manual de comparación segura
+    // que sí es compatible con el Edge Runtime de Vercel.
     try {
         const receivedSigBuffer = Buffer.from(receivedSignature, 'hex');
         const computedSigBuffer = Buffer.from(computedSignature, 'hex');
 
         if (receivedSigBuffer.length !== computedSigBuffer.length) {
+            console.warn('[WEBHOOK] Signature length mismatch.');
             return false;
         }
 
-        // `crypto.timingSafeEqual` es lo que se debe usar en entornos Node.js estándar
-        // pero aquí lo reimplementamos porque no está disponible.
-        return crypto.timingSafeEqual(receivedSigBuffer, computedSigBuffer);
+        // Realizamos una comparación en tiempo constante.
+        let diff = 0;
+        for (let i = 0; i < receivedSigBuffer.length; i++) {
+            diff |= receivedSigBuffer[i] ^ computedSigBuffer[i];
+        }
+
+        // si diff es 0, las firmas son idénticas.
+        return diff === 0;
 
     } catch (error) {
         console.error('[WEBHOOK] Error comparing signatures:', error);
@@ -60,7 +64,8 @@ async function verifySignature(request: NextRequest, rawBody: string): Promise<b
 }
 
 export async function POST(request: NextRequest) {
-  console.log('[WEBHOOK] Invoked. Method:', request.method);
+  // Este es el primer log que DEBERÍAMOS ver ahora.
+  console.log('[WEBHOOK] Invoked. Processing starts NOW.');
 
   try {
     const rawBody = await request.text();
@@ -68,8 +73,7 @@ export async function POST(request: NextRequest) {
         console.log('[WEBHOOK] Received empty body. Acknowledging.');
         return NextResponse.json({ received: true });
     }
-
-    // La verificación de firma ahora está al principio
+    
     const isSignatureValid = await verifySignature(request, rawBody);
     if (!isSignatureValid) {
         console.error('[WEBHOOK] INVALID SIGNATURE. Request ignored.');
@@ -108,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     if (!order) {
         console.error(`[WEBHOOK] CRITICAL: Order not found for payment ${paymentId} or external_reference.`);
-        return NextResponse.json({ received: true }); // Acknowledge to prevent retries
+        return NextResponse.json({ received: true });
     }
     
     const orderId = order.id;
@@ -138,13 +142,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
     
   } catch (error: any) {
-    // Log del error crítico con todos los detalles
-    console.error('[WEBHOOK] CRITICAL ERROR:', { 
-        message: error.message, 
-        stack: error.stack, 
-        name: error.name 
-    });
-    // Respondemos con un 200 OK a Mercado Pago para que no siga reintentando un webhook que está roto.
+    console.error('[WEBHOOK] CRITICAL ERROR:', { message: error.message, stack: error.stack, name: error.name });
     return NextResponse.json({ error: 'Webhook processing failed but acknowledging receipt to prevent retries.' }, { status: 200 });
   }
 }
