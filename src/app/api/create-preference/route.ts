@@ -5,9 +5,9 @@ import { CartItem } from '@/lib/types';
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
 
-// Asegúrate de que esta variable de entorno en Vercel NO tenga una barra al final.
-// Ejemplo CORRECTO: https://mi-sitio.vercel.app
-// Ejemplo INCORRECTO: https://mi-sitio.vercel.app/
+// Ensure this environment variable in Vercel does NOT have a trailing slash.
+// CORRECT Example: https://my-site.vercel.app
+// INCORRECT Example: https://my-site.vercel.app/
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 
 export async function POST(request: NextRequest) {
@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (!SITE_URL) {
+            console.error('[CREATE-PREFERENCE] CRITICAL: NEXT_PUBLIC_SITE_URL is not configured!');
             throw new Error('NEXT_PUBLIC_SITE_URL is not configured.');
         }
 
@@ -43,9 +44,11 @@ export async function POST(request: NextRequest) {
                 pending: `${SITE_URL}/checkout/pending`,
             },
             external_reference: orderId.toString(),
-            // CORREGIDO: Apuntando al webhook de prueba y con la URL bien formada.
-            notification_url: `${SITE_URL}/api/mercadopago-webhook-test`,
+            // FINAL FIX: Pointing to the new, robust, and correct webhook URL.
+            notification_url: `${SITE_URL}/api/mercadopago-webhook`,
         };
+
+        console.log('[CREATE-PREFERENCE] Final preference body being sent to Mercado Pago:', JSON.stringify(preferenceBody, null, 2));
 
         const preference = new Preference(client);
         const result = await preference.create({ body: preferenceBody });

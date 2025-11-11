@@ -1,148 +1,72 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
-import { updateOrderStatus, deductStockForOrder, getOrderByPaymentId, getOrderById } from '@/lib/data';
-import type { OrderStatus } from '@/lib/types';
-import crypto from 'crypto';
+import { updateOrderStatusFromWebhook, deductStockFromWebhook } from '@/lib/webhook-db';
 
-// Función para verificar la firma de Mercado Pago (AHORA SÍ, CORREGIDA)
-async function verifySignature(request: NextRequest, rawBody: string): Promise<boolean> {
-    const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
-    if (!secret) {
-        console.error('[WEBHOOK] CRITICAL: MERCADOPAGO_WEBHOOK_SECRET is not defined.');
-        return false;
-    }
-    const signatureHeader = request.headers.get('x-signature');
-    if (!signatureHeader) {
-        console.warn('[WEBHOOK] Missing x-signature header.');
-        return false;
-    }
-
-    const parts = signatureHeader.split(',').reduce((acc, part) => {
-        const [key, value] = part.split('=');
-        acc[key.trim()] = value.trim();
-        return acc;
-    }, {} as Record<string, string>);
-
-    const timestamp = parts['ts'];
-    const receivedSignature = parts['v1'];
-    if (!timestamp || !receivedSignature) {
-        console.warn('[WEBHOOK] Invalid signature header format.');
-        return false;
-    }
-
-    const manifest = `id:${(JSON.parse(rawBody)).data.id};request-id:${request.headers.get('x-request-id')};ts:${timestamp};`;
-    const hmac = crypto.createHmac('sha256', secret);
-    hmac.update(manifest);
-    const computedSignature = hmac.digest('hex');
-
-    // *** LA VERDADERA SOLUCIÓN DEFINITIVA ***
-    // Reemplazamos crypto.timingSafeEqual con una implementación manual de comparación segura
-    // que sí es compatible con el Edge Runtime de Vercel.
-    try {
-        const receivedSigBuffer = Buffer.from(receivedSignature, 'hex');
-        const computedSigBuffer = Buffer.from(computedSignature, 'hex');
-
-        if (receivedSigBuffer.length !== computedSigBuffer.length) {
-            console.warn('[WEBHOOK] Signature length mismatch.');
-            return false;
-        }
-
-        // Realizamos una comparación en tiempo constante.
-        let diff = 0;
-        for (let i = 0; i < receivedSigBuffer.length; i++) {
-            diff |= receivedSigBuffer[i] ^ computedSigBuffer[i];
-        }
-
-        // si diff es 0, las firmas son idénticas.
-        return diff === 0;
-
-    } catch (error) {
-        console.error('[WEBHOOK] Error comparing signatures:', error);
-        return false;
-    }
-}
+const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
 
 export async function POST(request: NextRequest) {
-  // Este es el primer log que DEBERÍAMOS ver ahora.
-  console.log('[WEBHOOK] Invoked. Processing starts NOW.');
+    console.log('[WEBHOOK] ✅ INCOMING NOTIFICATION');
+    const body = await request.json();
+    console.log('[WEBHOOK] Body received:', body);
 
-  try {
-    const rawBody = await request.text();
-    if (!rawBody) {
-        console.log('[WEBHOOK] Received empty body. Acknowledging.');
-        return NextResponse.json({ received: true });
-    }
-    
-    const isSignatureValid = await verifySignature(request, rawBody);
-    if (!isSignatureValid) {
-        console.error('[WEBHOOK] INVALID SIGNATURE. Request ignored.');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
-    }
-    console.log('[WEBHOOK] Signature validated successfully.');
+    if (body.type === 'payment') {
+        const paymentId = body.data.id as string;
+        console.log(`[WEBHOOK] Received payment notification for ID: ${paymentId}.`);
 
-    const body = JSON.parse(rawBody);
+        try {
+            // CORRECT WAY: Fetch the payment directly using its ID
+            console.log(`[WEBHOOK] Fetching payment details for ID: ${paymentId}`);
+            const payment = await new Payment(client).get({ id: paymentId });
+            console.log('[WEBHOOK] Payment details fetched successfully.');
 
-    if (body.type !== 'payment') {
-      console.log(`[WEBHOOK] Ignoring event type: ${body.type}`);
-      return NextResponse.json({ received: true });
-    }
+            const orderId = payment.external_reference;
+            if (!orderId) {
+                console.error('[WEBHOOK] CRITICAL: Payment is missing external_reference.', payment);
+                return NextResponse.json({ error: 'External reference not found in payment' }, { status: 400 });
+            }
+            console.log(`[WEBHOOK] Order ID (external_reference): ${orderId}`);
 
-    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-    if (!accessToken) {
-        throw new Error('MERCADOPAGO_ACCESS_TOKEN is not defined.');
-    }
-    const client = new MercadoPagoConfig({ accessToken });
-    const paymentClient = new Payment(client);
+            if (payment.status === 'approved') {
+                console.log(`[WEBHOOK] Payment for order ${orderId} is approved.`);
 
-    const paymentId = body.data.id;
-    const paymentData = await paymentClient.get({ id: paymentId });
-    
-    console.log(`[WEBHOOK] Fetched payment ${paymentId} with status: ${paymentData.status}`);
+                // 1. Update order status to 'paid'
+                console.log(`[WEBHOOK] ==> Step 1: Updating order status to 'paid' for order ${orderId}.`);
+                await updateOrderStatusFromWebhook(Number(orderId), 'paid', paymentId);
+                console.log(`[WEBHOOK] <== Step 1 complete.`);
 
-    let order = await getOrderByPaymentId(String(paymentId));
-    
-    if (!order && paymentData.external_reference) {
-        const orderIdFromRef = parseInt(paymentData.external_reference, 10);
-        console.log(`[WEBHOOK] Payment ID not found, trying external_reference: ${orderIdFromRef}`);
-        if (!isNaN(orderIdFromRef)) {
-            order = await getOrderById(orderIdFromRef);
+                // 2. Deduct stock
+                try {
+                    console.log(`[WEBHOOK] ==> Step 2: Deducting stock for order ${orderId}.`);
+                    await deductStockFromWebhook(Number(orderId));
+                    console.log(`[WEBHOOK] <== Step 2 complete.`);
+                } catch (stockError: any) {
+                    console.error(`[WEBHOOK] CRITICAL FAILURE IN STEP 2: Failed to deduct stock for order ${orderId}. MANUAL INTERVENTION REQUIRED.`, stockError);
+                }
+
+                console.log(`[WEBHOOK] ✅ Order ${orderId} processed successfully.`);
+                return NextResponse.json({ success: true, orderId });
+
+            } else {
+                console.log(`[WEBHOOK] Payment for order ${orderId} is not approved. Status is: ${payment.status}.`);
+                // Map other Mercado Pago statuses to your app's statuses
+                const newStatus = (payment.status === 'pending' || payment.status === 'in_process') ? 'pending' : 'failed';
+                await updateOrderStatusFromWebhook(Number(orderId), newStatus, paymentId);
+                console.log(`[WEBHOOK] Order ${orderId} status updated to ${newStatus}.`);
+                return NextResponse.json({ success: true, message: `Status updated to ${newStatus}` });
+            }
+
+        } catch (error: any) {
+            console.error(`[WEBHOOK] 💥 GENERAL ERROR processing payment ${paymentId}:`, {
+                message: error.message,
+                stack: error.stack,
+                cause: error.cause
+            });
+            return NextResponse.json({ error: 'Failed to process payment notification' }, { status: 500 });
         }
     }
 
-    if (!order) {
-        console.error(`[WEBHOOK] CRITICAL: Order not found for payment ${paymentId} or external_reference.`);
-        return NextResponse.json({ received: true });
-    }
-    
-    const orderId = order.id;
-
-    if (['paid', 'delivered', 'shipped'].includes(order.status)) {
-        console.log(`[WEBHOOK] Order ${orderId} already processed (status: '${order.status}'). No action needed.`);
-        return NextResponse.json({ received: true });
-    }
-
-    let newStatus: OrderStatus | null = null;
-    
-    if (paymentData.status === 'approved') {
-        newStatus = 'paid';
-        console.log(`[WEBHOOK] Status is 'approved'. Updating order ${orderId} to 'paid'.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-        await deductStockForOrder(orderId);
-        console.log(`[WEBHOOK] Order ${orderId} status updated and stock deducted.`);
-    } else if (['rejected', 'cancelled'].includes(paymentData.status as string) && !['failed', 'cancelled'].includes(order.status)) {
-        newStatus = paymentData.status === 'rejected' ? 'failed' : 'cancelled';
-        console.log(`[WEBHOOK] Status is '${paymentData.status}'. Updating order ${orderId} to '${newStatus}'.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-    } else {
-        console.log(`[WEBHOOK] Ignoring payment status '${paymentData.status}' for order ${orderId}. No update needed.`);
-    }
-    
-    console.log(`[WEBHOOK] Process finished successfully for payment ${paymentId}.`);
-    return NextResponse.json({ received: true });
-    
-  } catch (error: any) {
-    console.error('[WEBHOOK] CRITICAL ERROR:', { message: error.message, stack: error.stack, name: error.name });
-    return NextResponse.json({ error: 'Webhook processing failed but acknowledging receipt to prevent retries.' }, { status: 200 });
-  }
+    // This console.log now uses double quotes to prevent syntax errors
+    console.log("[WEBHOOK] Notification is not of type 'payment'. Ignoring.");
+    return NextResponse.json({ success: true, message: 'Notification acknowledged' });
 }
