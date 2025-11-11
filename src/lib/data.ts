@@ -362,7 +362,7 @@ export async function createOrder(orderData: OrderData): Promise<{orderId?: numb
             const productResult = await db`SELECT stock, name FROM products WHERE id = ${item.product.id}`;
             if (productResult.length === 0) return { error: `Producto no encontrado: ${item.product.id}` };
             if (productResult[0].stock < item.quantity) {
-                return { error: `Stock insuficiente para "${productResult[0].name}".` };
+                return { error: `Stock insuficiente para \"${productResult[0].name}\".` };
             }
         }
         const { customerName, customerEmail, total, items, couponCode, discountAmount, shippingAddress, shippingCity, shippingPostalCode } = orderData;
@@ -509,7 +509,7 @@ export async function getSalesMetrics(): Promise<SalesMetrics> {
         return {
             totalRevenue: parseFloat(totalrevenue) || 0,
             totalSales: parseInt(totalsales) || 0,
-            topSellingProducts: productsResult.map((r: any) => ({ productId: r.productId, name: r.name, count: Number(r.count) })),
+            topSellingProducts: productsResult.map((r: any) => ({ productId: r.productId, name: r.name, count: Number(r.count) }))
         };
     } catch (error) {
         console.error('Database Error:', error);
