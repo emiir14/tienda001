@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
                 id: item.product.id.toString(),
                 title: item.product.name,
                 quantity: item.quantity,
-                unit_price: item.product.price,
+                unit_price: item.product.salePrice ?? item.product.price, // Prioritize sale price
             })),
             payer: {
                 name: customer.name,
