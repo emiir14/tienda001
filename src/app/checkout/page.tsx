@@ -35,10 +35,6 @@ const shippingSchema = z.object({
 
 type ShippingFormData = z.infer<typeof shippingSchema>;
 
-const MP_TEST_USERS = {
-  buyer: "test_user_2602352930@testuser.com",
-};
-
 export default function CheckoutPage() {
   const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount, clearCart } = useCart();
   const router = useRouter();
@@ -95,13 +91,12 @@ export default function CheckoutPage() {
         items: cartItems,
         customer: {
           name: values.name,
-          // FORZAMOS EL EMAIL DEL COMPRADOR DE PRUEBA PARA MERCADO PAGO
-          email: MP_TEST_USERS.buyer, 
+          email: values.email, 
         },
         orderId: orderResponse.orderId 
       };
 
-      console.log("Creating Mercado Pago preference with test buyer:", requestBodyForMp);
+      console.log("Creating Mercado Pago preference with customer email:", requestBodyForMp);
 
       const response = await fetch('/api/create-preference', {
         method: 'POST',
