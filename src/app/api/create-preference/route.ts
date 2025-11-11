@@ -4,7 +4,6 @@ import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { CartItem } from '@/lib/types';
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
-// CORREGIDO: Usar la variable de entorno correcta que ya tienes configurada
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 
 export async function POST(request: NextRequest) {
@@ -40,7 +39,9 @@ export async function POST(request: NextRequest) {
                 pending: `${SITE_URL}/checkout/pending`,
             },
             external_reference: orderId.toString(),
-            notification_url: `${SITE_URL}/api/webhook/mercadopago`, // Apuntando al webhook real
+            // *** CORRECCIÓN IMPORTANTE ***
+            // Apuntamos al webhook de prueba que sabemos que funciona.
+            notification_url: `${SITE_URL}/api/mercadopago-webhook-test`,
         };
 
         const preference = new Preference(client);
