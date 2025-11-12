@@ -5,7 +5,6 @@ import React, { createContext, useState, useEffect, ReactNode, useMemo, useCallb
 import { useToast } from '@/hooks/use-toast';
 
 // --- DEBUGGING --- 
-// Simple logger to prefix messages
 const log = (message: string, data?: any) => {
   console.log(`[CartContext] ==> ${message}`, data !== undefined ? data : '');
 }
@@ -88,19 +87,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('appliedCoupon');
   }, []);
 
-  // Centralized, fault-tolerant logic to check and sync order status
+  // Centralized logic to check and sync order status
   useEffect(() => {
-    let isChecking = false;
-
     const checkPendingOrder = async () => {
-      if (isChecking) return;
-      isChecking = true;
-      
-      log("Effect triggered. Checking for pending order ID..."); // --- DEBUG LOG
+      log("Effect triggered. Checking for pending order ID...");
       const pendingOrderId = localStorage.getItem('pendingOrderId');
       
       if (pendingOrderId) {
-        log(`Found pendingOrderId: ${pendingOrderId}. Fetching status...`); // --- DEBUG LOG
+        log(`Found pendingOrderId: ${pendingOrderId}. Fetching status...`);
         try {
           const response = await fetch('/api/order-status', {
             method: 'POST',
@@ -113,20 +107,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           }
 
           const data = await response.json();
-          log("Received data from /api/order-status:", data); // --- DEBUG LOG
+          log("Received data from /api/order-status:", data);
 
-          // Remove ID only after a successful API call
           localStorage.removeItem('pendingOrderId');
-          log("Successfully removed pendingOrderId from localStorage."); // --- DEBUG LOG
+          log("Successfully removed pendingOrderId from localStorage.");
 
-          if (data.status === 'approved') {
-            log("Status is 'approved'. Calling clearCart()."); // --- DEBUG LOG
+          if (data.status === 'approved' || data.status === 'paid') {
+            log(`Status is '${data.status}'. Calling clearCart().`);
             clearCart();
             toast({ title: "Compra completada", description: "Detectamos que tu pago anterior se procesó con éxito. ¡Gracias!" });
           } else if (['rejected', 'failed', 'pending'].includes(data.status)) {
-            log(`Status is '${data.status}'. Restoring cart...`); // --- DEBUG LOG
+            log(`Status is '${data.status}'. Restoring cart...`);
             if (data.restorableCartItems && data.restorableCartItems.length > 0) {
-              setCartItems([]);
+              // We need to use functional updates here because we are in a useEffect with an empty dependency array
+              setCartItems([]); 
               for (const item of data.restorableCartItems) {
                 if (item.product && typeof item.quantity === 'number') {
                   addToCart(item.product, item.quantity);
@@ -141,15 +135,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             }
           }
         } catch (error) {
-          log("Error checking order status. ID will be kept for next visit.", error); // --- DEBUG LOG
+          log("Error checking order status. ID will be kept for next visit.", error);
         }
       } else {
-        log("No pendingOrderId found."); // --- DEBUG LOG
+        log("No pendingOrderId found.");
       }
     };
     
     checkPendingOrder();
-  }, [clearCart, toast, addToCart, stableSetIsSidebarOpen]);
+  // **THE FIX**: Use an empty dependency array to FORCE this effect to run once on mount, no matter what.
+  // This makes the check robust against navigation issues.
+  }, []);
 
   const isCouponApplicable = useMemo(() => {
     if (!cartItems) return true;
