@@ -3,12 +3,7 @@
 import type { CartItem, Product, Coupon } from '@/lib/types';
 import React, { createContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-
-// --- DEBUGGING --- 
-const log = (message: string, data?: any) => {
-  console.log(`[CartContext] ==> ${message}`, data !== undefined ? data : '');
-}
-// --- END DEBUGGING ---
+import { usePathname } from 'next/navigation';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -35,10 +30,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toast } = useToast();
+  const pathname = usePathname();
   
   const stableSetIsSidebarOpen = useCallback(setIsSidebarOpen, []);
 
-  // Hydrate cart from localStorage on initial load
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('cartItems');
@@ -54,13 +49,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           }
       }
     } catch (error) {
-      log("Failed to parse cart/coupon from localStorage", error);
+      console.error("Failed to parse cart/coupon from localStorage", error);
       localStorage.removeItem('cartItems');
       localStorage.removeItem('appliedCoupon');
     }
   }, []);
 
-  // Persist cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('cartItems', JSON.stringify(cartItems));
   }, [cartItems]);
@@ -77,24 +71,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
       return [...prevItems, { product, quantity }];
     });
-  }, []);
+    toast({ title: "Agregado", description: "El producto fue agregado al carrito." });
+  }, [toast]);
 
   const clearCart = useCallback(() => {
-    log("Executing clearCart()..."); // --- DEBUG LOG
     setCartItems([]);
     setAppliedCoupon(null);
     localStorage.removeItem('cartItems');
     localStorage.removeItem('appliedCoupon');
   }, []);
 
-  // Centralized logic to check and sync order status
   useEffect(() => {
     const checkPendingOrder = async () => {
-      log("Effect triggered. Checking for pending order ID...");
       const pendingOrderId = localStorage.getItem('pendingOrderId');
       
       if (pendingOrderId) {
-        log(`Found pendingOrderId: ${pendingOrderId}. Fetching status...`);
         try {
           const response = await fetch('/api/order-status', {
             method: 'POST',
@@ -107,20 +98,18 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           }
 
           const data = await response.json();
-          log("Received data from /api/order-status:", data);
 
           localStorage.removeItem('pendingOrderId');
-          log("Successfully removed pendingOrderId from localStorage.");
 
           if (data.status === 'approved' || data.status === 'paid') {
-            log(`Status is '${data.status}'. Calling clearCart().`);
             clearCart();
-            toast({ title: "Compra completada", description: "Detectamos que tu pago anterior se procesó con éxito. ¡Gracias!" });
+            // Only show toast if NOT on the success page
+            if (pathname !== '/checkout/success') {
+                toast({ title: "Compra completada", description: "Detectamos que tu pago anterior se procesó con éxito. ¡Gracias!" });
+            }
           } else if (['rejected', 'failed', 'pending'].includes(data.status)) {
-            log(`Status is '${data.status}'. Restoring cart...`);
             if (data.restorableCartItems && data.restorableCartItems.length > 0) {
-              // We need to use functional updates here because we are in a useEffect with an empty dependency array
-              setCartItems([]); 
+              setCartItems([]);
               for (const item of data.restorableCartItems) {
                 if (item.product && typeof item.quantity === 'number') {
                   addToCart(item.product, item.quantity);
@@ -135,17 +124,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             }
           }
         } catch (error) {
-          log("Error checking order status. ID will be kept for next visit.", error);
+          console.error("Error checking pending order status, will retry on next visit:", error);
         }
-      } else {
-        log("No pendingOrderId found.");
       }
     };
     
     checkPendingOrder();
-  // **THE FIX**: Use an empty dependency array to FORCE this effect to run once on mount, no matter what.
-  // This makes the check robust against navigation issues.
-  }, []);
+  }, []); 
 
   const isCouponApplicable = useMemo(() => {
     if (!cartItems) return true;
