@@ -4,6 +4,13 @@ import type { CartItem, Product, Coupon } from '@/lib/types';
 import React, { createContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
+// --- DEBUGGING --- 
+// Simple logger to prefix messages
+const log = (message: string, data?: any) => {
+  console.log(`[CartContext] ==> ${message}`, data !== undefined ? data : '');
+}
+// --- END DEBUGGING ---
+
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (product: Product, quantity?: number) => void;
@@ -30,8 +37,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toast } = useToast();
   
-  // **THE FIX**: Wrap the state setter in useCallback to stabilize its reference
-  // This prevents the checkPendingOrder useEffect from running in an infinite loop.
   const stableSetIsSidebarOpen = useCallback(setIsSidebarOpen, []);
 
   // Hydrate cart from localStorage on initial load
@@ -50,7 +55,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           }
       }
     } catch (error) {
-      console.error("Failed to parse cart/coupon from localStorage", error);
+      log("Failed to parse cart/coupon from localStorage", error);
       localStorage.removeItem('cartItems');
       localStorage.removeItem('appliedCoupon');
     }
@@ -76,6 +81,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const clearCart = useCallback(() => {
+    log("Executing clearCart()..."); // --- DEBUG LOG
     setCartItems([]);
     setAppliedCoupon(null);
     localStorage.removeItem('cartItems');
@@ -84,15 +90,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Centralized, fault-tolerant logic to check and sync order status
   useEffect(() => {
-    // A flag to prevent the effect from running twice in strict mode
     let isChecking = false;
 
     const checkPendingOrder = async () => {
       if (isChecking) return;
       isChecking = true;
-
+      
+      log("Effect triggered. Checking for pending order ID..."); // --- DEBUG LOG
       const pendingOrderId = localStorage.getItem('pendingOrderId');
+      
       if (pendingOrderId) {
+        log(`Found pendingOrderId: ${pendingOrderId}. Fetching status...`); // --- DEBUG LOG
         try {
           const response = await fetch('/api/order-status', {
             method: 'POST',
@@ -101,19 +109,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           });
 
           if (!response.ok) {
-            throw new Error(`API responded with ${response.status}`);
+            throw new Error(`API responded with status ${response.status}`);
           }
 
           const data = await response.json();
+          log("Received data from /api/order-status:", data); // --- DEBUG LOG
+
+          // Remove ID only after a successful API call
           localStorage.removeItem('pendingOrderId');
+          log("Successfully removed pendingOrderId from localStorage."); // --- DEBUG LOG
 
           if (data.status === 'approved') {
+            log("Status is 'approved'. Calling clearCart()."); // --- DEBUG LOG
             clearCart();
             toast({ title: "Compra completada", description: "Detectamos que tu pago anterior se procesó con éxito. ¡Gracias!" });
           } else if (['rejected', 'failed', 'pending'].includes(data.status)) {
+            log(`Status is '${data.status}'. Restoring cart...`); // --- DEBUG LOG
             if (data.restorableCartItems && data.restorableCartItems.length > 0) {
-              setCartItems([]); 
-              
+              setCartItems([]);
               for (const item of data.restorableCartItems) {
                 if (item.product && typeof item.quantity === 'number') {
                   addToCart(item.product, item.quantity);
@@ -128,14 +141,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             }
           }
         } catch (error) {
-          console.error("Error checking pending order status, will retry on next visit:", error);
-          // We no longer remove the ID here, so it will retry on the next visit.
+          log("Error checking order status. ID will be kept for next visit.", error); // --- DEBUG LOG
         }
+      } else {
+        log("No pendingOrderId found."); // --- DEBUG LOG
       }
     };
     
     checkPendingOrder();
-  // The dependency array now includes the stabilized function reference
   }, [clearCart, toast, addToCart, stableSetIsSidebarOpen]);
 
   const isCouponApplicable = useMemo(() => {
