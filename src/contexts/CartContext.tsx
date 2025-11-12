@@ -2,7 +2,7 @@
 "use client";
 
 import type { CartItem, Product, Coupon } from '@/lib/types';
-import React, { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface CartContextType {
@@ -31,6 +31,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toast } = useToast();
 
+  // Hydrate cart and coupon from localStorage on initial load
   useEffect(() => {
     const savedCart = localStorage.getItem('cartItems');
     if (savedCart) {
@@ -47,6 +48,48 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+    setAppliedCoupon(null);
+    localStorage.removeItem('cartItems');
+    localStorage.removeItem('appliedCoupon');
+  }, []);
+
+  // Check for a pending order that might have been completed while the user was away
+  useEffect(() => {
+    const checkPendingOrder = async () => {
+      const pendingOrderId = localStorage.getItem('pendingOrderId');
+      if (pendingOrderId) {
+        try {
+          const response = await fetch('/api/order-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: pendingOrderId }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === 'approved') {
+              clearCart();
+              toast({
+                title: "Compra completada",
+                description: "Detectamos que tu pago anterior se procesó con éxito. ¡Gracias!",
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Error checking pending order status:", error);
+        } finally {
+          // Important: remove the key after checking to avoid re-runs.
+          localStorage.removeItem('pendingOrderId');
+        }
+      }
+    };
+
+    checkPendingOrder();
+  }, [clearCart, toast]);
+
+  // Persist cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('cartItems', JSON.stringify(cartItems));
   }, [cartItems]);
@@ -55,6 +98,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return !cartItems.some(item => item.product.salePrice && item.product.salePrice > 0);
   }, [cartItems]);
 
+  // Persist coupon and handle applicability
   useEffect(() => {
     if (appliedCoupon) {
       if (!isCouponApplicable) {
@@ -72,7 +116,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedCoupon, isCouponApplicable]);
-
 
   const addToCart = (product: Product, quantity = 1) => {
     setCartItems(prevItems => {
@@ -108,11 +151,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         )
       );
     }
-  };
-
-  const clearCart = () => {
-    setCartItems([]);
-    setAppliedCoupon(null);
   };
 
   const applyCoupon = (coupon: Coupon) => {

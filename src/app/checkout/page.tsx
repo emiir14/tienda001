@@ -86,6 +86,9 @@ export default function CheckoutPage() {
         throw new Error(orderResponse.error || "No se pudo crear la orden en la base de datos.");
       }
       console.log("Order created successfully with ID:", orderResponse.orderId);
+      
+      // Guardamos el ID de la orden pendiente en localStorage
+      localStorage.setItem('pendingOrderId', orderResponse.orderId);
 
       const requestBodyForMp = {
         items: cartItems,
@@ -95,8 +98,6 @@ export default function CheckoutPage() {
         },
         orderId: orderResponse.orderId 
       };
-
-      console.log("Creating Mercado Pago preference with customer email:", requestBodyForMp);
 
       const response = await fetch('/api/create-preference', {
         method: 'POST',
@@ -117,7 +118,6 @@ export default function CheckoutPage() {
 
       console.log("Preference created successfully, redirecting...", preferenceData);
       
-      // La línea clearCart() ha sido eliminada de aquí.
       window.location.href = preferenceData.init_point;
       
     } catch (error) {

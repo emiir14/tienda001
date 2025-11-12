@@ -20,8 +20,10 @@ function CheckoutSuccessClient() {
   const status = searchParams.get('status'); // Comes from MP redirect
 
   useEffect(() => {
+    // The transaction is complete, so we remove the pending order ID marker.
+    localStorage.removeItem('pendingOrderId');
+
     // On success, we ALWAYS clear the cart.
-    // This is the final step of a successful purchase.
     if (status === 'approved') {
       console.log('Payment approved via URL param, clearing cart.');
       clearCart();
@@ -30,12 +32,10 @@ function CheckoutSuccessClient() {
     if (paymentId) {
       fetchPaymentDetails(paymentId);
     } else {
-      // If there's no payment_id, it's likely not a valid success redirect.
-      // We still show a generic success message just in case.
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentId, status]);
+  }, [paymentId, status, clearCart]);
 
   const fetchPaymentDetails = async (pId: string) => {
     setLoading(true);
@@ -49,7 +49,6 @@ function CheckoutSuccessClient() {
       if (response.ok) {
         const data = await response.json();
         setPaymentData(data);
-        // Double-check from the API and clear cart if confirmed approved
         if (data.status === 'approved') {
           console.log('Payment approved via API confirmation, clearing cart.');
           clearCart();
