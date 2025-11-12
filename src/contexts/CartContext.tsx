@@ -29,6 +29,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toast } = useToast();
+  
+  // **THE FIX**: Wrap the state setter in useCallback to stabilize its reference
+  // This prevents the checkPendingOrder useEffect from running in an infinite loop.
+  const stableSetIsSidebarOpen = useCallback(setIsSidebarOpen, []);
 
   // Hydrate cart from localStorage on initial load
   useEffect(() => {
@@ -80,7 +84,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Centralized, fault-tolerant logic to check and sync order status
   useEffect(() => {
+    // A flag to prevent the effect from running twice in strict mode
+    let isChecking = false;
+
     const checkPendingOrder = async () => {
+      if (isChecking) return;
+      isChecking = true;
+
       const pendingOrderId = localStorage.getItem('pendingOrderId');
       if (pendingOrderId) {
         try {
@@ -90,16 +100,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             body: JSON.stringify({ orderId: pendingOrderId }),
           });
 
-          // If the API call fails (network, server error), we abort and do NOT remove the ID.
-          // This allows the check to be re-attempted on the user's next visit.
           if (!response.ok) {
             throw new Error(`API responded with ${response.status}`);
           }
 
           const data = await response.json();
-
-          // CRITICAL FIX: Only remove the ID after a successful and definitive API response.
-          // This makes the process resilient to network errors or premature tab closing.
           localStorage.removeItem('pendingOrderId');
 
           if (data.status === 'approved') {
@@ -107,7 +112,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             toast({ title: "Compra completada", description: "Detectamos que tu pago anterior se procesó con éxito. ¡Gracias!" });
           } else if (['rejected', 'failed', 'pending'].includes(data.status)) {
             if (data.restorableCartItems && data.restorableCartItems.length > 0) {
-              setCartItems([]); // Clear before restoring to ensure a clean slate
+              setCartItems([]); 
               
               for (const item of data.restorableCartItems) {
                 if (item.product && typeof item.quantity === 'number') {
@@ -119,16 +124,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                 toast({ title: "Carrito restaurado", description: "El pago no se completó y hemos restaurado tu carrito." });
               }
               
-              setIsSidebarOpen(true); // Show the user their restored cart
+              stableSetIsSidebarOpen(true);
             }
           }
         } catch (error) {
           console.error("Error checking pending order status, will retry on next visit:", error);
+          // We no longer remove the ID here, so it will retry on the next visit.
         }
       }
     };
+    
     checkPendingOrder();
-  }, [clearCart, toast, addToCart, setIsSidebarOpen]);
+  // The dependency array now includes the stabilized function reference
+  }, [clearCart, toast, addToCart, stableSetIsSidebarOpen]);
 
   const isCouponApplicable = useMemo(() => {
     if (!cartItems) return true;
@@ -201,7 +209,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const totalPrice = useMemo(() => subtotal - discount, [subtotal, discount]);
 
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, subtotal, totalPrice, appliedCoupon, applyCoupon, removeCoupon, discount, isSidebarOpen, setIsSidebarOpen, isCouponApplicable }}>
+    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, subtotal, totalPrice, appliedCoupon, applyCoupon, removeCoupon, discount, isSidebarOpen, setIsSidebarOpen: stableSetIsSidebarOpen, isCouponApplicable }}>
       {children}
     </CartContext.Provider>
   );
