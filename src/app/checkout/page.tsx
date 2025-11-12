@@ -87,8 +87,8 @@ export default function CheckoutPage() {
       }
       console.log("Order created successfully with ID:", orderResponse.orderId);
       
-      // Guardamos el ID de la orden pendiente en localStorage
-      localStorage.setItem('pendingOrderId', orderResponse.orderId);
+      // Guardamos el ID de la orden pendiente en localStorage, convirtiéndolo a string
+      localStorage.setItem('pendingOrderId', String(orderResponse.orderId));
 
       const requestBodyForMp = {
         items: cartItems,
