@@ -103,23 +103,26 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
           if (data.status === 'approved' || data.status === 'paid') {
             clearCart();
-            // Only show toast if NOT on the success page
             if (pathname !== '/checkout/success') {
                 toast({ title: "Compra completada", description: "Detectamos que tu pago anterior se procesó con éxito. ¡Gracias!" });
             }
-          } else if (['rejected', 'failed', 'pending'].includes(data.status)) {
+          } else {
+            // Any other status (rejected, cancelled, pending, etc.) means payment was not completed.
             if (data.restorableCartItems && data.restorableCartItems.length > 0) {
-              setCartItems([]);
-              for (const item of data.restorableCartItems) {
-                if (item.product && typeof item.quantity === 'number') {
-                  addToCart(item.product, item.quantity);
-                }
-              }
-              
-              if (data.status !== 'pending') {
-                toast({ title: "Carrito restaurado", description: "El pago no se completó y hemos restaurado tu carrito." });
-              }
-              
+              const newCartItems: CartItem[] = data.restorableCartItems
+                .filter((item: any) => item.product && typeof item.quantity === 'number')
+                .map((item: any) => ({
+                    product: item.product,
+                    quantity: item.quantity
+                }));
+        
+              setCartItems(newCartItems);
+
+              toast({ 
+                  title: "Pago no finalizado", 
+                  description: "Tu pago no se completó, pero no te preocupes. ¡Hemos restaurado tu carrito para que puedas intentarlo de nuevo!" 
+              });
+        
               stableSetIsSidebarOpen(true);
             }
           }
@@ -130,6 +133,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     };
     
     checkPendingOrder();
+  // We need to disable this rule because we have complex dependencies with addToCart and toast that cause infinite loops.
+  // This effect should ONLY run once when the component mounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
   const isCouponApplicable = useMemo(() => {
