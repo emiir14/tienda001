@@ -4,9 +4,6 @@
 import type { CartItem, Product, Coupon } from '@/lib/types';
 import React, { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { ToastAction } from '@/components/ui/toast';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -73,6 +70,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     } else {
       localStorage.removeItem('appliedCoupon');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedCoupon, isCouponApplicable]);
 
 

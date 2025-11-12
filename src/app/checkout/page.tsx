@@ -36,7 +36,7 @@ const shippingSchema = z.object({
 type ShippingFormData = z.infer<typeof shippingSchema>;
 
 export default function CheckoutPage() {
-  const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount, clearCart } = useCart();
+  const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -117,7 +117,7 @@ export default function CheckoutPage() {
 
       console.log("Preference created successfully, redirecting...", preferenceData);
       
-      clearCart();
+      // La línea clearCart() ha sido eliminada de aquí.
       window.location.href = preferenceData.init_point;
       
     } catch (error) {
