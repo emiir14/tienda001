@@ -78,12 +78,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('appliedCoupon');
   }, []);
 
-  // Centralized logic to check and sync order status after payment attempt
+  // Centralized, fault-tolerant logic to check and sync order status
   useEffect(() => {
     const checkPendingOrder = async () => {
       const pendingOrderId = localStorage.getItem('pendingOrderId');
       if (pendingOrderId) {
-        localStorage.removeItem('pendingOrderId'); // Remove immediately to prevent re-runs
         try {
           const response = await fetch('/api/order-status', {
             method: 'POST',
@@ -91,9 +90,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             body: JSON.stringify({ orderId: pendingOrderId }),
           });
 
-          if (!response.ok) throw new Error('Failed to fetch order status');
+          // If the API call fails (network, server error), we abort and do NOT remove the ID.
+          // This allows the check to be re-attempted on the user's next visit.
+          if (!response.ok) {
+            throw new Error(`API responded with ${response.status}`);
+          }
 
           const data = await response.json();
+
+          // CRITICAL FIX: Only remove the ID after a successful and definitive API response.
+          // This makes the process resilient to network errors or premature tab closing.
+          localStorage.removeItem('pendingOrderId');
 
           if (data.status === 'approved') {
             clearCart();
@@ -104,7 +111,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
               
               for (const item of data.restorableCartItems) {
                 if (item.product && typeof item.quantity === 'number') {
-                  // **BUG FIX**: Correctly call addToCart with product and quantity
                   addToCart(item.product, item.quantity);
                 }
               }
@@ -117,16 +123,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             }
           }
         } catch (error) {
-          console.error("Error checking pending order status:", error);
+          console.error("Error checking pending order status, will retry on next visit:", error);
         }
       }
     };
     checkPendingOrder();
-  }, [clearCart, toast, addToCart]);
+  }, [clearCart, toast, addToCart, setIsSidebarOpen]);
 
   const isCouponApplicable = useMemo(() => {
     if (!cartItems) return true;
-    // **BUG FIX**: Check for item.product before accessing properties
     return !cartItems.some(item => item && item.product && item.product.salePrice && item.product.salePrice > 0);
   }, [cartItems]);
 
@@ -136,7 +141,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: "Cupón eliminado" });
   }, [toast]);
 
-  // Persist coupon and handle applicability
   useEffect(() => {
     if (appliedCoupon) {
       if (!isCouponApplicable) {
@@ -177,7 +181,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const subtotal = useMemo(() => {
     return cartItems.reduce((total, item) => {
-        if (!item || !item.product) return total; // Defensive check
+        if (!item || !item.product) return total;
         const price = item.product.salePrice ?? item.product.price;
         return total + price * item.quantity;
     }, 0);
