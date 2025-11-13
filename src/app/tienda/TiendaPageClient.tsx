@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, KeyboardEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ProductCard } from '@/components/ProductCard';
 import { Separator } from '@/components/ui/separator';
@@ -57,55 +57,65 @@ const SidebarContent = ({
   categoryTree,
   handleCategoryClick,
   allProducts
-}: SidebarContentProps) => (
-  <Card>
-      <CardHeader><CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle></CardHeader>
-      <CardContent className="space-y-6">
-          {/* Mobile-only Search Filter (Reutilizando GlobalSearch) */}
-          <div className="block lg:hidden space-y-4">
-              <h3 className="font-semibold">Buscar</h3>
-              <GlobalSearch allProducts={allProducts} />
-          </div>
-          <div className="block lg:hidden"><Separator/></div>
+}: SidebarContentProps) => {
 
-          {/* Price Filter */}
-          <div className="space-y-4">
-              <h3 className="font-semibold">Rango de Precios</h3>
-              <div className='flex gap-2 items-center'>
-                  <Input type="number" placeholder='Desde' value={pendingMinPrice} onChange={(e) => setPendingMinPrice(e.target.value)} aria-label="Precio mínimo" />
-                  <span>-</span>
-                  <Input type="number" placeholder='Hasta' value={pendingMaxPrice} onChange={(e) => setPendingMaxPrice(e.target.value)} aria-label="Precio máximo" />
-              </div>
-              <Button onClick={handlePriceFilterApply} className='w-full'>Aplicar Precio</Button>
-          </div>
-          <Separator />
+  // Bloquea la escritura de caracteres no deseados en los inputs de tipo number
+  const handleNumericKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+      if (['e', 'E', '+', '-'].includes(e.key)) {
+          e.preventDefault();
+      }
+  };
 
-          {/* Category Filter */}
-          <Accordion type="single" collapsible value={accordionValue} onValueChange={onAccordionChange} className="w-full">
-              <AccordionItem value="categories">
-                  <AccordionTrigger className="bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded-md text-base font-semibold text-white">
-                      Categorías
-                  </AccordionTrigger>
-                  <AccordionContent>
-                      <nav className="space-y-1 pt-4">
-                          <button onClick={() => handleCategoryClick('All')} className={cn("w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors", activeCategory === 'All' ? 'bg-primary/10 text-primary' : 'hover:bg-accent/50')}>Todos los Productos</button>
-                          {categoryTree.map((parentCat: CategoryWithChildren) => (
-                              <div key={parentCat.id}>
-                                  <h4 className="px-3 pt-2 text-sm font-bold text-muted-foreground">{parentCat.name}</h4>
-                                  <div className='pl-2'>
-                                  {parentCat.children.map((category: Category) => (
-                                      <button key={category.id} onClick={() => handleCategoryClick(String(category.id))} className={cn("w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors flex items-center gap-2", activeCategory === String(category.id) ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-accent/50')}><ChevronRight className="w-3 h-3" />{category.name}</button>
-                                  ))}
-                                  </div>
-                              </div>
-                          ))}
-                      </nav>
-                  </AccordionContent>
-              </AccordionItem>
-          </Accordion>
-      </CardContent>
-  </Card>
-);
+  return (
+    <Card>
+        <CardHeader><CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle></CardHeader>
+        <CardContent className="space-y-6">
+            {/* Mobile-only Search Filter (Reutilizando GlobalSearch) */}
+            <div className="block lg:hidden space-y-4">
+                <h3 className="font-semibold">Buscar</h3>
+                <GlobalSearch allProducts={allProducts} />
+            </div>
+            <div className="block lg:hidden"><Separator/></div>
+
+            {/* Price Filter */}
+            <div className="space-y-4">
+                <h3 className="font-semibold">Rango de Precios</h3>
+                <div className='flex gap-2 items-center'>
+                    <Input type="number" placeholder='Desde' value={pendingMinPrice} onChange={(e) => setPendingMinPrice(e.target.value)} onKeyDown={handleNumericKeyDown} aria-label="Precio mínimo" />
+                    <span>-</span>
+                    <Input type="number" placeholder='Hasta' value={pendingMaxPrice} onChange={(e) => setPendingMaxPrice(e.target.value)} onKeyDown={handleNumericKeyDown} aria-label="Precio máximo" />
+                </div>
+                <Button onClick={handlePriceFilterApply} className='w-full'>Aplicar Precio</Button>
+            </div>
+            <Separator />
+
+            {/* Category Filter */}
+            <Accordion type="single" collapsible value={accordionValue} onValueChange={onAccordionChange} className="w-full">
+                <AccordionItem value="categories">
+                    <AccordionTrigger className="bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded-md text-base font-semibold text-white">
+                        Categorías
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <nav className="space-y-1 pt-4">
+                            <button onClick={() => handleCategoryClick('All')} className={cn("w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors", activeCategory === 'All' ? 'bg-primary/10 text-primary' : 'hover:bg-accent/50')}>Todos los Productos</button>
+                            {categoryTree.map((parentCat: CategoryWithChildren) => (
+                                <div key={parentCat.id}>
+                                    <h4 className="px-3 pt-2 text-sm font-bold text-muted-foreground">{parentCat.name}</h4>
+                                    <div className='pl-2'>
+                                    {parentCat.children.map((category: Category) => (
+                                        <button key={category.id} onClick={() => handleCategoryClick(String(category.id))} className={cn("w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors flex items-center gap-2", activeCategory === String(category.id) ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-accent/50')}><ChevronRight className="w-3 h-3" />{category.name}</button>
+                                    ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </nav>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
+        </CardContent>
+    </Card>
+  );
+}
 
 export function TiendaPageClient({ allProducts, allCategories, offerProducts }: TiendaPageClientProps) {
   const router = useRouter();
