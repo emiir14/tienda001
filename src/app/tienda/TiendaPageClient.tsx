@@ -90,8 +90,32 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     const max = parseFloat(activeMaxPrice);
 
     if (searchQuery) {
-        items = items.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        // Dividimos la búsqueda en palabras individuales y las limpiamos
+        const searchTokens = searchQuery.toLowerCase().split(' ').filter(token => token.length > 0);
+    
+        const matchingCategoryIds = new Set(
+            allCategories
+                .filter(cat => 
+                    // La categoría debe coincidir con TODAS las palabras buscadas
+                    searchTokens.every(token => cat.name.toLowerCase().includes(token))
+                )
+                .map(cat => cat.id)
+        );
+    
+        items = items.filter(p => {
+            const productName = p.name.toLowerCase();
+            const productDesc = p.shortDescription?.toLowerCase() || '';
+            
+            // El producto debe coincidir con TODAS las palabras buscadas
+            return searchTokens.every(token => 
+                productName.includes(token) ||
+                productDesc.includes(token) ||
+                p.categoryIds.some(catId => matchingCategoryIds.has(catId))
+            );
+        });
     }
+    
+    
 
     if (activeCategory !== 'All') {
         const catId = Number(activeCategory);
@@ -106,7 +130,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     }
 
     return items;
-  }, [allProducts, searchQuery, activeCategory, activeMinPrice, activeMaxPrice]);
+  }, [allProducts, searchQuery, activeCategory, activeMinPrice, activeMaxPrice, allCategories]);
 
   return (
     <div className="space-y-12">
