@@ -4,6 +4,8 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
+import { useFormState, useFormStatus } from 'react-dom';
+import { authenticateAdmin } from './actions';
 import { getProducts, getCoupons, getSalesMetrics, getCategories, getOrders } from '@/lib/data';
 import type { Product, Coupon, SalesMetrics, Category, Order, OrderStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -1065,29 +1067,36 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
 // ############################################################################
 // Component: AdminPage (Login and main export)
 // ############################################################################
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@joya.com';
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'password123';
+// Este componente gestiona el estado de envío del formulario
+function LoginButton() {
+    const { pending } = useFormStatus(); // Hook que sabe si el formulario se está enviando
+    return (
+        <Button type="submit" className="w-full" disabled={pending}>
+            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+            Iniciar Sesión
+        </Button>
+    );
+}
 
+// Componente principal de la página
 export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  
+  // Estado inicial para nuestro formulario
+  const initialState = { success: false, error: null };
+  // Conectamos el formulario a la Server Action 'authenticateAdmin'
+  const [state, dispatch] = useFormState(authenticateAdmin, initialState);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        setIsAuthenticated(true);
-        setError('');
-    } else {
-        setError('Credenciales inválidas. Inténtalo de nuevo.');
+  // Un 'effect' que se ejecuta cuando el estado del formulario cambia
+  useEffect(() => {
+    if (state.success) {
+      setIsAuthenticated(true);
     }
-  }
+  }, [state.success]);
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setEmail('');
-    setPassword('');
+    // Opcional: podrías querer resetear el estado del formulario aquí también
   }
 
   if (!isAuthenticated) {
@@ -1099,11 +1108,23 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
                     <CardDescription>Ingresa a tu cuenta para gestionar la tienda.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <div className="space-y-2"><Label htmlFor='email'>Email</Label><Input id="email" type="email" placeholder="email@ejemplo.com" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                        <div className="space-y-2"><Label htmlFor='password'>Contraseña</Label><Input id="password" type="password" required placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                        {error && <p className="text-sm text-destructive">{error}</p>}
-                        <Button type="submit" className="w-full"><LogIn className="mr-2 h-4 w-4" />Iniciar Sesión</Button>
+                    {/* El 'action' ahora se encarga de todo */}
+                    <form action={dispatch} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor='email'>Email</Label>
+                            {/* Eliminamos 'value' y 'onChange' */}
+                            <Input id="email" name="email" type="email" placeholder="email@ejemplo.com" required />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor='password'>Contraseña</Label>
+                            {/* Eliminamos 'value' y 'onChange' */}
+                            <Input id="password" name="password" type="password" required placeholder="Contraseña" />
+                        </div>
+                        
+                        {/* Mostramos el error que viene del servidor */}
+                        {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
+                        
+                        <LoginButton />
                     </form>
                 </CardContent>
             </Card>
@@ -1116,6 +1137,6 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
       <AdminDashboard onLogout={handleLogout} dbConnected={dbConnected} />
     </>
   );
-
 }
+
     
