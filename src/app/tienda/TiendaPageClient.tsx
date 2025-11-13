@@ -185,20 +185,25 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                         {/* Search Filter */}
                         <div className="space-y-4">
                             <h3 className="font-semibold">Buscar</h3>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input
-                                    type="search"
-                                    placeholder="Buscar productos..."
-                                    className="pl-10"
-                                    value={pendingSearch}
-                                    onChange={(e) => setPendingSearch(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleSearch();
-                                        }
-                                    }}
-                                />
+                            <div className="flex gap-2">
+                                <div className="relative flex-grow">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input
+                                        type="search"
+                                        placeholder="Buscar productos..."
+                                        className="pl-10 w-full"
+                                        value={pendingSearch}
+                                        onChange={(e) => setPendingSearch(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleSearch();
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <Button onClick={handleSearch} aria-label="Buscar">
+                                    <Search className="h-5 w-5" />
+                                </Button>
                             </div>
                         </div>
 
@@ -232,13 +237,13 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                         <Separator />
 
                         {/* Category Filter */}
-                        <Accordion type="single" collapsible defaultValue="categories" className="w-full">
+                        <Accordion type="single" collapsible className="w-full">
                             <AccordionItem value="categories">
-                                <AccordionTrigger>
-                                    <h3 className="font-semibold">Categorías</h3>
+                                <AccordionTrigger className="bg-accent/50 hover:bg-accent/80 px-4 py-3 rounded-md text-base font-semibold">
+                                    Categorías
                                 </AccordionTrigger>
                                 <AccordionContent>
-                                    <nav className="space-y-1 pt-2">
+                                    <nav className="space-y-1 pt-4">
                                         <button
                                             onClick={() => handleCategoryClick('All')}
                                             className={cn(
@@ -282,7 +287,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
                     {filteredProducts.map((product) => (
                         <ProductCard key={product.id} product={product} />
-                    ))}\
+                    ))}
                   </div>
               ) : (
                  <Card className="text-center py-24 col-span-full">
