@@ -20,23 +20,16 @@ const buildSearchQuery = (params: URLSearchParams) => {
   return search ? `?${search}` : "";
 };
 
-interface SidebarContentProps {
-  isMobile: boolean;
-  pendingSearch: string;
-  setPendingSearch: (value: string) => void;
-  handleSearch: () => void;
-  pendingMinPrice: string;
-  setPendingMinPrice: (value: string) => void;
-  pendingMaxPrice: string;
-  setPendingMaxPrice: (value: string) => void;
-  handlePriceFilterApply: () => void;
-  activeCategory: string;
-  categoryTree: (Category & { children: Category[] })[];
-  handleCategoryClick: (id: string) => void;
+interface TiendaPageClientProps {
+  allProducts: Product[];
+  allCategories: Category[];
+  offerProducts: Product[];
 }
 
 const SidebarContent = ({ 
-  isMobile, 
+  isMobile,
+  accordionValue,
+  onAccordionChange,
   pendingSearch, 
   setPendingSearch, 
   handleSearch,
@@ -48,7 +41,7 @@ const SidebarContent = ({
   activeCategory,
   categoryTree,
   handleCategoryClick
-}: SidebarContentProps) => (
+}: any) => (
   <Card>
       <CardHeader><CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle></CardHeader>
       <CardContent className="space-y-6">
@@ -87,7 +80,7 @@ const SidebarContent = ({
           <Separator />
 
           {/* Category Filter */}
-          <Accordion type="single" collapsible defaultValue={isMobile ? undefined : "categories"} className="w-full">
+          <Accordion type="single" collapsible value={accordionValue} onValueChange={onAccordionChange} className="w-full">
               <AccordionItem value="categories">
                   <AccordionTrigger className="bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded-md text-base font-semibold text-white">
                       Categorías
@@ -113,12 +106,6 @@ const SidebarContent = ({
   </Card>
 );
 
-interface TiendaPageClientProps {
-  allProducts: Product[];
-  allCategories: Category[];
-  offerProducts: Product[];
-}
-
 export function TiendaPageClient({ allProducts, allCategories, offerProducts }: TiendaPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -132,11 +119,21 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const [pendingMinPrice, setPendingMinPrice] = useState<string>(activeMinPrice);
   const [pendingMaxPrice, setPendingMaxPrice] = useState<string>(activeMaxPrice);
   const [pendingSearch, setPendingSearch] = useState(searchQuery);
+  const [accordionValue, setAccordionValue] = useState<string | undefined>();
 
   useEffect(() => {
-    setPendingMinPrice(searchParams.get('minPrice') || '');
-    setPendingMaxPrice(searchParams.get('maxPrice') || '');
-    setPendingSearch(searchParams.get('q') || '');
+    setAccordionValue(isMobile ? undefined : 'categories');
+  }, [isMobile]);
+
+  useEffect(() => {
+    const qp = searchParams.get('q') || '';
+    const minP = searchParams.get('minPrice') || '';
+    const maxP = searchParams.get('maxPrice') || '';
+    
+    if (qp !== pendingSearch) setPendingSearch(qp);
+    if (minP !== pendingMinPrice) setPendingMinPrice(minP);
+    if (maxP !== pendingMaxPrice) setPendingMaxPrice(maxP);
+
   }, [searchParams]);
 
   const { categoryTree } = useMemo(() => {
@@ -226,6 +223,8 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                 <aside className="lg:col-span-1 space-y-6">
                   <SidebarContent 
                     isMobile={isMobile}
+                    accordionValue={accordionValue}
+                    onAccordionChange={setAccordionValue}
                     pendingSearch={pendingSearch}
                     setPendingSearch={setPendingSearch}
                     handleSearch={handleSearch}
