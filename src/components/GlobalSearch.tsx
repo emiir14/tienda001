@@ -1,20 +1,19 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { Product } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
 import { Button } from './ui/button';
 
 export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isFocused, setIsFocused] = useState(false);
@@ -42,14 +41,36 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
+
+  // Syncs the search bar if the user navigates using browser back/forward or loads a search URL
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || '');
   }, [searchParams]);
 
+  // Handles clearing the search and restoring the full product list
+  useEffect(() => {
+    // When the search term is cleared (either by deleting or the native 'x' button)
+    if (searchTerm === '' && pathname === '/tienda') {
+      const currentQuery = new URLSearchParams(Array.from(searchParams.entries()));
+
+      // If 'q' exists in the URL, it means a search is currently active
+      if (currentQuery.has('q')) {
+        currentQuery.delete('q');
+        const search = currentQuery.toString();
+        const query = search ? `?${search}` : '';
+        // Update the URL without the 'q' param. This will cause TiendaPageClient to re-render.
+        router.push(`/tienda${query}`, { scroll: false });
+      }
+    }
+  }, [searchTerm, pathname, searchParams, router]);
+
+
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!searchTerm) return;
+    if (!searchTerm.trim()) {
+        // If the user submits an empty search, do nothing.
+        return;
+    }
 
     const currentQuery = new URLSearchParams(Array.from(searchParams.entries()));
     currentQuery.set('q', searchTerm);
