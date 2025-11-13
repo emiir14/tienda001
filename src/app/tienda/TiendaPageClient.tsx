@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -11,6 +10,7 @@ import type { Product, Category } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 
 interface TiendaPageClientProps {
@@ -29,14 +29,16 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const activeMinPrice = searchParams.get('minPrice') || '';
   const activeMaxPrice = searchParams.get('maxPrice') || '';
 
-  // State for the price inputs, before applying
+  // State for the inputs, before applying
   const [pendingMinPrice, setPendingMinPrice] = useState<string>(activeMinPrice);
   const [pendingMaxPrice, setPendingMaxPrice] = useState<string>(activeMaxPrice);
+  const [pendingSearch, setPendingSearch] = useState(searchQuery);
 
   useEffect(() => {
-    // When URL changes, update pending prices to match
+    // When URL changes, update pending inputs to match
     setPendingMinPrice(searchParams.get('minPrice') || '');
     setPendingMaxPrice(searchParams.get('maxPrice') || '');
+    setPendingSearch(searchParams.get('q') || '');
   }, [searchParams]);
 
   const { categoryTree } = useMemo(() => {
@@ -68,7 +70,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     }
     const search = current.toString();
     const query = search ? `?${search}` : "";
-    router.push(`/tienda${query}#products-grid`, { scroll: true });
+    router.push(`/tienda${query}#products-grid`, { scroll: false });
   };
   
   const handlePriceFilterApply = () => {
@@ -84,19 +86,29 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     router.push(`/tienda${query}#products-grid`, { scroll: false });
   };
   
+  const handleSearch = () => {
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    if (pendingSearch) {
+      current.set('q', pendingSearch);
+    } else {
+      current.delete('q');
+    }
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
+    router.push(`/tienda${query}#products-grid`, { scroll: false });
+  };
+
   const filteredProducts = useMemo(() => {
     let items = allProducts;
     const min = parseFloat(activeMinPrice);
     const max = parseFloat(activeMaxPrice);
 
     if (searchQuery) {
-        // Dividimos la búsqueda en palabras individuales y las limpiamos
         const searchTokens = searchQuery.toLowerCase().split(' ').filter(token => token.length > 0);
     
         const matchingCategoryIds = new Set(
             allCategories
                 .filter(cat => 
-                    // La categoría debe coincidir con TODAS las palabras buscadas
                     searchTokens.every(token => cat.name.toLowerCase().includes(token))
                 )
                 .map(cat => cat.id)
@@ -106,7 +118,6 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
             const productName = p.name.toLowerCase();
             const productDesc = p.shortDescription?.toLowerCase() || '';
             
-            // El producto debe coincidir con TODAS las palabras buscadas
             return searchTokens.every(token => 
                 productName.includes(token) ||
                 productDesc.includes(token) ||
@@ -115,8 +126,6 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
         });
     }
     
-    
-
     if (activeCategory !== 'All') {
         const catId = Number(activeCategory);
         items = items.filter(p => p.categoryIds.includes(catId));
@@ -173,6 +182,28 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                         <CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                        {/* Search Filter */}
+                        <div className="space-y-4">
+                            <h3 className="font-semibold">Buscar</h3>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Buscar productos..."
+                                    className="pl-10"
+                                    value={pendingSearch}
+                                    onChange={(e) => setPendingSearch(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleSearch();
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <Separator />
+
                         {/* Price Filter */}
                         <div className="space-y-4">
                             <h3 className="font-semibold">Rango de Precios</h3>
@@ -201,40 +232,46 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                         <Separator />
 
                         {/* Category Filter */}
-                        <div className="space-y-2">
-                           <h3 className="font-semibold">Categorías</h3>
-                           <nav className="space-y-1">
-                             <button
-                                onClick={() => handleCategoryClick('All')}
-                                className={cn(
-                                    "w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                                    activeCategory === 'All' ? 'bg-primary/10 text-primary' : 'hover:bg-accent/50'
-                                )}
-                             >
-                                Todos los Productos
-                             </button>
-                             {categoryTree.map(parentCat => (
-                                <div key={parentCat.id}>
-                                    <h4 className="px-3 pt-2 text-sm font-bold text-muted-foreground">{parentCat.name}</h4>
-                                    <div className='pl-2'>
-                                    {parentCat.children.map(category => (
+                        <Accordion type="single" collapsible defaultValue="categories" className="w-full">
+                            <AccordionItem value="categories">
+                                <AccordionTrigger>
+                                    <h3 className="font-semibold">Categorías</h3>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <nav className="space-y-1 pt-2">
                                         <button
-                                            key={category.id}
-                                            onClick={() => handleCategoryClick(String(category.id))}
+                                            onClick={() => handleCategoryClick('All')}
                                             className={cn(
-                                                "w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors flex items-center gap-2",
-                                                activeCategory === String(category.id) ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-accent/50'
+                                                "w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                                                activeCategory === 'All' ? 'bg-primary/10 text-primary' : 'hover:bg-accent/50'
                                             )}
                                         >
-                                            <ChevronRight className="w-3 h-3" />
-                                            {category.name}
+                                            Todos los Productos
                                         </button>
-                                    ))}
-                                    </div>
-                                </div>
-                             ))}
-                           </nav>
-                        </div>
+                                        {categoryTree.map(parentCat => (
+                                            <div key={parentCat.id}>
+                                                <h4 className="px-3 pt-2 text-sm font-bold text-muted-foreground">{parentCat.name}</h4>
+                                                <div className='pl-2'>
+                                                {parentCat.children.map(category => (
+                                                    <button
+                                                        key={category.id}
+                                                        onClick={() => handleCategoryClick(String(category.id))}
+                                                        className={cn(
+                                                            "w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors flex items-center gap-2",
+                                                            activeCategory === String(category.id) ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-accent/50'
+                                                        )}
+                                                    >
+                                                        <ChevronRight className="w-3 h-3" />
+                                                        {category.name}
+                                                    </button>
+                                                ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </nav>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
                     </CardContent>
                 </Card>
             </aside>
@@ -245,7 +282,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
                     {filteredProducts.map((product) => (
                         <ProductCard key={product.id} product={product} />
-                    ))}
+                    ))}\
                   </div>
               ) : (
                  <Card className="text-center py-24 col-span-full">
