@@ -13,7 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useDebounce } from '@/hooks/useDebounce';
 
 interface TiendaPageClientProps {
   allProducts: Product[];
@@ -34,28 +33,12 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const [pendingMinPrice, setPendingMinPrice] = useState<string>(activeMinPrice);
   const [pendingMaxPrice, setPendingMaxPrice] = useState<string>(activeMaxPrice);
   const [pendingSearch, setPendingSearch] = useState(searchQuery);
-  
-  const debouncedSearch = useDebounce(pendingSearch, 500);
 
   useEffect(() => {
     setPendingMinPrice(searchParams.get('minPrice') || '');
     setPendingMaxPrice(searchParams.get('maxPrice') || '');
     setPendingSearch(searchParams.get('q') || '');
   }, [searchParams]);
-
-  useEffect(() => {
-    if (isMobile) {
-        const current = new URLSearchParams(Array.from(searchParams.entries()));
-        if (debouncedSearch) {
-            current.set('q', debouncedSearch);
-        } else {
-            current.delete('q');
-        }
-        const search = current.toString();
-        const query = search ? `?${search}` : "";
-        router.push(`/tienda${query}#products-grid`, { scroll: false });
-    }
-  }, [debouncedSearch, isMobile, router]);
 
   const { categoryTree } = useMemo(() => {
     const tree: (Category & { children: Category[] })[] = [];
@@ -71,6 +54,18 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     });
     return { categoryTree: tree };
   }, [allCategories]);
+
+  const handleSearch = () => {
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    if (pendingSearch) {
+        current.set('q', pendingSearch);
+    } else {
+        current.delete('q');
+    }
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
+    router.push(`/tienda${query}#products-grid`, { scroll: false });
+  };
 
   const handleCategoryClick = (categoryId: string) => {
     const current = new URLSearchParams(Array.from(searchParams.entries()));
@@ -118,9 +113,21 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
         <CardContent className="space-y-6">
             <div className="block lg:hidden space-y-4">
                 <h3 className="font-semibold">Buscar</h3>
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input type="search" placeholder="Buscar productos..." className="pl-10 w-full" value={pendingSearch} onChange={(e) => setPendingSearch(e.target.value)} />
+                <div className="flex gap-2">
+                    <div className="relative flex-grow">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input 
+                            type="search" 
+                            placeholder="Buscar productos..." 
+                            className="pl-10 w-full" 
+                            value={pendingSearch} 
+                            onChange={(e) => setPendingSearch(e.target.value)} 
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+                        />
+                    </div>
+                    <Button onClick={handleSearch} aria-label="Buscar">
+                        <Search className="h-5 w-5" />
+                    </Button>
                 </div>
             </div>
             <div className="block lg:hidden"><Separator/></div>
@@ -169,7 +176,12 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
         </section>
         <Separator />
         <section id="products-grid" className="scroll-mt-24">
-            <div className="text-center mb-10"><div className="flex justify-center items-center gap-4"><Tag className="w-10 h-10 text-primary" /><h2 className="text-4xl font-headline font-bold">Todos los Productos</h2></div></div>
+            <div className="text-center mb-10">
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4">
+                    <Tag className="w-10 h-10 text-primary" />
+                    <h2 className="text-4xl font-headline font-bold text-center">Todos los Productos</h2>
+                </div>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
                 <aside className="lg:col-span-1 space-y-6"><SidebarContent /></aside>
                 <main className="lg:col-span-3">
