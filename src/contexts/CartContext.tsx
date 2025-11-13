@@ -4,6 +4,9 @@ import type { CartItem, Product, Coupon } from '@/lib/types';
 import React, { createContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -71,7 +74,29 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
       return [...prevItems, { product, quantity }];
     });
-    toast({ title: "Agregado", description: "El producto fue agregado al carrito." });
+
+    toast({
+      title: "Producto agregado al carrito",
+      description: ( // <-- Contenido personalizado
+        <div className="flex items-center gap-4">
+            <div className="relative w-16 h-16 rounded-md overflow-hidden shrink-0">
+                <Image 
+                    src={product.images[0] ?? 'https://placehold.co/64x64.png'}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                />
+            </div>
+            <div className="flex flex-col gap-1">
+                <p className="font-semibold">{product.name}</p>
+                <Button asChild variant="link" className="p-0 h-auto justify-start text-primary">
+                    <Link href="/cart">Ver carrito</Link>
+                </Button>
+            </div>
+        </div>
+      ),
+    });
   }, [toast]);
 
   const clearCart = useCallback(() => {
