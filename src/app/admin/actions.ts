@@ -17,8 +17,8 @@ export async function authenticateAdmin(prevState: any, formData: FormData) {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     
-    // CORRECTO: Usamos `headers()` para obtener el objeto de cabeceras
-    const headersList = headers();
+    // CORRECTO: Usamos `await` para esperar las cabeceras
+    const headersList = await headers();
     const ip = headersList.get('x-forwarded-for') ?? '127.0.0.1'; // Obtener la IP del usuario
 
     // 1. Verificar si la IP está bloqueada

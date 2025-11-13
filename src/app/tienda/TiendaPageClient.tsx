@@ -26,8 +26,27 @@ interface TiendaPageClientProps {
   offerProducts: Product[];
 }
 
+// Definimos un tipo extendido para las categorías con hijos
+type CategoryWithChildren = Category & { children: Category[] };
+
+interface SidebarContentProps {
+  isMobile: boolean;
+  accordionValue: string | undefined;
+  onAccordionChange: (value: string | undefined) => void;
+  pendingSearch: string;
+  setPendingSearch: (value: string) => void;
+  handleSearch: () => void;
+  pendingMinPrice: string;
+  setPendingMinPrice: (value: string) => void;
+  pendingMaxPrice: string;
+  setPendingMaxPrice: (value: string) => void;
+  handlePriceFilterApply: () => void;
+  activeCategory: string;
+  categoryTree: CategoryWithChildren[];
+  handleCategoryClick: (id: string) => void;
+}
+
 const SidebarContent = ({ 
-  isMobile,
   accordionValue,
   onAccordionChange,
   pendingSearch, 
@@ -41,7 +60,7 @@ const SidebarContent = ({
   activeCategory,
   categoryTree,
   handleCategoryClick
-}: any) => (
+}: SidebarContentProps) => (
   <Card>
       <CardHeader><CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle></CardHeader>
       <CardContent className="space-y-6">
@@ -88,11 +107,11 @@ const SidebarContent = ({
                   <AccordionContent>
                       <nav className="space-y-1 pt-4">
                           <button onClick={() => handleCategoryClick('All')} className={cn("w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors", activeCategory === 'All' ? 'bg-primary/10 text-primary' : 'hover:bg-accent/50')}>Todos los Productos</button>
-                          {categoryTree.map(parentCat => (
+                          {categoryTree.map((parentCat: CategoryWithChildren) => (
                               <div key={parentCat.id}>
                                   <h4 className="px-3 pt-2 text-sm font-bold text-muted-foreground">{parentCat.name}</h4>
                                   <div className='pl-2'>
-                                  {parentCat.children.map(category => (
+                                  {parentCat.children.map((category: Category) => (
                                       <button key={category.id} onClick={() => handleCategoryClick(String(category.id))} className={cn("w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors flex items-center gap-2", activeCategory === String(category.id) ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-accent/50')}><ChevronRight className="w-3 h-3" />{category.name}</button>
                                   ))}
                                   </div>
@@ -137,9 +156,9 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   }, [searchParams]);
 
   const { categoryTree } = useMemo(() => {
-    const tree: (Category & { children: Category[] })[] = [];
-    const map = new Map<number, Category & { children: Category[] }>();
-    const items = allCategories.map(category => ({ ...category, children: [] as Category[] }));
+    const tree: CategoryWithChildren[] = [];
+    const map = new Map<number, CategoryWithChildren>();
+    const items: CategoryWithChildren[] = allCategories.map(category => ({ ...category, children: [] }));
     items.forEach(category => map.set(category.id, category));
     items.forEach(category => {
         if (category.parentId) {

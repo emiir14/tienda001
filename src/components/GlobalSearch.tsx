@@ -47,24 +47,6 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
     setSearchTerm(searchParams.get('q') || '');
   }, [searchParams]);
 
-  // Handles clearing the search and restoring the full product list
-  useEffect(() => {
-    // When the search term is cleared (either by deleting or the native 'x' button)
-    if (searchTerm === '' && pathname === '/tienda') {
-      const currentQuery = new URLSearchParams(Array.from(searchParams.entries()));
-
-      // If 'q' exists in the URL, it means a search is currently active
-      if (currentQuery.has('q')) {
-        currentQuery.delete('q');
-        const search = currentQuery.toString();
-        const query = search ? `?${search}` : '';
-        // Update the URL without the 'q' param. This will cause TiendaPageClient to re-render.
-        router.push(`/tienda${query}`, { scroll: false });
-      }
-    }
-  }, [searchTerm, pathname, searchParams, router]);
-
-
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!searchTerm.trim()) {
