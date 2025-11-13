@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { GlobalSearch } from '@/components/GlobalSearch';
 
 // Helper function to build search query
 const buildSearchQuery = (params: URLSearchParams) => {
@@ -33,9 +34,6 @@ interface SidebarContentProps {
   isMobile: boolean;
   accordionValue: string | undefined;
   onAccordionChange: (value: string | undefined) => void;
-  pendingSearch: string;
-  setPendingSearch: (value: string) => void;
-  handleSearch: () => void;
   pendingMinPrice: string;
   setPendingMinPrice: (value: string) => void;
   pendingMaxPrice: string;
@@ -44,14 +42,12 @@ interface SidebarContentProps {
   activeCategory: string;
   categoryTree: CategoryWithChildren[];
   handleCategoryClick: (id: string) => void;
+  allProducts: Product[];
 }
 
 const SidebarContent = ({ 
   accordionValue,
   onAccordionChange,
-  pendingSearch, 
-  setPendingSearch, 
-  handleSearch,
   pendingMinPrice,
   setPendingMinPrice,
   pendingMaxPrice,
@@ -59,30 +55,16 @@ const SidebarContent = ({
   handlePriceFilterApply,
   activeCategory,
   categoryTree,
-  handleCategoryClick
+  handleCategoryClick,
+  allProducts
 }: SidebarContentProps) => (
   <Card>
       <CardHeader><CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle></CardHeader>
       <CardContent className="space-y-6">
-          {/* Mobile-only Search Filter */}
+          {/* Mobile-only Search Filter (Reutilizando GlobalSearch) */}
           <div className="block lg:hidden space-y-4">
               <h3 className="font-semibold">Buscar</h3>
-              <div className="flex gap-2">
-                  <div className="relative flex-grow">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input 
-                          type="search" 
-                          placeholder="Buscar productos..." 
-                          className="pl-10 w-full" 
-                          value={pendingSearch} 
-                          onChange={(e) => setPendingSearch(e.target.value)} 
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-                      />
-                  </div>
-                  <Button onClick={handleSearch} aria-label="Buscar">
-                      <Search className="h-5 w-5" />
-                  </Button>
-              </div>
+              <GlobalSearch allProducts={allProducts} />
           </div>
           <div className="block lg:hidden"><Separator/></div>
 
@@ -137,7 +119,6 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
 
   const [pendingMinPrice, setPendingMinPrice] = useState<string>(activeMinPrice);
   const [pendingMaxPrice, setPendingMaxPrice] = useState<string>(activeMaxPrice);
-  const [pendingSearch, setPendingSearch] = useState(searchQuery);
   const [accordionValue, setAccordionValue] = useState<string | undefined>();
 
   useEffect(() => {
@@ -145,11 +126,9 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   }, [isMobile]);
 
   useEffect(() => {
-    const qp = searchParams.get('q') || '';
     const minP = searchParams.get('minPrice') || '';
     const maxP = searchParams.get('maxPrice') || '';
     
-    if (qp !== pendingSearch) setPendingSearch(qp);
     if (minP !== pendingMinPrice) setPendingMinPrice(minP);
     if (maxP !== pendingMaxPrice) setPendingMaxPrice(maxP);
 
@@ -173,12 +152,6 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const updateURL = (params: URLSearchParams) => {
     const query = buildSearchQuery(params);
     router.push(`/tienda${query}#products-grid`, { scroll: false });
-  };
-
-  const handleSearch = () => {
-    const current = new URLSearchParams(Array.from(searchParams.entries()));
-    if (pendingSearch) current.set('q', pendingSearch); else current.delete('q');
-    updateURL(current);
   };
 
   const handleCategoryClick = (categoryId: string) => {
@@ -238,15 +211,12 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                     <h2 className="text-4xl font-headline font-bold text-center">Todos los Productos</h2>
                 </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start px-4 sm:px-6 lg:px-0">
                 <aside className="lg:col-span-1 space-y-6">
                   <SidebarContent 
                     isMobile={isMobile}
                     accordionValue={accordionValue}
                     onAccordionChange={setAccordionValue}
-                    pendingSearch={pendingSearch}
-                    setPendingSearch={setPendingSearch}
-                    handleSearch={handleSearch}
                     pendingMinPrice={pendingMinPrice}
                     setPendingMinPrice={setPendingMinPrice}
                     pendingMaxPrice={pendingMaxPrice}
@@ -255,6 +225,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                     activeCategory={activeCategory}
                     categoryTree={categoryTree}
                     handleCategoryClick={handleCategoryClick}
+                    allProducts={allProducts}
                   />
                 </aside>
                 <main className="lg:col-span-3">
