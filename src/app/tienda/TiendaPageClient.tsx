@@ -167,7 +167,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
          
          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
             {/* Filters Sidebar */}
-            <aside className="lg:col-span-1 space-y-6 sticky top-24">
+            <aside className="lg:col-span-1 space-y-6 sticky top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
                 <Card>
                     <CardHeader>
                         <CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle>
