@@ -991,7 +991,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
 
             <Tabs defaultValue="overview">
                 <div className="w-full overflow-x-auto border-b">
-                    <TabsList className="min-w-max">
+                    <TabsList className="grid w-full grid-cols-5">
                             <TabsTrigger value="overview">Visión General</TabsTrigger>
                             <TabsTrigger value="products">Productos</TabsTrigger>
                             <TabsTrigger value="categories">Categorías</TabsTrigger>
