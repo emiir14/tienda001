@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Coupon } from '@/lib/types';
@@ -25,16 +25,80 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { PlusCircle, Edit, Trash2, Loader2, Download, CheckCircle, XCircle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Download, CheckCircle, XCircle, ChevronsUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Pagination } from './Pagination';
 
 const ITEMS_PER_PAGE = 50;
 
+type SortableKeys = 'code' | 'discountType' | 'discountValue' | 'minPurchaseAmount' | 'expiryDate';
+
 export function CouponsTab({ coupons, isLoading, onAdd, onEdit, onDelete, onExport }: { coupons: Coupon[], isLoading: boolean, onAdd: () => void, onEdit: (c: Coupon) => void, onDelete: (id: number) => void, onExport: () => void }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [sortConfig, setSortConfig] = useState<{ key: SortableKeys, direction: 'asc' | 'desc' } | null>(null);
 
-    const totalPages = Math.ceil(coupons.length / ITEMS_PER_PAGE);
-    const paginatedCoupons = coupons.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const sortedCoupons = useMemo(() => {
+        let sortableItems = [...coupons];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const key = sortConfig.key;
+                
+                const rawA = a[key];
+                const rawB = b[key];
+
+                let comparableA: string | number | Date;
+                let comparableB: string | number | Date;
+
+                if (key === 'expiryDate') {
+                    comparableA = rawA ? new Date(rawA as string) : new Date('9999-12-31');
+                    comparableB = rawB ? new Date(rawB as string) : new Date('9999-12-31');
+                } else if (key === 'minPurchaseAmount' || key === 'discountValue') {
+                    comparableA = (rawA as number) ?? 0;
+                    comparableB = (rawB as number) ?? 0;
+                } else { // For 'code' and 'discountType', which are strings
+                    comparableA = (rawA as string) ?? '';
+                    comparableB = (rawB as string) ?? '';
+                }
+
+                if (comparableA < comparableB) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (comparableA > comparableB) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [coupons, sortConfig]);
+
+    const totalPages = Math.ceil(sortedCoupons.length / ITEMS_PER_PAGE);
+    const paginatedCoupons = sortedCoupons.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    const requestSort = (key: SortableKeys) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+        setCurrentPage(1);
+    };
+
+    const getSortIcon = (key: SortableKeys) => {
+        if (!sortConfig || sortConfig.key !== key) {
+            return <ChevronsUpDown className="ml-2 h-4 w-4" />;
+        }
+        if (sortConfig.direction === 'asc') {
+            return <ArrowUp className="ml-2 h-4 w-4" />;
+        }
+        return <ArrowDown className="ml-2 h-4 w-4" />;
+    };
+
+    const renderHeaderButton = (key: SortableKeys, label: string) => (
+        <Button variant="ghost" onClick={() => requestSort(key)} className="px-2">
+            {label}
+            {getSortIcon(key)}
+        </Button>
+    );
 
     const handlePageChange = (page: number) => {
         if (page > 0 && page <= totalPages) {
@@ -59,43 +123,56 @@ export function CouponsTab({ coupons, isLoading, onAdd, onEdit, onDelete, onExpo
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                     <>
                         <div className="overflow-x-auto">
-                            <Table><TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Compra Mínima</TableHead><TableHead>Expiración</TableHead><TableHead className="text-center">Estado</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader><TableBody>
-                                {paginatedCoupons.map(coupon => (
-                                    <TableRow key={coupon.id}>
-                                        <TableCell className="font-medium text-primary">{coupon.code}</TableCell>
-                                        <TableCell>{coupon.discountType === 'percentage' ? 'Porcentaje' : 'Monto Fijo'}</TableCell>
-                                        <TableCell>{coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `$${coupon.discountValue.toLocaleString('es-AR')}`}</TableCell>
-                                        <TableCell>{coupon.minPurchaseAmount ? `$${coupon.minPurchaseAmount.toLocaleString('es-AR')}` : 'N/A'}</TableCell>
-                                        <TableCell>{coupon.expiryDate ? format(new Date(coupon.expiryDate), 'PPP', { locale: es }) : 'Nunca'}</TableCell>
-                                        <TableCell className="text-center">
-                                            {isCouponActive(coupon)
-                                            ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" />
-                                            : <XCircle className="h-5 w-5 text-destructive inline-block" />
-                                            }
-                                        </TableCell>
-                                        <TableCell><div className="flex gap-2">
-                                            <Button variant="outline" size="icon" onClick={() => onEdit(coupon)}><Edit className="h-4 w-4" /></Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                    <AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente el cupón.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => onDelete(coupon.id)}>Eliminar</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div></TableCell>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>{renderHeaderButton('code', 'Código')}</TableHead>
+                                        <TableHead>{renderHeaderButton('discountType', 'Tipo')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('discountValue', 'Valor')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('minPurchaseAmount', 'Compra Mínima')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('expiryDate', 'Expiración')}</TableHead>
+                                        <TableHead className="text-center">Estado</TableHead>
+                                        <TableHead className="text-right pr-4">Acciones</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody></Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {paginatedCoupons.map(coupon => (
+                                        <TableRow key={coupon.id}>
+                                            <TableCell className="font-medium text-primary">{coupon.code}</TableCell>
+                                            <TableCell>{coupon.discountType === 'percentage' ? 'Porcentaje' : 'Monto Fijo'}</TableCell>
+                                            <TableCell className="text-center">{coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `$${coupon.discountValue.toLocaleString('es-AR')}`}</TableCell>
+                                            <TableCell className="text-center">{coupon.minPurchaseAmount ? `$${coupon.minPurchaseAmount.toLocaleString('es-AR')}` : '-'}</TableCell>
+                                            <TableCell className="text-center">{coupon.expiryDate ? format(new Date(coupon.expiryDate), 'PPP', { locale: es }) : 'Nunca'}</TableCell>
+                                            <TableCell className="text-center">
+                                                {isCouponActive(coupon)
+                                                ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" />
+                                                : <XCircle className="h-5 w-5 text-destructive inline-block" />
+                                                }
+                                            </TableCell>
+                                            <TableCell><div className="flex gap-2 justify-end pr-4">
+                                                <Button variant="outline" size="icon" onClick={() => onEdit(coupon)}><Edit className="h-4 w-4" /></Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                        <AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente el cupón.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDelete(coupon.id)}>Eliminar</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </div>
-                        <div className="px-4">
+                        <div className="px-4 border-t">
                             <Pagination 
                                 currentPage={currentPage} 
                                 totalPages={totalPages} 

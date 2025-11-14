@@ -47,12 +47,9 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                     aValue = a.salePrice ?? a.price;
                     bValue = b.salePrice ?? b.price;
                 } else if (sortConfig.key === 'discountPercentage') {
-                    // A discount is only "active" if there is a salePrice.
-                    // This makes sorting consistent with what's displayed.
                     aValue = (a.salePrice && a.discountPercentage) ? a.discountPercentage : 0;
                     bValue = (b.salePrice && b.discountPercentage) ? b.discountPercentage : 0;
                 } else {
-                    // Fallback for other sortable keys like id, name, stock
                     const key = sortConfig.key;
                     aValue = a[key] ?? 0;
                     bValue = b[key] ?? 0;
@@ -79,7 +76,7 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
             direction = 'desc';
         }
         setSortConfig({ key, direction });
-        setCurrentPage(1); // Reset to first page after sorting
+        setCurrentPage(1);
     };
 
     const getSortIcon = (key: SortableKeys) => {
@@ -123,11 +120,11 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="pl-4">Imagen</TableHead>
-                                        <TableHead>{renderHeaderButton('id', 'ID')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('id', 'ID')}</TableHead>
                                         <TableHead>{renderHeaderButton('name', 'Nombre')}</TableHead>
-                                        <TableHead>{renderHeaderButton('price', 'Precio')}</TableHead>
-                                        <TableHead>{renderHeaderButton('discountPercentage', 'Descuento')}</TableHead>
-                                        <TableHead>{renderHeaderButton('stock', 'Stock')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('price', 'Precio')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('discountPercentage', 'Descuento')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('stock', 'Stock')}</TableHead>
                                         <TableHead>Categorías</TableHead>
                                         <TableHead className="pr-4 text-right">Acciones</TableHead>
                                     </TableRow>
@@ -144,11 +141,11 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                                                     className="rounded-md object-cover"
                                                 />
                                             </TableCell>
-                                            <TableCell className="text-xs text-muted-foreground">{product.id}</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground text-center">{product.id}</TableCell>
                                             <TableCell className="font-medium max-w-xs truncate" title={product.name}>{product.name}</TableCell>
-                                            <TableCell>
+                                            <TableCell className="text-center">
                                                 {product.salePrice ? (
-                                                    <div className="flex flex-col">
+                                                    <div className="flex flex-col items-center">
                                                         <span className="line-through text-muted-foreground text-xs">
                                                             ${product.price.toLocaleString('es-AR')}
                                                         </span>
@@ -160,12 +157,12 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                                                     `$${product.price.toLocaleString('es-AR')}`
                                                 )}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="text-center">
                                                 {product.salePrice && product.discountPercentage ? (
                                                     <Badge variant="destructive">-{product.discountPercentage}%</Badge>
                                                 ) : <span className='text-center w-full block'>-</span>}
                                             </TableCell>
-                                            <TableCell>{product.stock}</TableCell>
+                                            <TableCell className="text-center">{product.stock}</TableCell>
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-1 max-w-xs">
                                                     {product.categoryIds.map(catId => {
@@ -201,9 +198,9 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                         </div>
                          <div className="px-4 border-t">
                             <Pagination 
-                                currentPage={currentPage} 
-                                totalPages={totalPages} 
-                                onPageChange={handlePageChange} 
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={handlePageChange}
                             />
                         </div>
                     </>
