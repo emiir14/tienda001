@@ -266,7 +266,7 @@ function MetricsTab({ products, salesMetrics, isLoading, categories }: { product
                 <Card className="shadow-md"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Productos</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : totalProducts}</div><p className="text-xs text-muted-foreground">Productos únicos en el catálogo</p></CardContent></Card>
                 <Card className="shadow-md"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventario Total</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : totalStock}</div><p className="text-xs text-muted-foreground">Suma de stock de todos los productos</p></CardContent></Card>
             </div>
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-2">
                 <Card className="flex-1 shadow-md"><CardHeader><CardTitle>Productos por Categoría</CardTitle><CardDescription>Un desglose de cuántos productos tienes en cada categoría.</CardDescription></CardHeader><CardContent>
                     {isLoading ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : categoryData.length > 0 ? (
                         <ChartContainer config={{ products: { label: "Productos", color: "hsl(var(--primary))" } }} className="h-80">
@@ -306,9 +306,9 @@ function MetricsTab({ products, salesMetrics, isLoading, categories }: { product
 function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onExport, onImport, categories }: { products: Product[], isLoading: boolean, onEdit: (p: Product) => void, onDelete: (id: number) => void, onAdd: () => void, onExport: () => void, onImport: () => void, categories: Category[] }) {
     return (
          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div><CardTitle>Gestionar Productos</CardTitle><CardDescription>Añade, edita o elimina productos de tu catálogo.</CardDescription></div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button onClick={onImport} variant="outline"><Upload className="mr-2 h-4 w-4" />Importar</Button>
                     <Button onClick={onExport} variant="outline"><Download className="mr-2 h-4 w-4" />Exportar</Button>
                     <Button onClick={onAdd}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
@@ -923,7 +923,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-bold font-headline">Panel de Administración</h1>
-                    <div className='flex items-center gap-4 mt-2'>
+                    <div className='flex flex-wrap items-center gap-x-4 gap-y-2 mt-2'>
                         <p className="text-muted-foreground">Métricas y gestión de productos, cupones y más.</p>
                          {dbConnected ? (
                             <Badge className='bg-green-100 text-green-800 border-green-300 hover:bg-green-100'>
@@ -950,7 +950,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-end md:self-auto">
                     <Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                         <span className="sr-only">Actualizar Datos</span>
