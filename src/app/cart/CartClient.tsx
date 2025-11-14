@@ -142,7 +142,7 @@ export function CartClient() {
                     value={quantity === 0 ? '' : quantity}
                     onKeyDown={handleNumericKeyDown}
                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                    className="w-16 h-9 text-center"
+                    className="w-20 h-9 text-center"
                   />
                   <Button variant="ghost" size="icon" onClick={() => removeFromCart(product.id)}>
                     <Trash2 className="h-5 w-5 text-destructive" />

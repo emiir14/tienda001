@@ -77,7 +77,7 @@ export default function CartSidebar() {
                               min="1"
                               value={quantity}
                               onChange={(e) => updateQuantity(product.id, parseInt(e.target.value))}
-                              className="w-14 h-8 text-center"
+                              className="w-20 h-8 text-center"
                             />
                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(product.id, quantity + 1)}>
                               <Plus className="h-4 w-4" />

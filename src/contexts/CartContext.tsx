@@ -28,6 +28,8 @@ interface CartContextType {
 
 export const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const MAX_ITEM_QUANTITY = 500;
+
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -66,39 +68,50 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.product.id === product.id);
       if (existingItem) {
+        const newQuantity = Math.min(existingItem.quantity + quantity, MAX_ITEM_QUANTITY);
+        if (newQuantity === existingItem.quantity) {
+          toast({
+            title: "Límite alcanzado",
+            description: `No puedes agregar más de ${MAX_ITEM_QUANTITY} unidades de este producto.`,
+            variant: "destructive",
+          });
+          return prevItems;
+        }
         return prevItems.map(item =>
           item.product.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: newQuantity }
             : item
         );
       }
-      return [...prevItems, { product, quantity }];
+      const newQuantity = Math.min(quantity, MAX_ITEM_QUANTITY);
+      return [...prevItems, { product, quantity: newQuantity }];
     });
 
-    toast({
-      title: "Producto agregado al carrito",
-      // FIX: Changed the root element from <div> to <span> to avoid nesting error
-      description: (
-        <span className="flex items-center gap-4">
-            <div className="relative w-16 h-16 rounded-md overflow-hidden shrink-0">
-                <Image 
-                    src={product.images[0] ?? 'https://placehold.co/64x64.png'}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                    sizes="64px"
-                />
-            </div>
-            <div className="flex flex-col gap-1">
-                <p className="font-semibold">{product.name}</p>
-                <Button asChild variant="link" className="p-0 h-auto justify-start text-primary">
-                    <Link href="/cart">Ver carrito</Link>
-                </Button>
-            </div>
-        </span>
-      ),
-    });
-  }, [toast]);
+    if (!isSidebarOpen) {
+        toast({
+          title: "Producto agregado al carrito",
+          description: (
+            <span className="flex items-center gap-4">
+                <div className="relative w-16 h-16 rounded-md overflow-hidden shrink-0">
+                    <Image 
+                        src={product.images[0] ?? 'https://placehold.co/64x64.png'}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                        sizes="64px"
+                    />
+                </div>
+                <div className="flex flex-col gap-1">
+                    <p className="font-semibold">{product.name}</p>
+                    <Button asChild variant="link" className="p-0 h-auto justify-start text-primary">
+                        <Link href="/cart">Ver carrito</Link>
+                    </Button>
+                </div>
+            </span>
+          ),
+        });
+    }
+  }, [toast, isSidebarOpen]);
 
   const clearCart = useCallback(() => {
     setCartItems([]);
@@ -133,7 +146,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                 toast({ title: "Compra completada", description: "Detectamos que tu pago anterior se procesó con éxito. ¡Gracias!" });
             }
           } else {
-            // Any other status (rejected, cancelled, pending, etc.) means payment was not completed.
             if (data.restorableCartItems && data.restorableCartItems.length > 0) {
               const newCartItems: CartItem[] = data.restorableCartItems
                 .filter((item: any) => item.product && typeof item.quantity === 'number')
@@ -159,10 +171,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     };
     
     checkPendingOrder();
-  // We need to disable this rule because we have complex dependencies with addToCart and toast that cause infinite loops.
-  // This effect should ONLY run once when the component mounts.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, [clearCart, pathname, stableSetIsSidebarOpen, toast]); 
 
   const isCouponApplicable = useMemo(() => {
     if (!cartItems) return true;
@@ -192,11 +201,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   const updateQuantity = useCallback((productId: number, quantity: number) => {
-    // NO elimina el producto si la cantidad es 0. Solo actualiza el valor.
-    // La validación se hará en el checkout.
+    const newQuantity = Math.max(1, Math.min(quantity, MAX_ITEM_QUANTITY));
     setCartItems(prevItems =>
       prevItems.map(item =>
-        item.product.id === productId ? { ...item, quantity } : item
+        item.product.id === productId ? { ...item, quantity: newQuantity } : item
       )
     );
   }, []);
