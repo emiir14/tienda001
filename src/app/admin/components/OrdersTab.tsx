@@ -266,9 +266,21 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
 
     return (
         <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div><CardTitle>Historial de Órdenes</CardTitle><CardDescription>Visualiza y gestiona todas las órdenes de tus clientes.</CardDescription></div>
-                <Button onClick={onExport} variant="outline" disabled={isLoading}><Download className="mr-2 h-4 w-4" />Exportar a CSV</Button>
+             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex-1">
+                    <CardTitle>Historial de Órdenes</CardTitle>
+                    <CardDescription>Visualiza y gestiona todas las órdenes de tus clientes.</CardDescription>
+                </div>
+                <div className="flex items-center gap-4">
+                    {totalPages > 1 && (
+                        <Pagination 
+                            currentPage={currentPage} 
+                            totalPages={totalPages}
+                            onPageChange={handlePageChange} 
+                        />
+                    )}
+                    <Button onClick={onExport} variant="outline" disabled={isLoading}><Download className="mr-2 h-4 w-4" />Exportar a CSV</Button>
+                </div>
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
@@ -317,13 +329,15 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                                 </TableBody>
                             </Table>
                         </div>
-                        <div className="px-4">
-                            <Pagination 
-                                currentPage={currentPage} 
-                                totalPages={totalPages}
-                                onPageChange={handlePageChange} 
-                            />
-                        </div>
+                        {totalPages > 1 && (
+                            <div className="px-4 border-t">
+                                <Pagination 
+                                    currentPage={currentPage} 
+                                    totalPages={totalPages}
+                                    onPageChange={handlePageChange} 
+                                />
+                            </div>
+                        )}
                     </>
                 )}
             </CardContent>
