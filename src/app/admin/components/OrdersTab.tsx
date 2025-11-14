@@ -17,10 +17,29 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Download, ChevronRight, User, Mail, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { 
+    DropdownMenu, 
+    DropdownMenuTrigger, 
+    DropdownMenuContent, 
+    DropdownMenuRadioGroup, 
+    DropdownMenuRadioItem 
+} from '@/components/ui/dropdown-menu';
+import { Loader2, Download, ChevronRight, User, Mail, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown, ListFilter } from 'lucide-react';
 import { Pagination } from './Pagination';
 
 const ITEMS_PER_PAGE = 50;
+
+// Definiciones movidas aquí para que el padre las controle
+const orderStatuses: OrderStatus[] = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'failed', 'refunded'];
+const statusLabels: Record<OrderStatus, string> = {
+    pending: 'Pendiente',
+    paid: 'Abonado',
+    shipped: 'Enviado',
+    delivered: 'Entregado',
+    cancelled: 'Cancelado',
+    failed: 'Fallido',
+    refunded: 'Reintegrado'
+};
 
 function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (orderId: number, newStatus: OrderStatus) => void; }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -28,24 +47,13 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
         switch (status) {
             case 'delivered': return "bg-green-100 text-green-800 border-green-200";
             case 'pending': return "bg-yellow-100 text-yellow-800 border-yellow-200";
-            case 'failed': return "bg-red-100 text-red-800 border-red-200";
+            case 'failed':
             case 'cancelled': return "bg-red-100 text-red-800 border-red-200";
             case 'paid': return "bg-blue-100 text-blue-800 border-blue-200";
             case 'shipped': return "bg-purple-100 text-purple-800 border-purple-200";
             default: return "bg-background border-input";
         }
     }
-
-    const orderStatuses: OrderStatus[] = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'failed','refunded'];
-    const statusLabels: Record<OrderStatus, string> = {
-        pending: 'Pendiente',
-        paid: 'Abonado',
-        shipped: 'Enviado',
-        delivered: 'Entregado',
-        cancelled: 'Cancelado',
-        failed: 'Fallido',
-        refunded: 'Reintegrado'
-    };
 
     return (
         <React.Fragment>
@@ -78,7 +86,7 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                 </TableCell>
             </TableRow>
             {isOpen && (
-                <TableRow>
+                 <TableRow>
                     <TableCell colSpan={6} className="p-0">
                         <div className="bg-muted/50 p-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -125,9 +133,17 @@ type SortableKeys = 'id' | 'customerName' | 'createdAt' | 'total';
 export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { orders: Order[], isLoading: boolean, onExport: () => void, onStatusChange: (orderId: number, newStatus: OrderStatus) => void }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKeys, direction: 'asc' | 'desc' } | null>(null);
+    const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+
+    const filteredOrders = useMemo(() => {
+        if (statusFilter === 'all') {
+            return orders;
+        }
+        return orders.filter(order => order.status === statusFilter);
+    }, [orders, statusFilter]);
 
     const sortedOrders = useMemo(() => {
-        let sortableItems = [...orders];
+        let sortableItems = [...filteredOrders];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
                 const key = sortConfig.key;
@@ -158,7 +174,7 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
             });
         }
         return sortableItems;
-    }, [orders, sortConfig]);
+    }, [filteredOrders, sortConfig]);
 
     const totalPages = Math.ceil(sortedOrders.length / ITEMS_PER_PAGE);
     const paginatedOrders = sortedOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -209,7 +225,32 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                                         <TableHead>{renderHeaderButton('customerName', 'Cliente')}</TableHead>
                                         <TableHead>{renderHeaderButton('createdAt', 'Fecha')}</TableHead>
                                         <TableHead className="text-center">{renderHeaderButton('total', 'Total', 'w-full flex justify-center items-center')}</TableHead>
-                                        <TableHead className="w-[180px]">Estado</TableHead>
+                                        <TableHead className="w-[180px]">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="px-2 w-full justify-start">
+                                                        Estado
+                                                        <ListFilter className="ml-auto h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="start">
+                                                    <DropdownMenuRadioGroup
+                                                        value={statusFilter}
+                                                        onValueChange={(value) => {
+                                                            setStatusFilter(value as OrderStatus | 'all');
+                                                            setCurrentPage(1);
+                                                        }}
+                                                    >
+                                                        <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+                                                        {orderStatuses.map(status => (
+                                                            <DropdownMenuRadioItem key={status} value={status}>
+                                                                {statusLabels[status]}
+                                                            </DropdownMenuRadioItem>
+                                                        ))}
+                                                    </DropdownMenuRadioGroup>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableHead>
                                         <TableHead className="w-12"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -223,7 +264,7 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                         <div className="px-4">
                             <Pagination 
                                 currentPage={currentPage} 
-                                totalPages={totalPages} 
+                                totalPages={totalPages}
                                 onPageChange={handlePageChange} 
                             />
                         </div>
