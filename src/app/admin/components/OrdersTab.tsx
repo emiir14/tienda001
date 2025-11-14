@@ -24,12 +24,21 @@ import {
     DropdownMenuRadioGroup, 
     DropdownMenuRadioItem 
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Loader2, Download, ChevronRight, User, Mail, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown, ListFilter } from 'lucide-react';
 import { Pagination } from './Pagination';
 
 const ITEMS_PER_PAGE = 50;
 
-// Definiciones movidas aquí para que el padre las controle
 const orderStatuses: OrderStatus[] = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'failed', 'refunded'];
 const statusLabels: Record<OrderStatus, string> = {
     pending: 'Pendiente',
@@ -43,6 +52,8 @@ const statusLabels: Record<OrderStatus, string> = {
 
 function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (orderId: number, newStatus: OrderStatus) => void; }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
+
     const getStatusClasses = (status: Order['status']) => {
         switch (status) {
             case 'delivered': return "bg-green-100 text-green-800 border-green-200";
@@ -55,8 +66,53 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
         }
     }
 
+    const handleStatusSelect = (newStatus: OrderStatus) => {
+        if (newStatus !== order.status) {
+            setPendingStatus(newStatus);
+        }
+    };
+
+    const confirmStatusChange = () => {
+        if (pendingStatus) {
+            onStatusChange(order.id, pendingStatus);
+            setPendingStatus(null);
+        }
+    };
+
+    const cancelStatusChange = () => {
+        setPendingStatus(null);
+    };
+
     return (
         <React.Fragment>
+            <AlertDialog open={!!pendingStatus} onOpenChange={(open) => !open && cancelStatusChange()}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar Cambio de Estado</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            ¿Estás seguro de que quieres cambiar el estado de la orden de 
+                            <span className="font-semibold"> "{statusLabels[order.status]}" </span> 
+                            a 
+                            <span className="font-semibold"> "{pendingStatus ? statusLabels[pendingStatus] : ''}"</span>?
+                            {pendingStatus === 'refunded' && 
+                                <div className="mt-4 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive font-bold">
+                                    ¡Atención! Esta acción puede iniciar un proceso de devolución de dinero y no puede deshacerse fácilmente.
+                                </div>
+                            }
+                            {pendingStatus === 'cancelled' && 
+                                <div className="mt-4 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive font-bold">
+                                    ¡Atención! Cancelar esta orden podría requerir acciones manuales adicionales (ej. devolver stock).
+                                </div>
+                            }
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={cancelStatusChange}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmStatusChange}>Confirmar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <TableRow className="hover:bg-muted/50" data-state={isOpen ? 'open' : 'closed'}>
                 <TableCell className="font-mono text-sm cursor-pointer" onClick={() => setIsOpen(!isOpen)}>#{order.id}</TableCell>
                 <TableCell className="font-medium cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{order.customerName}</TableCell>
@@ -64,8 +120,8 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                 <TableCell className="font-semibold cursor-pointer text-center" onClick={() => setIsOpen(!isOpen)}>${order.total.toLocaleString('es-AR')}</TableCell>
                 <TableCell>
                     <Select
-                        defaultValue={order.status}
-                        onValueChange={(newStatus: OrderStatus) => onStatusChange(order.id, newStatus)}
+                        value={order.status}
+                        onValueChange={handleStatusSelect}
                     >
                         <SelectTrigger className={cn("h-8 text-xs font-semibold", getStatusClasses(order.status))}>
                             <SelectValue />
