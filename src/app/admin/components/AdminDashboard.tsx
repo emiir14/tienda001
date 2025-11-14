@@ -231,32 +231,32 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-start">
-                <div>
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                <div className='text-center md:text-left'>
                     <h1 className="text-3xl font-bold font-headline">Panel de Administración</h1>
-                    <div className='flex flex-wrap items-center gap-x-4 gap-y-2 mt-2'>
-                        <p className="text-muted-foreground">Métricas y gestión de productos, cupones y más.</p>
-                         {dbConnected ? (
-                            <Badge className='bg-green-100 text-green-800 border-green-300 hover:bg-green-100'><Database className="mr-2 h-4 w-4"/>Data Source: Database</Badge>
-                         ) : (
-                            <Badge className='bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100'><HardDrive className="mr-2 h-4 w-4"/>Data Source: Local Fallback</Badge>
-                         )}
-                         {mailchimpConfigured ? (
-                            <Badge className='bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-100'><Mail className="mr-2 h-4 w-4"/>Mailchimp: Connected</Badge>
-                         ) : (
-                             <Badge variant='outline' className='border-dashed'><Mail className="mr-2 h-4 w-4 text-muted-foreground"/>Mailchimp: Not Configured</Badge>
-                         )}
-                    </div>
+                    <p className="text-muted-foreground">Métricas y gestión de productos, cupones y más.</p>
                 </div>
-                <div className="flex items-center gap-2 self-end md:self-auto">
+                 <div className="flex items-center gap-2 self-center md:self-auto">
                     <Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading}>{isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}</Button>
                     <Button variant="outline" onClick={onLogout}><LogOut className="mr-2 h-4 w-4" />Cerrar Sesión</Button>
                 </div>
             </div>
+            <div className='flex flex-wrap items-center justify-center gap-x-4 gap-y-2'>
+                {dbConnected ? (
+                    <Badge className='bg-green-100 text-green-800 border-green-300 hover:bg-green-100'><Database className="mr-2 h-4 w-4"/>Data Source: Database</Badge>
+                ) : (
+                    <Badge className='bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100'><HardDrive className="mr-2 h-4 w-4"/>Data Source: Local Fallback</Badge>
+                )}
+                {mailchimpConfigured ? (
+                    <Badge className='bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-100'><Mail className="mr-2 h-4 w-4"/>Mailchimp: Connected</Badge>
+                ) : (
+                    <Badge variant='outline' className='border-dashed'><Mail className="mr-2 h-4 w-4 text-muted-foreground"/>Mailchimp: Not Configured</Badge>
+                )}
+            </div>
 
             <Tabs defaultValue="overview">
-                <div className="w-full overflow-x-auto border-b">
-                    <TabsList className="inline-grid w-full grid-cols-5">
+                 <div className="w-full overflow-x-auto border-b">
+                    <TabsList>
                         <TabsTrigger value="overview">Visión General</TabsTrigger>
                         <TabsTrigger value="products">Productos</TabsTrigger>
                         <TabsTrigger value="categories">Categorías</TabsTrigger>
