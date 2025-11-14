@@ -96,7 +96,9 @@ export default function CheckoutPage() {
           name: values.name,
           email: values.email, 
         },
-        orderId: orderResponse.orderId 
+        orderId: orderResponse.orderId,
+        discountAmount: discount,
+        couponCode: appliedCoupon?.code
       };
 
       const response = await fetch('/api/create-preference', {
