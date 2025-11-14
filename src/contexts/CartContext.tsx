@@ -77,8 +77,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     toast({
       title: "Producto agregado al carrito",
-      description: ( // <-- Contenido personalizado
-        <div className="flex items-center gap-4">
+      // FIX: Changed the root element from <div> to <span> to avoid nesting error
+      description: (
+        <span className="flex items-center gap-4">
             <div className="relative w-16 h-16 rounded-md overflow-hidden shrink-0">
                 <Image 
                     src={product.images[0] ?? 'https://placehold.co/64x64.png'}
@@ -94,7 +95,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                     <Link href="/cart">Ver carrito</Link>
                 </Button>
             </div>
-        </div>
+        </span>
       ),
     });
   }, [toast]);
