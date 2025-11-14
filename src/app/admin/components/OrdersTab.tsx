@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -17,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Download, ChevronRight, User, Mail, Home as HomeIcon, Wallet, Ticket } from 'lucide-react';
+import { Loader2, Download, ChevronRight, User, Mail, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Pagination } from './Pagination';
 
 const ITEMS_PER_PAGE = 50;
@@ -53,7 +53,7 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                 <TableCell className="font-mono text-sm cursor-pointer" onClick={() => setIsOpen(!isOpen)}>#{order.id}</TableCell>
                 <TableCell className="font-medium cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{order.customerName}</TableCell>
                 <TableCell className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</TableCell>
-                <TableCell className="font-semibold cursor-pointer" onClick={() => setIsOpen(!isOpen)}>${order.total.toLocaleString('es-AR')}</TableCell>
+                <TableCell className="font-semibold cursor-pointer text-center" onClick={() => setIsOpen(!isOpen)}>${order.total.toLocaleString('es-AR')}</TableCell>
                 <TableCell>
                     <Select
                         defaultValue={order.status}
@@ -120,17 +120,77 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
     )
 }
 
+type SortableKeys = 'id' | 'customerName' | 'createdAt' | 'total';
+
 export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { orders: Order[], isLoading: boolean, onExport: () => void, onStatusChange: (orderId: number, newStatus: OrderStatus) => void }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [sortConfig, setSortConfig] = useState<{ key: SortableKeys, direction: 'asc' | 'desc' } | null>(null);
 
-    const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
-    const paginatedOrders = orders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const sortedOrders = useMemo(() => {
+        let sortableItems = [...orders];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const key = sortConfig.key;
+                const rawA = a[key];
+                const rawB = b[key];
+
+                let comparableA: string | number | Date;
+                let comparableB: string | number | Date;
+
+                if (key === 'createdAt') {
+                    comparableA = new Date(rawA as string);
+                    comparableB = new Date(rawB as string);
+                } else if (key === 'id' || key === 'total') {
+                    comparableA = (rawA as number) ?? 0;
+                    comparableB = (rawB as number) ?? 0;
+                } else { // customerName
+                    comparableA = (rawA as string) ?? '';
+                    comparableB = (rawB as string) ?? '';
+                }
+
+                if (comparableA < comparableB) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (comparableA > comparableB) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [orders, sortConfig]);
+
+    const totalPages = Math.ceil(sortedOrders.length / ITEMS_PER_PAGE);
+    const paginatedOrders = sortedOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const handlePageChange = (page: number) => {
         if (page > 0 && page <= totalPages) {
             setCurrentPage(page);
         }
     };
+
+    const requestSort = (key: SortableKeys) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+        setCurrentPage(1);
+    };
+
+    const getSortIcon = (key: SortableKeys) => {
+        if (!sortConfig || sortConfig.key !== key) {
+            return <ChevronsUpDown className="ml-2 h-4 w-4" />;
+        }
+        return sortConfig.direction === 'asc' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
+    };
+
+    const renderHeaderButton = (key: SortableKeys, label: string, className: string = "") => (
+        <Button variant="ghost" onClick={() => requestSort(key)} className={cn("px-2", className)}>
+            {label}
+            {getSortIcon(key)}
+        </Button>
+    );
 
     return (
         <Card className="shadow-lg">
@@ -145,10 +205,10 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>ID</TableHead>
-                                        <TableHead>Cliente</TableHead>
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead>Total</TableHead>
+                                        <TableHead>{renderHeaderButton('id', 'ID')}</TableHead>
+                                        <TableHead>{renderHeaderButton('customerName', 'Cliente')}</TableHead>
+                                        <TableHead>{renderHeaderButton('createdAt', 'Fecha')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('total', 'Total', 'w-full flex justify-center items-center')}</TableHead>
                                         <TableHead className="w-[180px]">Estado</TableHead>
                                         <TableHead className="w-12"></TableHead>
                                     </TableRow>
