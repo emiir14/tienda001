@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation'; // Importar useRouter
 import { useCart } from '@/hooks/use-cart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import { getCouponByCode } from '@/lib/data';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function CartClient() {
+  const router = useRouter(); // Inicializar router
   const { cartItems, removeFromCart, updateQuantity, subtotal, cartCount, appliedCoupon, applyCoupon, removeCoupon, discount, totalPrice, isCouponApplicable } = useCart();
   const [couponCode, setCouponCode] = useState("");
   const [isLoadingCoupon, setIsLoadingCoupon] = useState(false);
@@ -38,7 +40,6 @@ export function CartClient() {
       setCouponCode("");
   }
 
-  // Bloquea la escritura de caracteres no deseados en los inputs de tipo number
   const handleNumericKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
       if (['e', 'E', '+', '-'].includes(e.key)) {
           e.preventDefault();
@@ -47,22 +48,44 @@ export function CartClient() {
 
   const handleQuantityChange = (productId: number, value: string) => {
     if (value === '') {
-        // Si el usuario borra el campo, lo tratamos como 0 para evitar NaN
         updateQuantity(productId, 0);
     } else {
         const newQuantity = parseInt(value, 10);
-        // Solo actualizamos si es un número válido y no es negativo
         if (!isNaN(newQuantity) && newQuantity >= 0) {
             updateQuantity(productId, newQuantity);
         }
     }
   };
 
+  // Nueva función para validar el carrito antes de proceder al pago
+  const handleCheckout = () => {
+    const invalidItems = cartItems.filter(item => item.quantity <= 0);
+    if (invalidItems.length > 0) {
+      toast({
+        title: "Cantidad inválida",
+        description: `Por favor, asegúrate de que todos los productos tengan una cantidad de al menos 1. El producto "${invalidItems[0].product.name}" tiene una cantidad inválida.`,
+        variant: "destructive"
+      });
+      return; // Detiene la ejecución si hay un error
+    }
+
+    if (cartCount <= 0) {
+        toast({
+          title: "Carrito vacío",
+          description: "No puedes proceder al pago con el carrito vacío.",
+          variant: "destructive"
+        });
+        return;
+    }
+    
+    // Si todo es correcto, redirige al checkout
+    router.push('/checkout');
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-4xl font-headline font-bold mb-8">Tu Carrito de Compras</h1>
-      {cartCount === 0 ? (
+      {cartItems.length === 0 ? ( // Cambiado de cartCount a cartItems.length para que muestre el carrito aunque la cantidad total sea 0
         <Card className="text-center py-12">
             <CardContent className="flex flex-col items-center gap-4">
                 <ShoppingBag className="w-16 h-16 text-muted-foreground" />
@@ -94,8 +117,8 @@ export function CartClient() {
                 <div className="flex items-center gap-4">
                   <Input
                     type="number"
-                    min="1"
-                    value={quantity === 0 ? '' : quantity} // Muestra vacío si la cantidad es 0
+                    min="0" // Permitir 0, pero la validación lo bloqueará en el checkout
+                    value={quantity === 0 ? '' : quantity}
                     onKeyDown={handleNumericKeyDown}
                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                     className="w-16 h-9 text-center"
@@ -159,8 +182,9 @@ export function CartClient() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button asChild size="lg" className="w-full">
-                  <Link href="/checkout">Proceder al Pago</Link>
+                {/* Botón modificado para usar la nueva función de validación */}
+                <Button onClick={handleCheckout} size="lg" className="w-full">
+                  Proceder al Pago
                 </Button>
               </CardFooter>
             </Card>

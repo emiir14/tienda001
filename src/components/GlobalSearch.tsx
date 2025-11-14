@@ -15,11 +15,10 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   
-  // La única fuente de verdad para el valor del input es el parámetro 'q' en la URL.
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isFocused, setIsFocused] = useState(false);
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Debounce for suggestions only
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Efecto para mostrar/ocultar sugerencias basadas en el término de búsqueda y el foco.
@@ -46,15 +45,23 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
   }, []);
 
   // Efecto para sincronizar el estado del input si la URL cambia (ej. navegación atrás/adelante).
-  // Esta es la única fuente de verdad que actualiza el estado desde fuera.
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || '');
   }, [searchParams]);
 
-  // Función unificada para actualizar la URL. Centraliza la lógica de enrutamiento.
-  const updateUrl = (newQuery: string) => {
+  // Maneja el envío del formulario. Esta es la ÚNICA fuente de verdad para la búsqueda.
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const newQuery = searchTerm.trim();
     const currentQuery = new URLSearchParams(searchParams.toString());
-    
+
+    // Si la nueva búsqueda es la misma que la actual, no hacemos nada.
+    if (newQuery === (currentQuery.get('q') || '')) {
+        setIsFocused(false);
+        setSuggestions([]);
+        return;
+    }
+
     if (newQuery) {
       currentQuery.set('q', newQuery);
     } else {
@@ -64,38 +71,13 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
     const search = currentQuery.toString();
     const query = search ? `?${search}` : '';
 
-    // Solo empuja a la ruta de la tienda, y solo si estamos en ella.
-    if (pathname === '/tienda') {
-      router.push(`/tienda${query}#products-grid`, { scroll: false });
-    }
-  };
-
-  // Maneja el envío del formulario.
-  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    // La actualización de la URL ya se gestiona en el onChange, 
-    // pero esto asegura que una pulsación de Enter confirme la búsqueda.
-    updateUrl(searchTerm.trim());
+    // Solo redirige si estamos en la página de la tienda, de lo contrario solo actualiza la URL
+    const targetPath = pathname === '/tienda' ? `/tienda${query}#products-grid` : `/tienda${query}`;
+    router.push(targetPath, { scroll: false });
+    
     setIsFocused(false);
     setSuggestions([]);
   };
-
-  // Maneja el cambio en el input, actualizando la URL en tiempo real (debounced).
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = e.target.value;
-      setSearchTerm(newValue);
-      // Actualiza la URL a través del debouncedSearchTerm para no sobrecargar el router
-  };
-
-  // useEffect que reacciona al término de búsqueda debounced para actualizar la URL
-  useEffect(() => {
-    // Solo actualiza la URL si el término debounced es diferente de la URL actual
-    // para evitar ciclos de renderizado y conflictos.
-    if (debouncedSearchTerm !== (searchParams.get('q') || '')) {
-        updateUrl(debouncedSearchTerm);
-    }
-  }, [debouncedSearchTerm]); // Depende solo del término debounced
-
 
   // Maneja el clic en una sugerencia.
   const handleSuggestionClick = (product: Product) => {
@@ -112,7 +94,7 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
           type="search"
           placeholder="Buscar..."
           value={searchTerm}
-          onChange={handleInputChange}
+          onChange={(e) => setSearchTerm(e.target.value)} // Solo actualiza el estado local
           onFocus={() => setIsFocused(true)}
           className="h-10 w-full rounded-full border-2 border-border focus:border-primary pl-4 pr-10"
           aria-label="Buscar productos"

@@ -191,16 +191,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   const updateQuantity = useCallback((productId: number, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-    } else {
-      setCartItems(prevItems =>
-        prevItems.map(item =>
-          item.product.id === productId ? { ...item, quantity } : item
-        )
-      );
-    }
-  }, [removeFromCart]);
+    // NO elimina el producto si la cantidad es 0. Solo actualiza el valor.
+    // La validación se hará en el checkout.
+    setCartItems(prevItems =>
+      prevItems.map(item =>
+        item.product.id === productId ? { ...item, quantity } : item
+      )
+    );
+  }, []);
 
   const applyCoupon = useCallback((coupon: Coupon) => {
     if (!isCouponApplicable) {
