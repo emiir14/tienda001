@@ -35,6 +35,7 @@ export type Coupon = {
   discountValue: number;
   expiryDate: Date | null;
   isActive: boolean;
+  minPurchaseAmount?: number | null;
 };
 
 export type OrderStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'shipped' | 'delivered' | 'refunded';

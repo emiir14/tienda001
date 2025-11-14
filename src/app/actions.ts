@@ -186,6 +186,7 @@ const couponSchema = z.object({
     code: z.string().min(3, "El código debe tener al menos 3 caracteres.").max(50, "El código no puede tener más de 50 caracteres."),
     discountType: z.enum(['percentage', 'fixed'], { required_error: "El tipo de descuento es requerido."}),
     discountValue: z.coerce.number({ required_error: "El valor es requerido." }).positive("El valor del descuento debe ser un número positivo."),
+    minPurchaseAmount: z.coerce.number().positive("El monto de compra mínima debe ser positivo.").optional().nullable(),
     expiryDate: z.string().optional().nullable().transform(val => val ? new Date(val) : null),
     isActive: z.boolean(),
 }).refine(data => {
@@ -204,6 +205,7 @@ export async function addCouponAction(formData: FormData) {
     const sanitizedData = sanitizeData(rawData);
 
     if (sanitizedData.expiryDate === '') sanitizedData.expiryDate = null;
+    if (sanitizedData.minPurchaseAmount === '') sanitizedData.minPurchaseAmount = null;
     
     const validatedFields = couponSchema.safeParse({
         ...sanitizedData,
@@ -236,6 +238,7 @@ export async function updateCouponAction(id: number, formData: FormData) {
     const sanitizedData = sanitizeData(rawData);
     
     if (sanitizedData.expiryDate === '') sanitizedData.expiryDate = null;
+    if (sanitizedData.minPurchaseAmount === '') sanitizedData.minPurchaseAmount = null;
 
     const validatedFields = couponSchema.safeParse({
         ...sanitizedData,

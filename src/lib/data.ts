@@ -263,6 +263,7 @@ function _mapDbRowToCoupon(row: any): Coupon {
         code: row.code,
         discountType: row.discount_type,
         discountValue: parseFloat(row.discount_value),
+        minPurchaseAmount: row.min_purchase_amount ? parseFloat(row.min_purchase_amount) : null,
         expiryDate: row.expiry_date,
         isActive: row.is_active,
     };
@@ -300,12 +301,12 @@ export async function getCouponByCode(code: string): Promise<Coupon | undefined>
 
 export async function createCoupon(coupon: Omit<Coupon, 'id'>): Promise<Coupon> {
     if (!isDbConfigured) return createCouponFromHardcodedData(coupon);
-    const { code, discountType, discountValue, expiryDate, isActive } = coupon;
+    const { code, discountType, discountValue, minPurchaseAmount, expiryDate, isActive } = coupon;
     try {
         const db = getDb();
         const result = await db`
-            INSERT INTO coupons (code, discount_type, discount_value, expiry_date, is_active)
-            VALUES (${code.toUpperCase()}, ${discountType}, ${discountValue}, ${expiryDate?.toISOString()}, ${isActive})
+            INSERT INTO coupons (code, discount_type, discount_value, min_purchase_amount, expiry_date, is_active)
+            VALUES (${code.toUpperCase()}, ${discountType}, ${discountValue}, ${minPurchaseAmount}, ${expiryDate?.toISOString()}, ${isActive})
             RETURNING *;
         `;
         return _mapDbRowToCoupon(result[0]);
@@ -320,7 +321,7 @@ export async function createCoupon(coupon: Omit<Coupon, 'id'>): Promise<Coupon> 
 
 export async function updateCoupon(id: number, couponData: Partial<Omit<Coupon, 'id'>>): Promise<Coupon> {
     if (!isDbConfigured) return updateCouponFromHardcodedData(id, couponData);
-    const { code, discountType, discountValue, expiryDate, isActive } = couponData;
+    const { code, discountType, discountValue, minPurchaseAmount, expiryDate, isActive } = couponData;
     try {
         const db = getDb();
         const result = await db`
@@ -328,6 +329,7 @@ export async function updateCoupon(id: number, couponData: Partial<Omit<Coupon, 
             SET code = COALESCE(${code?.toUpperCase()}, code), 
                 discount_type = COALESCE(${discountType}, discount_type), 
                 discount_value = COALESCE(${discountValue}, discount_value), 
+                min_purchase_amount = COALESCE(${minPurchaseAmount}, min_purchase_amount),
                 expiry_date = ${expiryDate?.toISOString() || null}, 
                 is_active = COALESCE(${isActive}, is_active)
             WHERE id = ${id}

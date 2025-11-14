@@ -28,8 +28,17 @@ export function CartClient() {
       try {
         const coupon = await getCouponByCode(couponCode);
         if (coupon) {
-            applyCoupon(coupon);
-            toast({ title: "Éxito", description: "Cupón aplicado correctamente." });
+            // ANADIDO: Verificación de compra mínima
+            if (coupon.minPurchaseAmount && subtotal < coupon.minPurchaseAmount) {
+                toast({
+                    title: "Compra mínima no alcanzada",
+                    description: `Necesitas comprar al menos $${coupon.minPurchaseAmount.toLocaleString('es-AR')} para usar este cupón.`,
+                    variant: "destructive",
+                });
+            } else {
+                applyCoupon(coupon);
+                toast({ title: "Éxito", description: "Cupón aplicado correctamente." });
+            }
         } else {
             toast({ title: "Error", description: "El cupón no es válido o ha expirado.", variant: "destructive" });
         }
