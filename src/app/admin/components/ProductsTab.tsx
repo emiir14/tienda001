@@ -46,9 +46,16 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                 if (sortConfig.key === 'price') {
                     aValue = a.salePrice ?? a.price;
                     bValue = b.salePrice ?? b.price;
+                } else if (sortConfig.key === 'discountPercentage') {
+                    // A discount is only "active" if there is a salePrice.
+                    // This makes sorting consistent with what's displayed.
+                    aValue = (a.salePrice && a.discountPercentage) ? a.discountPercentage : 0;
+                    bValue = (b.salePrice && b.discountPercentage) ? b.discountPercentage : 0;
                 } else {
-                    aValue = a[sortConfig.key] ?? 0;
-                    bValue = b[sortConfig.key] ?? 0;
+                    // Fallback for other sortable keys like id, name, stock
+                    const key = sortConfig.key;
+                    aValue = a[key] ?? 0;
+                    bValue = b[key] ?? 0;
                 }
 
                 if (aValue < bValue) {
@@ -92,7 +99,7 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
     };
 
     const renderHeaderButton = (key: SortableKeys, label: string) => (
-        <Button variant="ghost" onClick={() => requestSort(key)}>
+        <Button variant="ghost" onClick={() => requestSort(key)} className="px-2">
             {label}
             {getSortIcon(key)}
         </Button>
@@ -115,20 +122,20 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Imagen</TableHead>
+                                        <TableHead className="pl-4">Imagen</TableHead>
                                         <TableHead>{renderHeaderButton('id', 'ID')}</TableHead>
                                         <TableHead>{renderHeaderButton('name', 'Nombre')}</TableHead>
                                         <TableHead>{renderHeaderButton('price', 'Precio')}</TableHead>
                                         <TableHead>{renderHeaderButton('discountPercentage', 'Descuento')}</TableHead>
                                         <TableHead>{renderHeaderButton('stock', 'Stock')}</TableHead>
                                         <TableHead>Categorías</TableHead>
-                                        <TableHead>Acciones</TableHead>
+                                        <TableHead className="pr-4 text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {paginatedProducts.map(product => (
                                         <TableRow key={product.id}>
-                                            <TableCell>
+                                            <TableCell className="pl-4">
                                                 <Image
                                                     src={product.images[0] ?? "https://placehold.co/40x40.png"}
                                                     alt={product.name}
@@ -138,7 +145,7 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                                                 />
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground">{product.id}</TableCell>
-                                            <TableCell className="font-medium max-w-xs truncate">{product.name}</TableCell>
+                                            <TableCell className="font-medium max-w-xs truncate" title={product.name}>{product.name}</TableCell>
                                             <TableCell>
                                                 {product.salePrice ? (
                                                     <div className="flex flex-col">
@@ -167,8 +174,8 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                                                     })}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
-                                                <div className="flex gap-2">
+                                            <TableCell className="pr-4">
+                                                <div className="flex gap-2 justify-end">
                                                     <Button variant="outline" size="icon" onClick={() => onEdit(product)}><Edit className="h-4 w-4" /></Button>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>

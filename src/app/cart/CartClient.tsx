@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation'; // Importar useRouter
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/use-cart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import { getCouponByCode } from '@/lib/data';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function CartClient() {
-  const router = useRouter(); // Inicializar router
+  const router = useRouter();
   const { cartItems, removeFromCart, updateQuantity, subtotal, cartCount, appliedCoupon, applyCoupon, removeCoupon, discount, totalPrice, isCouponApplicable } = useCart();
   const [couponCode, setCouponCode] = useState("");
   const [isLoadingCoupon, setIsLoadingCoupon] = useState(false);
@@ -28,7 +28,6 @@ export function CartClient() {
       try {
         const coupon = await getCouponByCode(couponCode);
         if (coupon) {
-            // ANADIDO: Verificación de compra mínima
             if (coupon.minPurchaseAmount && subtotal < coupon.minPurchaseAmount) {
                 toast({
                     title: "Compra mínima no alcanzada",
@@ -49,6 +48,7 @@ export function CartClient() {
       setCouponCode("");
   }
 
+  // SOLUCIÓN 1: Bloquear caracteres inválidos en el input de cantidad
   const handleNumericKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
       if (['e', 'E', '+', '-'].includes(e.key)) {
           e.preventDefault();
@@ -56,18 +56,21 @@ export function CartClient() {
   };
 
   const handleQuantityChange = (productId: number, value: string) => {
+    // Si el campo está vacío, actualizamos a 0 para validación posterior
     if (value === '') {
         updateQuantity(productId, 0);
     } else {
         const newQuantity = parseInt(value, 10);
+        // Asegurarse de que el valor sea un número y no sea negativo
         if (!isNaN(newQuantity) && newQuantity >= 0) {
             updateQuantity(productId, newQuantity);
         }
     }
   };
 
-  // Nueva función para validar el carrito antes de proceder al pago
+  // SOLUCIÓN 2: Validar el carrito antes de proceder al pago
   const handleCheckout = () => {
+    // Buscar items con cantidad inválida (0 o menos)
     const invalidItems = cartItems.filter(item => item.quantity <= 0);
     if (invalidItems.length > 0) {
         toast({
@@ -75,20 +78,20 @@ export function CartClient() {
             description: `Por favor, asegúrate de que todos los productos tengan una cantidad de al menos 1. El producto "${invalidItems[0].product.name}" tiene una cantidad inválida.`,
             variant: "destructive"
         });
-        return;
+        return; // Detener la ejecución
     }
 
+    // Verificar si el carrito está completamente vacío
     if (cartCount <= 0) {
         toast({
             title: "Carrito vacío",
             description: "No puedes proceder al pago con el carrito vacío.",
             variant: "destructive"
         });
-        return;
+        return; // Detener la ejecución
     }
 
-    // --- CAMBIO CLAVE ---
-    // Guarda el estado del carrito en localStorage para que la página de checkout pueda usarlo.
+    // Si todas las validaciones pasan, guardar estado y redirigir
     const checkoutState = {
         cartItems: cartItems,
         appliedCoupon: appliedCoupon,
@@ -98,7 +101,6 @@ export function CartClient() {
     };
     localStorage.setItem('checkoutState', JSON.stringify(checkoutState));
     
-    // Redirige al checkout
     router.push('/checkout');
   };
 
@@ -106,7 +108,8 @@ export function CartClient() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-4xl font-headline font-bold mb-8">Tu Carrito de Compras</h1>
-      {cartItems.length === 0 ? ( // Cambiado de cartCount a cartItems.length para que muestre el carrito aunque la cantidad total sea 0
+      {/* Usar cartItems.length para mostrar el estado vacío incluso si un ítem tiene cantidad 0 */}
+      {cartItems.length === 0 ? (
         <Card className="text-center py-12">
             <CardContent className="flex flex-col items-center gap-4">
                 <ShoppingBag className="w-16 h-16 text-muted-foreground" />
@@ -128,7 +131,6 @@ export function CartClient() {
                       alt={product.name}
                       fill
                       className="object-cover"
-                      data-ai-hint={product.aiHint}
                     />
                 </div>
                 <div className="flex-1 ml-4">
@@ -138,9 +140,9 @@ export function CartClient() {
                 <div className="flex items-center gap-4">
                   <Input
                     type="number"
-                    min="0" // Permitir 0, pero la validación lo bloqueará en el checkout
-                    value={quantity === 0 ? '' : quantity}
-                    onKeyDown={handleNumericKeyDown}
+                    min="0" // Se permite 0 para la validación, pero no para la compra
+                    value={quantity === 0 ? '' : quantity} // Mostrar campo vacío si la cantidad es 0
+                    onKeyDown={handleNumericKeyDown} // <-- MANEJADOR AÑADIDO
                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                     className="w-20 h-9 text-center"
                   />
@@ -180,6 +182,7 @@ export function CartClient() {
                 )}
                 <div className="flex justify-between">
                   <span>Subtotal</span>
+                  {/* El toLocaleString maneja el NaN visualmente, pero el problema de fondo está resuelto */}
                   <span>${subtotal.toLocaleString('es-AR')}</span>
                 </div>
                  {appliedCoupon && (
@@ -203,7 +206,7 @@ export function CartClient() {
                 </div>
               </CardContent>
               <CardFooter>
-                {/* Botón modificado para usar la nueva función de validación */}
+                {/* Este botón ahora usa la lógica de validación robusta */}
                 <Button onClick={handleCheckout} size="lg" className="w-full">
                   Proceder al Pago
                 </Button>
