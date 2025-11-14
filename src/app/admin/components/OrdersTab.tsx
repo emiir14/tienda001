@@ -6,7 +6,6 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/lib/types';
-import { useDebounce } from '@/hooks/useDebounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -192,12 +191,12 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKeys, direction: 'asc' | 'desc' } | null>(null);
     const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
-    const [searchTerm, setSearchTerm] = useState('');
-    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+    const [inputValue, setInputValue] = useState('');
+    const [query, setQuery] = useState('');
 
     const searchedOrders = useMemo(() => {
-        const lowercasedTerm = debouncedSearchTerm.toLowerCase();
-        if (!lowercasedTerm) return orders;
+        const lowercasedQuery = query.toLowerCase();
+        if (!lowercasedQuery) return orders;
 
         return orders.filter(order => {
             const fieldsToSearch = [
@@ -213,9 +212,9 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                 order.couponCode || '',
                 ...order.items.map(item => item.product.name)
             ];
-            return fieldsToSearch.some(field => field.toLowerCase().includes(lowercasedTerm));
+            return fieldsToSearch.some(field => field.toLowerCase().includes(lowercasedQuery));
         });
-    }, [orders, debouncedSearchTerm]);
+    }, [orders, query]);
 
     const statusFilteredOrders = useMemo(() => {
         if (statusFilter === 'all') {
@@ -290,6 +289,12 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
         </Button>
     );
 
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setQuery(inputValue);
+        setCurrentPage(1);
+    };
+
     return (
         <Card className="shadow-lg">
              <CardHeader>
@@ -300,27 +305,27 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                     </div>
                     <Button onClick={onExport} variant="outline" disabled={isLoading}><Download className="mr-2 h-4 w-4" />Exportar a CSV</Button>
                 </div>
-                 <div className="relative pt-4 mt-4 border-t">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Buscar por cliente, producto, email, ID de orden..."
-                        value={searchTerm}
-                        onChange={(e) => {
-                            setSearchTerm(e.target.value);
-                            setCurrentPage(1); // Reset page on new search
-                        }}
-                        className="pl-10 w-full"
-                    />
-                </div>
-                {totalPages > 1 && (
-                     <div className="flex justify-end pt-4 border-t mt-4">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 mt-4 border-t">
+                    <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full md:flex-1">
+                        <div className="relative w-full">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar y presionar Enter..."
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                className="pl-10 w-full"
+                            />
+                        </div>
+                        <Button type="submit">Buscar</Button>
+                    </form>
+                    {totalPages > 1 && (
                         <Pagination 
-                            currentPage={currentPage} 
+                            currentPage={currentPage}
                             totalPages={totalPages}
-                            onPageChange={handlePageChange} 
+                            onPageChange={handlePageChange}
                         />
-                    </div>
-                )}
+                    )}
+                </div>
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
