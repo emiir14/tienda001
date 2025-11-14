@@ -266,16 +266,65 @@ function MetricsTab({ products, salesMetrics, isLoading, categories }: { product
                 <Card className="shadow-md"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Productos</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : totalProducts}</div><p className="text-xs text-muted-foreground">Productos únicos en el catálogo</p></CardContent></Card>
                 <Card className="shadow-md"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Inventario Total</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : totalStock}</div><p className="text-xs text-muted-foreground">Suma de stock de todos los productos</p></CardContent></Card>
             </div>
+   
             <div className="grid gap-6 md:grid-cols-2">
-                <Card className="shadow-md"><CardHeader><CardTitle>Productos por Categoría</CardTitle><CardDescription>Un desglose de cuántos productos tienes en cada categoría.</CardDescription></CardHeader><CardContent>
-                    {isLoading ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : categoryData.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <ChartContainer config={{ products: { label: "Productos", color: "hsl(var(--primary))" } }} className="h-80 min-w-[500px]">
-                                <ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={categoryData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}><CartesianGrid vertical={false} /><XAxis dataKey="category" tickLine={false} axisLine={false} tickMargin={8} /><YAxis allowDecimals={false} /><Tooltip cursor={false} content={<ChartTooltipContent />} /><RechartsBar dataKey="products" radius={8} /></RechartsBarChart></ResponsiveContainer>
-                            </ChartContainer>
-                        </div>    
-                    ) : <div className="flex justify-center items-center h-80"><BarChart className="h-8 w-8 text-muted-foreground" /><p className="text-muted-foreground ml-4">No hay datos de categoría.</p></div>}
-                </CardContent></Card>
+                                
+               
+                <Card className="shadow-md">
+                    <CardHeader>
+                        <CardTitle>Productos por Categoría</CardTitle>
+                        <CardDescription>Un desglose de cuántos productos tienes en cada categoría.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                        ) : categoryData.length > 0 ? (
+                            <div className="overflow-x-auto py-2">
+                                <RechartsBarChart 
+                                    width={600} 
+                                    height={320} 
+                                    data={categoryData} 
+                                    margin={{ top: 20, right: 20, bottom: 5, left: 0 }}
+                                >
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis dataKey="category" tickLine={false} axisLine={false} tickMargin={8} />
+                                    <YAxis allowDecimals={false} />
+                                    <Tooltip 
+                                        cursor={false} 
+                                        content={({ active, payload }) => {
+                                            if (active && payload && payload.length) {
+                                                return (
+                                                    <div className="rounded-lg border bg-background p-2 shadow-sm">
+                                                        <div className="grid grid-cols-1 gap-1.5">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[0.7rem] uppercase text-muted-foreground">
+                                                                    {payload[0].payload.category}
+                                                                </span>
+                                                                <span className="font-bold text-muted-foreground">
+                                                                    {`Productos: ${payload[0].value}`}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        }} 
+                                    />
+                                    <RechartsBar dataKey="products" radius={8} fill="hsl(var(--primary))" />
+                                </RechartsBarChart>
+                            </div>
+                        ) : (
+                            <div className="flex justify-center items-center h-80">
+                                <BarChart className="h-8 w-8 text-muted-foreground" />
+                                <p className="text-muted-foreground ml-4">No hay datos de categoría.</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+               
+
                  <Card className="shadow-md"><CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="text-blue-500"/>Productos Más Vendidos</CardTitle><CardDescription>Tus productos más populares basados en unidades vendidas.</CardDescription></CardHeader><CardContent>
                     {isLoading || !salesMetrics ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : salesMetrics.topSellingProducts.length > 0 ? (
                         <div className="overflow-x-auto">
