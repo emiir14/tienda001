@@ -960,13 +960,15 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
             </div>
 
             <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
-                    <TabsTrigger value="overview">Visión General</TabsTrigger>
-                    <TabsTrigger value="products">Productos</TabsTrigger>
-                    <TabsTrigger value="categories">Categorías</TabsTrigger>
-                    <TabsTrigger value="coupons">Cupones</TabsTrigger>
-                    <TabsTrigger value="orders">Órdenes</TabsTrigger>
-                </TabsList>
+                <div className="w-full overflow-x-auto border-b">
+                    <TabsList className="min-w-max">
+                            <TabsTrigger value="overview">Visión General</TabsTrigger>
+                            <TabsTrigger value="products">Productos</TabsTrigger>
+                            <TabsTrigger value="categories">Categorías</TabsTrigger>
+                            <TabsTrigger value="coupons">Cupones</TabsTrigger>
+                            <TabsTrigger value="orders">Órdenes</TabsTrigger>
+                    </TabsList>
+                </div>
                 <TabsContent value="overview" className="mt-6">
                     <MetricsTab products={products} salesMetrics={salesMetrics} isLoading={isLoading} categories={categories} />
                 </TabsContent>
