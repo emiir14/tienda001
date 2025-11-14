@@ -61,26 +61,38 @@ export function CartClient() {
   const handleCheckout = () => {
     const invalidItems = cartItems.filter(item => item.quantity <= 0);
     if (invalidItems.length > 0) {
-      toast({
-        title: "Cantidad inválida",
-        description: `Por favor, asegúrate de que todos los productos tengan una cantidad de al menos 1. El producto "${invalidItems[0].product.name}" tiene una cantidad inválida.`,
-        variant: "destructive"
-      });
-      return; // Detiene la ejecución si hay un error
+        toast({
+            title: "Cantidad inválida",
+            description: `Por favor, asegúrate de que todos los productos tengan una cantidad de al menos 1. El producto "${invalidItems[0].product.name}" tiene una cantidad inválida.`,
+            variant: "destructive"
+        });
+        return;
     }
 
     if (cartCount <= 0) {
         toast({
-          title: "Carrito vacío",
-          description: "No puedes proceder al pago con el carrito vacío.",
-          variant: "destructive"
+            title: "Carrito vacío",
+            description: "No puedes proceder al pago con el carrito vacío.",
+            variant: "destructive"
         });
         return;
     }
+
+    // --- CAMBIO CLAVE ---
+    // Guarda el estado del carrito en localStorage para que la página de checkout pueda usarlo.
+    const checkoutState = {
+        cartItems: cartItems,
+        appliedCoupon: appliedCoupon,
+        discount: discount,
+        totalPrice: totalPrice,
+        subtotal: subtotal
+    };
+    localStorage.setItem('checkoutState', JSON.stringify(checkoutState));
     
-    // Si todo es correcto, redirige al checkout
+    // Redirige al checkout
     router.push('/checkout');
   };
+
 
   return (
     <div className="max-w-4xl mx-auto">

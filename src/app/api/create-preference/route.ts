@@ -12,7 +12,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!;
 
 export async function POST(request: NextRequest) {
     try {
-        const { items, customer, orderId } = await request.json();
+        // 1. AHORA ACEPTAMOS 'discountAmount' Y 'couponCode' DEL FRONTEND
+        const { items, customer, orderId, discountAmount, couponCode } = await request.json();
 
         if (!items || !customer || !orderId) {
             return NextResponse.json({ error: 'Missing required data' }, { status: 400 });
@@ -23,13 +24,26 @@ export async function POST(request: NextRequest) {
             throw new Error('NEXT_PUBLIC_SITE_URL is not configured.');
         }
 
+        const preferenceItems = items.map((item: CartItem) => ({
+            id: item.product.id.toString(),
+            title: item.product.name,
+            quantity: item.quantity,
+            unit_price: item.product.salePrice ?? item.product.price,
+        }));
+        
+        // 2. SI HAY DESCUENTO, LO AGREGAMOS COMO UN ÍTEM NEGATIVO
+        if (discountAmount && discountAmount > 0) {
+            preferenceItems.push({
+                id: 'DISCOUNT',
+                title: `Descuento por cupón: ${couponCode || 'N/A'}`,
+                description: 'Descuento aplicado a la compra total',
+                quantity: 1,
+                unit_price: -discountAmount,
+            });
+        }
+
         const preferenceBody = {
-            items: items.map((item: CartItem) => ({
-                id: item.product.id.toString(),
-                title: item.product.name,
-                quantity: item.quantity,
-                unit_price: item.product.salePrice ?? item.product.price, // Prioritize sale price
-            })),
+            items: preferenceItems, // Usamos el array de ítems modificado
             payer: {
                 name: customer.name,
                 email: customer.email,
@@ -41,10 +55,9 @@ export async function POST(request: NextRequest) {
             back_urls: {
                 success: `${SITE_URL}/checkout/success`,
                 failure: `${SITE_URL}/checkout/failure`,
-                pending: `${SITE_URL}/checkout/pending`,
+                pending: `${SITE_URL}/checkout/pending`
             },
             external_reference: orderId.toString(),
-            // FINAL FIX: Pointing to the new, robust, and correct webhook URL.
             notification_url: `${SITE_URL}/api/mercadopago-webhook`,
         };
 
@@ -62,3 +75,4 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: errorMessage }, { status });
     }
 }
+
