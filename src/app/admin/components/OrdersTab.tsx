@@ -6,7 +6,9 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/lib/types';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -34,7 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Download, ChevronRight, User, Mail, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown, ListFilter } from 'lucide-react';
+import { Loader2, Download, ChevronRight, User, Mail, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown, ListFilter, Search } from 'lucide-react';
 import { Pagination } from './Pagination';
 
 const ITEMS_PER_PAGE = 50;
@@ -190,16 +192,40 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKeys, direction: 'asc' | 'desc' } | null>(null);
     const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-    const filteredOrders = useMemo(() => {
+    const searchedOrders = useMemo(() => {
+        const lowercasedTerm = debouncedSearchTerm.toLowerCase();
+        if (!lowercasedTerm) return orders;
+
+        return orders.filter(order => {
+            const fieldsToSearch = [
+                order.id.toString(),
+                order.customerName,
+                order.customerEmail,
+                order.total.toString(),
+                format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es }),
+                order.shippingAddress,
+                order.shippingCity,
+                order.shippingPostalCode,
+                order.paymentId || '',
+                order.couponCode || '',
+                ...order.items.map(item => item.product.name)
+            ];
+            return fieldsToSearch.some(field => field.toLowerCase().includes(lowercasedTerm));
+        });
+    }, [orders, debouncedSearchTerm]);
+
+    const statusFilteredOrders = useMemo(() => {
         if (statusFilter === 'all') {
-            return orders;
+            return searchedOrders;
         }
-        return orders.filter(order => order.status === statusFilter);
-    }, [orders, statusFilter]);
+        return searchedOrders.filter(order => order.status === statusFilter);
+    }, [searchedOrders, statusFilter]);
 
     const sortedOrders = useMemo(() => {
-        let sortableItems = [...filteredOrders];
+        let sortableItems = [...statusFilteredOrders];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
                 const key = sortConfig.key;
@@ -230,7 +256,7 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
             });
         }
         return sortableItems;
-    }, [filteredOrders, sortConfig]);
+    }, [statusFilteredOrders, sortConfig]);
 
     const totalPages = Math.ceil(sortedOrders.length / ITEMS_PER_PAGE);
     const paginatedOrders = sortedOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -273,6 +299,18 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                         <CardDescription>Visualiza y gestiona todas las órdenes de tus clientes.</CardDescription>
                     </div>
                     <Button onClick={onExport} variant="outline" disabled={isLoading}><Download className="mr-2 h-4 w-4" />Exportar a CSV</Button>
+                </div>
+                 <div className="relative pt-4 mt-4 border-t">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar por cliente, producto, email, ID de orden..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1); // Reset page on new search
+                        }}
+                        className="pl-10 w-full"
+                    />
                 </div>
                 {totalPages > 1 && (
                      <div className="flex justify-end pt-4 border-t mt-4">
