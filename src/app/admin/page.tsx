@@ -950,7 +950,7 @@ function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbCon
             </div>
 
             <Tabs defaultValue="overview">
-                <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
                     <TabsTrigger value="overview">Visión General</TabsTrigger>
                     <TabsTrigger value="products">Productos</TabsTrigger>
                     <TabsTrigger value="categories">Categorías</TabsTrigger>

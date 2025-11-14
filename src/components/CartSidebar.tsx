@@ -134,7 +134,7 @@ export default function CartSidebar() {
              </div>
             <SheetFooter className="gap-2 pr-6">
                  <Button asChild className="w-full">
-                    <Link href="/checkout" onClick={() => setIsSidebarOpen(false)}>Iniciar Compra</Link>
+                    <Link href="/cart" onClick={() => setIsSidebarOpen(false)}>Iniciar Compra</Link>
                 </Button>
                 <Button variant="outline" asChild className="w-full">
                     <Link href="/tienda" onClick={() => setIsSidebarOpen(false)}>Seguir Comprando</Link>
