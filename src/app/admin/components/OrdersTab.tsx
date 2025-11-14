@@ -266,21 +266,23 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
 
     return (
         <Card className="shadow-lg">
-             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="flex-1">
-                    <CardTitle>Historial de Órdenes</CardTitle>
-                    <CardDescription>Visualiza y gestiona todas las órdenes de tus clientes.</CardDescription>
+             <CardHeader>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <CardTitle>Historial de Órdenes</CardTitle>
+                        <CardDescription>Visualiza y gestiona todas las órdenes de tus clientes.</CardDescription>
+                    </div>
+                    <Button onClick={onExport} variant="outline" disabled={isLoading}><Download className="mr-2 h-4 w-4" />Exportar a CSV</Button>
                 </div>
-                <div className="flex items-center gap-4">
-                    {totalPages > 1 && (
+                {totalPages > 1 && (
+                     <div className="flex justify-end pt-4 border-t mt-4">
                         <Pagination 
                             currentPage={currentPage} 
                             totalPages={totalPages}
                             onPageChange={handlePageChange} 
                         />
-                    )}
-                    <Button onClick={onExport} variant="outline" disabled={isLoading}><Download className="mr-2 h-4 w-4" />Exportar a CSV</Button>
-                </div>
+                    </div>
+                )}
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (

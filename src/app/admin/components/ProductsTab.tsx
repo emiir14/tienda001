@@ -104,13 +104,24 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
 
     return (
          <Card className="shadow-lg">
-            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div><CardTitle>Gestionar Productos</CardTitle><CardDescription>Añade, edita o elimina productos de tu catálogo.</CardDescription></div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <Button onClick={onImport} variant="outline"><Upload className="mr-2 h-4 w-4" />Importar</Button>
-                    <Button onClick={onExport} variant="outline"><Download className="mr-2 h-4 w-4" />Exportar</Button>
-                    <Button onClick={onAdd}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
+            <CardHeader>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div><CardTitle>Gestionar Productos</CardTitle><CardDescription>Añade, edita o elimina productos de tu catálogo.</CardDescription></div>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button onClick={onImport} variant="outline"><Upload className="mr-2 h-4 w-4" />Importar</Button>
+                        <Button onClick={onExport} variant="outline"><Download className="mr-2 h-4 w-4" />Exportar</Button>
+                        <Button onClick={onAdd}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
+                    </div>
                 </div>
+                {totalPages > 1 && (
+                    <div className="flex justify-end pt-4 border-t mt-4">
+                        <Pagination 
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={handlePageChange}
+                        />
+                    </div>
+                )}
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
@@ -196,13 +207,15 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                                 </TableBody>
                             </Table>
                         </div>
-                         <div className="px-4 border-t">
-                            <Pagination 
-                                currentPage={currentPage}
-                                totalPages={totalPages}
-                                onPageChange={handlePageChange}
-                            />
-                        </div>
+                         {totalPages > 1 && (
+                            <div className="px-4 border-t">
+                                <Pagination 
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    onPageChange={handlePageChange}
+                                />
+                            </div>
+                         )}
                     </>
                 )}
             </CardContent>
