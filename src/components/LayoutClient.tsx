@@ -9,24 +9,30 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { Toaster } from "@/components/ui/toaster";
 
-// Este es un Componente de Cliente puro.
-// Su única responsabilidad es manejar la lógica de UI que depende de hooks.
 export function LayoutClient({ children }: { children: React.ReactNode }) {
     const { isSidebarOpen } = useCart();
 
     return (
-        <div className="relative flex min-h-dvh flex-col bg-background/80 backdrop-blur-sm">
-            <TopBar />
-            <Header />
-            <main className="flex-1">
-                {children}
-            </main>
-            <Footer />
+        // Usamos un Fragmento de React (<>) para tener múltiples elementos raíz
+        <>
+            {/* Este div contiene el flujo principal de la página y el efecto de desenfoque */}
+            <div className="relative flex min-h-dvh flex-col bg-background/80 backdrop-blur-sm">
+                <TopBar />
+                <Header />
+                <main className="flex-1">
+                    {children}
+                </main>
+                <Footer />
+            </div>
+
+            {/* Estos componentes están FUERA del div con backdrop-blur, 
+                por lo que su 'position: fixed' funcionará correctamente */}
             <CartSidebar />
-            {/* Lógica condicional: El botón de WhatsApp solo se muestra si el sidebar NO está abierto */}
-            {!isSidebarOpen && <WhatsAppButton />}
-            <ScrollToTopButton />
             <Toaster />
-        </div>
+            <ScrollToTopButton />
+            
+            {/* La lógica condicional para el botón de WhatsApp se mantiene */}
+            {!isSidebarOpen && <WhatsAppButton />}
+        </>
     );
 }
