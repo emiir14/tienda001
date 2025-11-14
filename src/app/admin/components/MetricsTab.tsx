@@ -43,62 +43,72 @@ export function MetricsTab({ products, salesMetrics, isLoading, categories }: { 
             </div>
    
             <div className="grid gap-6 md:grid-cols-2">
-                                
-                
                 <Card className="shadow-md">
                     <CardHeader>
                         <CardTitle>Productos por Categoría</CardTitle>
                         <CardDescription>Un desglose de cuántos productos tienes en cada categoría.</CardDescription>
                     </CardHeader>
-                    <CardContent className="overflow-x-auto">
-                        {isLoading ? (
-                            <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div>
-                        ) : categoryData.length > 0 ? (
-                            <div className="min-w-[600px] h-80 pr-4">
-                                <ChartContainer config={{ products: { label: "Productos", color: "hsl(var(--primary))" } }} className="h-full w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <RechartsBarChart data={categoryData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
-                                            <CartesianGrid vertical={false} />
-                                            <XAxis dataKey="category" tickLine={false} axisLine={false} tickMargin={8} />
-                                            <YAxis allowDecimals={false} />
-                                            <Tooltip cursor={false} content={<ChartTooltipContent />} />
-                                            <RechartsBar dataKey="products" radius={8} />
-                                        </RechartsBarChart>
-                                    </ResponsiveContainer>
-                                </ChartContainer>
-                            </div>
-                        ) : (
-                            <div className="flex justify-center items-center h-80">
-                                <BarChart className="h-8 w-8 text-muted-foreground" />
-                                <p className="text-muted-foreground ml-4">No hay datos de categoría.</p>
-                            </div>
-                        )}
+                    <CardContent>
+                         <div className="overflow-x-auto">
+                            {isLoading ? (
+                                <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                            ) : categoryData.length > 0 ? (
+                                <div className="min-w-[600px] h-80 pr-4">
+                                    <ChartContainer config={{ products: { label: "Productos", color: "hsl(var(--primary))" } }} className="h-full w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <RechartsBarChart data={categoryData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
+                                                <CartesianGrid vertical={false} />
+                                                <XAxis dataKey="category" tickLine={false} axisLine={false} tickMargin={8} />
+                                                <YAxis allowDecimals={false} />
+                                                <Tooltip cursor={false} content={<ChartTooltipContent />} />
+                                                <RechartsBar dataKey="products" radius={8} />
+                                            </RechartsBarChart>
+                                        </ResponsiveContainer>
+                                    </ChartContainer>
+                                </div>
+                            ) : (
+                                <div className="flex justify-center items-center h-80">
+                                    <BarChart className="h-8 w-8 text-muted-foreground" />
+                                    <p className="text-muted-foreground ml-4">No hay datos de categoría.</p>
+                                </div>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 
-                
-               
-
-                 <Card className="shadow-md"><CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="text-blue-500"/>Productos Más Vendidos</CardTitle><CardDescription>Tus productos más populares basados en unidades vendidas.</CardDescription></CardHeader><CardContent>
-                    {isLoading || !salesMetrics ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : salesMetrics.topSellingProducts.length > 0 ? (
+                 <Card className="shadow-md">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><TrendingUp className="text-blue-500"/>Productos Más Vendidos</CardTitle>
+                        <CardDescription>Tus productos más populares basados en unidades vendidas.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
                         <div className="overflow-x-auto">
-                            <Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Unidades Vendidas</TableHead></TableRow></TableHeader><TableBody>
-                                {salesMetrics.topSellingProducts.map(p => <TableRow key={p.productId}><TableCell className="font-medium">{p.name}</TableCell><TableCell className="text-right font-bold text-primary">{p.count}</TableCell></TableRow>)}
-                            </TableBody></Table>
+                            {isLoading || !salesMetrics ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : salesMetrics.topSellingProducts.length > 0 ? (
+                                <Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Unidades Vendidas</TableHead></TableRow></TableHeader><TableBody>
+                                    {salesMetrics.topSellingProducts.map(p => <TableRow key={p.productId}><TableCell className="font-medium">{p.name}</TableCell><TableCell className="text-right font-bold text-primary">{p.count}</TableCell></TableRow>)}
+                                </TableBody></Table>
+                            ) : <div className="flex justify-center items-center h-80"><TrendingUp className="h-8 w-8 text-muted-foreground" /><p className="text-muted-foreground ml-4">Aún no hay datos de ventas.</p></div>}
                         </div>
-                    ) : <div className="flex justify-center items-center h-80"><TrendingUp className="h-8 w-8 text-muted-foreground" /><p className="text-muted-foreground ml-4">Aún no hay datos de ventas.</p></div>}
-                </CardContent></Card>
+                    </CardContent>
+                </Card>
             </div>
+
              <div className="grid gap-6">
-                <Card className="shadow-md"><CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="text-amber-500"/>Alertas de Stock Bajo</CardTitle><CardDescription>Productos con 3 unidades o menos en stock.</CardDescription></CardHeader><CardContent>
-                    {isLoading ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : lowStockProducts.length > 0 ? (
-                        <div className="overflow-x-auto">   
-                            <Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Stock Restante</TableHead></TableRow></TableHeader><TableBody>
-                                {lowStockProducts.map(p => <TableRow key={p.id}><TableCell className="font-medium">{p.name}</TableCell><TableCell className="text-right font-bold text-destructive">{p.stock}</TableCell></TableRow>)}
-                            </TableBody></Table>
+                <Card className="shadow-md">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><AlertTriangle className="text-amber-500"/>Alertas de Stock Bajo</CardTitle>
+                        <CardDescription>Productos con 3 unidades o menos en stock.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <div className="overflow-x-auto">
+                            {isLoading ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : lowStockProducts.length > 0 ? (
+                                <Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Stock Restante</TableHead></TableRow></TableHeader><TableBody>
+                                    {lowStockProducts.map(p => <TableRow key={p.id}><TableCell className="font-medium">{p.name}</TableCell><TableCell className="text-right font-bold text-destructive">{p.stock}</TableCell></TableRow>)}
+                                </TableBody></Table>
+                            ) : <div className="flex justify-center items-center h-80"><Package className="h-8 w-8 text-muted-foreground" /><p className="text-muted-foreground ml-4">¡Todo bien! No hay productos con bajo stock.</p></div>}
                         </div>
-                    ) : <div className="flex justify-center items-center h-80"><Package className="h-8 w-8 text-muted-foreground" /><p className="text-muted-foreground ml-4">¡Todo bien! No hay productos con bajo stock.</p></div>}
-                </CardContent></Card>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
