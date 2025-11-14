@@ -256,7 +256,7 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
 
             <Tabs defaultValue="overview">
                  <div className="w-full overflow-x-auto border-b">
-                    <TabsList>
+                    <TabsList className="md:grid md:w-full md:grid-cols-5">
                         <TabsTrigger value="overview">Visión General</TabsTrigger>
                         <TabsTrigger value="products">Productos</TabsTrigger>
                         <TabsTrigger value="categories">Categorías</TabsTrigger>
