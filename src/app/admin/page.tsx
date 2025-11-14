@@ -276,18 +276,22 @@ function MetricsTab({ products, salesMetrics, isLoading, categories }: { product
                 </CardContent></Card>
                  <Card className="shadow-md"><CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="text-blue-500"/>Productos Más Vendidos</CardTitle><CardDescription>Tus productos más populares basados en unidades vendidas.</CardDescription></CardHeader><CardContent>
                     {isLoading || !salesMetrics ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : salesMetrics.topSellingProducts.length > 0 ? (
-                        <Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Unidades Vendidas</TableHead></TableRow></TableHeader><TableBody>
-                            {salesMetrics.topSellingProducts.map(p => <TableRow key={p.productId}><TableCell className="font-medium">{p.name}</TableCell><TableCell className="text-right font-bold text-primary">{p.count}</TableCell></TableRow>)}
-                        </TableBody></Table>
+                        <div className="overflow-x-auto">
+                            <Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Unidades Vendidas</TableHead></TableRow></TableHeader><TableBody>
+                                {salesMetrics.topSellingProducts.map(p => <TableRow key={p.productId}><TableCell className="font-medium">{p.name}</TableCell><TableCell className="text-right font-bold text-primary">{p.count}</TableCell></TableRow>)}
+                            </TableBody></Table>
+                        </div>
                     ) : <div className="flex justify-center items-center h-80"><TrendingUp className="h-8 w-8 text-muted-foreground" /><p className="text-muted-foreground ml-4">Aún no hay datos de ventas.</p></div>}
                 </CardContent></Card>
             </div>
              <div className="grid gap-6">
                 <Card className="shadow-md"><CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="text-amber-500"/>Alertas de Stock Bajo</CardTitle><CardDescription>Productos con 3 unidades o menos en stock.</CardDescription></CardHeader><CardContent>
                     {isLoading ? <div className="flex justify-center items-center h-80"><Loader2 className="h-8 w-8 animate-spin" /></div> : lowStockProducts.length > 0 ? (
-                        <Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Stock Restante</TableHead></TableRow></TableHeader><TableBody>
-                            {lowStockProducts.map(p => <TableRow key={p.id}><TableCell className="font-medium">{p.name}</TableCell><TableCell className="text-right font-bold text-destructive">{p.stock}</TableCell></TableRow>)}
-                        </TableBody></Table>
+                        <div className="overflow-x-auto">   
+                            <Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Stock Restante</TableHead></TableRow></TableHeader><TableBody>
+                                {lowStockProducts.map(p => <TableRow key={p.id}><TableCell className="font-medium">{p.name}</TableCell><TableCell className="text-right font-bold text-destructive">{p.stock}</TableCell></TableRow>)}
+                            </TableBody></Table>
+                        </div>
                     ) : <div className="flex justify-center items-center h-80"><Package className="h-8 w-8 text-muted-foreground" /><p className="text-muted-foreground ml-4">¡Todo bien! No hay productos con bajo stock.</p></div>}
                 </CardContent></Card>
             </div>
@@ -312,70 +316,72 @@ function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onExport, o
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
-                    <Table><TableHeader><TableRow><TableHead>Imagen</TableHead><TableHead>Nombre</TableHead><TableHead>Precio</TableHead><TableHead>Descuento</TableHead><TableHead>Stock</TableHead><TableHead>Categorías</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader><TableBody>
-                        {products.map(product => (
-                            <TableRow key={product.id}>
-                                <TableCell>
-                                    <Image
-                                        src={product.images[0] ?? "https://placehold.co/40x40.png"}
-                                        alt={product.name}
-                                        width={40}
-                                        height={40}
-                                        className="rounded-md object-cover"
-                                        data-ai-hint={product.aiHint}
-                                    />
-                                </TableCell>
-                                <TableCell className="font-medium">{product.name}</TableCell>
-                                <TableCell>
-                                    {product.salePrice ? (
-                                        <div className="flex flex-col">
-                                            <span className="line-through text-muted-foreground text-xs">
-                                                ${product.price.toLocaleString('es-AR')}
-                                            </span>
-                                            <span className="font-bold text-base text-destructive">
-                                                ${product.salePrice.toLocaleString('es-AR')}
-                                            </span>
+                    <div className="overflow-x-auto">
+                        <Table><TableHeader><TableRow><TableHead>Imagen</TableHead><TableHead>Nombre</TableHead><TableHead>Precio</TableHead><TableHead>Descuento</TableHead><TableHead>Stock</TableHead><TableHead>Categorías</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader><TableBody>
+                            {products.map(product => (
+                                <TableRow key={product.id}>
+                                    <TableCell>
+                                        <Image
+                                            src={product.images[0] ?? "https://placehold.co/40x40.png"}
+                                            alt={product.name}
+                                            width={40}
+                                            height={40}
+                                            className="rounded-md object-cover"
+                                            data-ai-hint={product.aiHint}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="font-medium">{product.name}</TableCell>
+                                    <TableCell>
+                                        {product.salePrice ? (
+                                            <div className="flex flex-col">
+                                                <span className="line-through text-muted-foreground text-xs">
+                                                    ${product.price.toLocaleString('es-AR')}
+                                                </span>
+                                                <span className="font-bold text-base text-destructive">
+                                                    ${product.salePrice.toLocaleString('es-AR')}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            `$${product.price.toLocaleString('es-AR')}`
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {/* --- ESTA ES LA LÍNEA CORREGIDA --- */}
+                                        {product.salePrice && product.discountPercentage && (
+                                            <Badge variant="destructive">-{product.discountPercentage}%</Badge>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>{product.stock}</TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {product.categoryIds.map(catId => {
+                                                const category = categories.find(c => c.id === catId);
+                                                return category ? <Badge key={catId} variant="secondary">{category.name}</Badge> : null;
+                                            })}
                                         </div>
-                                    ) : (
-                                        `$${product.price.toLocaleString('es-AR')}`
-                                    )}
-                                </TableCell>
-                                <TableCell>
-                                    {/* --- ESTA ES LA LÍNEA CORREGIDA --- */}
-                                    {product.salePrice && product.discountPercentage && (
-                                        <Badge variant="destructive">-{product.discountPercentage}%</Badge>
-                                    )}
-                                </TableCell>
-                                <TableCell>{product.stock}</TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {product.categoryIds.map(catId => {
-                                            const category = categories.find(c => c.id === catId);
-                                            return category ? <Badge key={catId} variant="secondary">{category.name}</Badge> : null;
-                                        })}
-                                    </div>
-                                </TableCell>
-                                <TableCell><div className="flex gap-2">
-                                    <Button variant="outline" size="icon" onClick={() => onEdit(product)}><Edit className="h-4 w-4" /></Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                            <AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente el producto.</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => onDelete(product.id)}>Eliminar</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div></TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody></Table>
+                                    </TableCell>
+                                    <TableCell><div className="flex gap-2">
+                                        <Button variant="outline" size="icon" onClick={() => onEdit(product)}><Edit className="h-4 w-4" /></Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                <AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente el producto.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => onDelete(product.id)}>Eliminar</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody></Table>
+                    </div>
                 )}
             </CardContent>
         </Card>
@@ -466,40 +472,42 @@ function CouponsTab({ coupons, isLoading, onAdd, onEdit, onDelete, onExport }: {
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
-                    <Table><TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Expiración</TableHead><TableHead className="text-center">Estado</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader><TableBody>
-                        {coupons.map(coupon => (
-                            <TableRow key={coupon.id}>
-                                <TableCell className="font-medium text-primary">{coupon.code}</TableCell>
-                                <TableCell>{coupon.discountType === 'percentage' ? 'Porcentaje' : 'Monto Fijo'}</TableCell>
-                                <TableCell>{coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `$${coupon.discountValue.toLocaleString('es-AR')}`}</TableCell>
-                                <TableCell>{coupon.expiryDate ? format(new Date(coupon.expiryDate), 'PPP', { locale: es }) : 'Nunca'}</TableCell>
-                                <TableCell className="text-center">
-                                    {isCouponActive(coupon)
-                                      ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" />
-                                      : <XCircle className="h-5 w-5 text-destructive inline-block" />
-                                    }
-                                </TableCell>
-                                <TableCell><div className="flex gap-2">
-                                    <Button variant="outline" size="icon" onClick={() => onEdit(coupon)}><Edit className="h-4 w-4" /></Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                            <AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente el cupón.</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => onDelete(coupon.id)}>Eliminar</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div></TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody></Table>
+                    <div className="overflow-x-auto">
+                        <Table><TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Expiración</TableHead><TableHead className="text-center">Estado</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader><TableBody>
+                            {coupons.map(coupon => (
+                                <TableRow key={coupon.id}>
+                                    <TableCell className="font-medium text-primary">{coupon.code}</TableCell>
+                                    <TableCell>{coupon.discountType === 'percentage' ? 'Porcentaje' : 'Monto Fijo'}</TableCell>
+                                    <TableCell>{coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `$${coupon.discountValue.toLocaleString('es-AR')}`}</TableCell>
+                                    <TableCell>{coupon.expiryDate ? format(new Date(coupon.expiryDate), 'PPP', { locale: es }) : 'Nunca'}</TableCell>
+                                    <TableCell className="text-center">
+                                        {isCouponActive(coupon)
+                                        ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" />
+                                        : <XCircle className="h-5 w-5 text-destructive inline-block" />
+                                        }
+                                    </TableCell>
+                                    <TableCell><div className="flex gap-2">
+                                        <Button variant="outline" size="icon" onClick={() => onEdit(coupon)}><Edit className="h-4 w-4" /></Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                <AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente el cupón.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => onDelete(coupon.id)}>Eliminar</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody></Table>
+                    </div>
                 )}
             </CardContent>
         </Card>
@@ -542,95 +550,97 @@ function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { orders: Or
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>ID</TableHead>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Total</TableHead>
-                                <TableHead className="w-[180px]">Estado</TableHead>
-                                <TableHead className="w-12"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {orders.map(order => {
-                                const [isOpen, setIsOpen] = useState(false);
-                                
-                                return (
-                                    <React.Fragment key={order.id}>
-                                        <TableRow className="hover:bg-muted/50" data-state={isOpen ? 'open' : 'closed'}>
-                                            <TableCell className="font-mono text-sm cursor-pointer" onClick={() => setIsOpen(!isOpen)}>#{order.id}</TableCell>
-                                            <TableCell className="font-medium cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{order.customerName}</TableCell>
-                                            <TableCell className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</TableCell>
-                                            <TableCell className="font-semibold cursor-pointer" onClick={() => setIsOpen(!isOpen)}>${order.total.toLocaleString('es-AR')}</TableCell>
-                                            <TableCell>
-                                                <Select
-                                                    defaultValue={order.status}
-                                                    onValueChange={(newStatus: OrderStatus) => onStatusChange(order.id, newStatus)}
-                                                >
-                                                    <SelectTrigger className={cn("h-8 text-xs font-semibold", getStatusClasses(order.status))}>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {orderStatuses.map(status => (
-                                                            <SelectItem key={status} value={status} className="text-xs">
-                                                                {statusLabels[status]}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Button variant="ghost" size="sm" onClick={() => setIsOpen(!isOpen)} className="transition-transform data-[state=open]:rotate-90">
-                                                    <ChevronRight className="h-4 w-4" />
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                        {isOpen && (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="p-0">
-                                                    <div className="bg-muted/50 p-4">
-                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                            <div className="md:col-span-2 space-y-4">
-                                                                <h4 className="font-semibold text-lg">Productos Comprados</h4>
-                                                                {order.items.map(item => (
-                                                                    <div key={item.product.id} className="flex items-center gap-4">
-                                                                        <Image src={item.product.images[0]} alt={item.product.name} width={50} height={50} className="rounded-md border object-cover" data-ai-hint={item.product.aiHint}/>
-                                                                        <div className="flex-1">
-                                                                            <p className="font-semibold">{item.product.name}</p>
-                                                                            <p className="text-sm text-muted-foreground">Cantidad: {item.quantity} | Precio Unit.: ${item.product.price.toLocaleString('es-AR')}</p>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>ID</TableHead>
+                                    <TableHead>Cliente</TableHead>
+                                    <TableHead>Fecha</TableHead>
+                                    <TableHead>Total</TableHead>
+                                    <TableHead className="w-[180px]">Estado</TableHead>
+                                    <TableHead className="w-12"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {orders.map(order => {
+                                    const [isOpen, setIsOpen] = useState(false);
+                                    
+                                    return (
+                                        <React.Fragment key={order.id}>
+                                            <TableRow className="hover:bg-muted/50" data-state={isOpen ? 'open' : 'closed'}>
+                                                <TableCell className="font-mono text-sm cursor-pointer" onClick={() => setIsOpen(!isOpen)}>#{order.id}</TableCell>
+                                                <TableCell className="font-medium cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{order.customerName}</TableCell>
+                                                <TableCell className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</TableCell>
+                                                <TableCell className="font-semibold cursor-pointer" onClick={() => setIsOpen(!isOpen)}>${order.total.toLocaleString('es-AR')}</TableCell>
+                                                <TableCell>
+                                                    <Select
+                                                        defaultValue={order.status}
+                                                        onValueChange={(newStatus: OrderStatus) => onStatusChange(order.id, newStatus)}
+                                                    >
+                                                        <SelectTrigger className={cn("h-8 text-xs font-semibold", getStatusClasses(order.status))}>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {orderStatuses.map(status => (
+                                                                <SelectItem key={status} value={status} className="text-xs">
+                                                                    {statusLabels[status]}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button variant="ghost" size="sm" onClick={() => setIsOpen(!isOpen)} className="transition-transform data-[state=open]:rotate-90">
+                                                        <ChevronRight className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                            {isOpen && (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="p-0">
+                                                        <div className="bg-muted/50 p-4">
+                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                                <div className="md:col-span-2 space-y-4">
+                                                                    <h4 className="font-semibold text-lg">Productos Comprados</h4>
+                                                                    {order.items.map(item => (
+                                                                        <div key={item.product.id} className="flex items-center gap-4">
+                                                                            <Image src={item.product.images[0]} alt={item.product.name} width={50} height={50} className="rounded-md border object-cover" data-ai-hint={item.product.aiHint}/>
+                                                                            <div className="flex-1">
+                                                                                <p className="font-semibold">{item.product.name}</p>
+                                                                                <p className="text-sm text-muted-foreground">Cantidad: {item.quantity} | Precio Unit.: ${item.product.price.toLocaleString('es-AR')}</p>
+                                                                            </div>
+                                                                            <p className="font-semibold">${(item.product.price * item.quantity).toLocaleString('es-AR')}</p>
                                                                         </div>
-                                                                        <p className="font-semibold">${(item.product.price * item.quantity).toLocaleString('es-AR')}</p>
+                                                                    ))}
+                                                                </div>
+                                                                <div className="space-y-4">
+                                                                    <h4 className="font-semibold text-lg">Información del Cliente</h4>
+                                                                    <div className="space-y-2 text-sm">
+                                                                        <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" /> <span>{order.customerName}</span></div>
+                                                                        <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> <a href={`mailto:${order.customerEmail}`} className="text-primary hover:underline">{order.customerEmail}</a></div>
                                                                     </div>
-                                                                ))}
-                                                            </div>
-                                                            <div className="space-y-4">
-                                                                <h4 className="font-semibold text-lg">Información del Cliente</h4>
-                                                                <div className="space-y-2 text-sm">
-                                                                    <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" /> <span>{order.customerName}</span></div>
-                                                                    <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> <a href={`mailto:${order.customerEmail}`} className="text-primary hover:underline">{order.customerEmail}</a></div>
-                                                                </div>
-                                                                <h4 className="font-semibold text-lg">Envío</h4>
-                                                                <div className="space-y-2 text-sm">
-                                                                    <div className="flex items-start gap-2"><HomeIcon className="h-4 w-4 text-muted-foreground mt-1"/><span>{order.shippingAddress}, {order.shippingCity}, {order.shippingPostalCode}</span></div>
-                                                                </div>
-                                                                <h4 className="font-semibold text-lg">Pago</h4>
-                                                                <div className="space-y-2 text-sm">
-                                                                    <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" /><span>ID de Pago: <span className="font-mono">{order.paymentId || 'N/A'}</span></span></div>
-                                                                    {order.couponCode && <div className="flex items-center gap-2"><Ticket className="h-4 w-4 text-muted-foreground" /><span>Cupón: <span className="font-semibold">{order.couponCode}</span> (-${order.discountAmount?.toLocaleString('es-AR')})</span></div>}
+                                                                    <h4 className="font-semibold text-lg">Envío</h4>
+                                                                    <div className="space-y-2 text-sm">
+                                                                        <div className="flex items-start gap-2"><HomeIcon className="h-4 w-4 text-muted-foreground mt-1"/><span>{order.shippingAddress}, {order.shippingCity}, {order.shippingPostalCode}</span></div>
+                                                                    </div>
+                                                                    <h4 className="font-semibold text-lg">Pago</h4>
+                                                                    <div className="space-y-2 text-sm">
+                                                                        <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" /><span>ID de Pago: <span className="font-mono">{order.paymentId || 'N/A'}</span></span></div>
+                                                                        {order.couponCode && <div className="flex items-center gap-2"><Ticket className="h-4 w-4 text-muted-foreground" /><span>Cupón: <span className="font-semibold">{order.couponCode}</span> (-${order.discountAmount?.toLocaleString('es-AR')})</span></div>}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                        </div>
                 )}
             </CardContent>
         </Card>
