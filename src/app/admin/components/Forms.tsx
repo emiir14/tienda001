@@ -38,11 +38,11 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
     return (
         <form id={formId} className="space-y-4">
              <HiddenDateInputs />
-            <div><Label htmlFor="name">Nombre</Label><Input id="name" name="name" defaultValue={product?.name} className={cn(errors.name && "border-destructive")} /><FormError message={errors.name?.[0]} /></div>
+            <div><Label htmlFor="name">Nombre *</Label><Input id="name" name="name" defaultValue={product?.name} className={cn(errors.name && "border-destructive")} /><FormError message={errors.name?.[0]} /></div>
             <div><Label htmlFor="shortDescription">Descripción Corta</Label><Input id="shortDescription" name="shortDescription" defaultValue={product?.shortDescription} placeholder="Un resumen breve para la tarjeta de producto." className={cn(errors.shortDescription && "border-destructive")}/><FormError message={errors.shortDescription?.[0]} /></div>
-            <div><Label htmlFor="description">Descripción Completa</Label><Textarea id="description" name="description" defaultValue={product?.description} className={cn(errors.description && "border-destructive")} /><FormError message={errors.description?.[0]} /></div>
+            <div><Label htmlFor="description">Descripción Completa *</Label><Textarea id="description" name="description" defaultValue={product?.description} className={cn(errors.description && "border-destructive")} /><FormError message={errors.description?.[0]} /></div>
             <div className="grid grid-cols-2 gap-4">
-                <div><Label htmlFor="price">Precio</Label><Input id="price" name="price" type="number" step="0.01" min="0" defaultValue={product?.price} className={cn(errors.price && "border-destructive")}/><FormError message={errors.price?.[0]} /></div>
+                <div><Label htmlFor="price">Precio *</Label><Input id="price" name="price" type="number" step="0.01" min="0" defaultValue={product?.price} className={cn(errors.price && "border-destructive")}/><FormError message={errors.price?.[0]} /></div>
                 <div><Label htmlFor="discountPercentage">Descuento (%)</Label><Input id="discountPercentage" name="discountPercentage" type="number" step="1" min="0" max="100" defaultValue={product?.discountPercentage ?? ''} placeholder="Ej: 15" className={cn(errors.discountPercentage && "border-destructive")} /><FormError message={errors.discountPercentage?.[0]} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -68,7 +68,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                 </div>
             </div>
             <div>
-                <Label>Categorías</Label>
+                <Label>Categorías *</Label>
                 <ScrollArea className="h-32 w-full rounded-md border p-2">
                     <div className="space-y-2">
                         {categories.map(category => (
@@ -88,7 +88,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <Label htmlFor="stock">Stock</Label>
+                    <Label htmlFor="stock">Stock *</Label>
                     <Input id="stock" name="stock" type="number" min="0" step="1" defaultValue={product?.stock} className={cn(errors.stock && "border-destructive")} />
                     <FormError message={errors.stock?.[0]} />
                 </div>
@@ -99,7 +99,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                 </div>
             </div>
             <div className='space-y-2'>
-                <Label>Imágenes del Producto (hasta 5)</Label>
+                <Label>Imágenes del Producto (hasta 5) *</Label>
                 <Input id="image1" name="image1" type="url" defaultValue={product?.images?.[0]} placeholder="URL de la Imagen Principal (requerido)" className={cn(errors.images && "border-destructive")} />
                 <Input id="image2" name="image2" type="url" defaultValue={product?.images?.[1]} placeholder="URL de la Imagen 2 (opcional)" />
                 <Input id="image3" name="image3" type="url" defaultValue={product?.images?.[2]} placeholder="URL de la Imagen 3 (opcional)" />
@@ -108,6 +108,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                 <FormError message={errors.images?.[0]} />
             </div>
             <div><Label htmlFor="aiHint">AI Hint</Label><Input id="aiHint" name="aiHint" defaultValue={product?.aiHint} /></div>
+            <p className="text-sm text-muted-foreground pt-2">Los campos con * son obligatorios.</p>
         </form>
     );
 }
@@ -180,6 +181,7 @@ export function CouponForm({ coupon, formId, errors }: { coupon?: Coupon, formId
                 <Switch id="isActive" name="isActive" defaultChecked={coupon?.isActive ?? true} />
                 <Label htmlFor="isActive">Cupón Activo</Label>
             </div>
+            <p className="text-sm text-muted-foreground pt-2">Los campos con * son obligatorios.</p>
         </form>
     );
 }

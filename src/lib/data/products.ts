@@ -22,7 +22,7 @@ function mapProductFromDb(product: any): Product {
         salePrice: product.sale_price ? parseFloat(product.sale_price) : null,
         images: product.images,
         stock: product.stock,
-        sku: product.sku, // Added SKU
+        sku: product.sku,
         categoryIds: [], 
         aiHint: product.ai_hint,
         featured: product.featured,
@@ -57,7 +57,7 @@ function _mapDbRowToProduct(row: any): Product {
         images: row.images,
         categoryIds: row.category_ids || [],
         stock: row.stock,
-        sku: row.sku, // Added SKU
+        sku: row.sku,
         aiHint: row.ai_hint,
         featured: row.featured,
         discountPercentage: row.discount_percentage ? parseFloat(row.discount_percentage) : null,
@@ -115,11 +115,11 @@ export async function createProduct(productData: any): Promise<Product> {
         const db = getDb();
         const productResult = await db`
             INSERT INTO products (
-                name, description, short_description, price, images, stock, sku,
+                name, description, short_description, price, images, stock, "sku",
                 ai_hint, featured, discount_percentage, offer_start_date, offer_end_date
             ) VALUES (
                 ${newProductData.name}, ${newProductData.description}, ${newProductData.shortDescription}, 
-                ${newProductData.price}, ${newProductData.images}, ${newProductData.stock}, ${newProductData.sku}, // Added SKU
+                ${newProductData.price}, ${newProductData.images}, ${newProductData.stock}, ${newProductData.sku},
                 ${newProductData.aiHint}, ${newProductData.featured || false}, ${newProductData.discountPercentage}, 
                 ${newProductData.offerStartDate}, ${newProductData.offerEndDate}
             )
@@ -149,7 +149,7 @@ export async function createProduct(productData: any): Promise<Product> {
 
 export async function updateProduct(id: number, productData: Partial<Omit<Product, 'id' | 'salePrice'>>): Promise<Product> {
     if (!isDbConfigured) return updateProductFromHardcodedData(id, productData);
-    const { name, description, shortDescription, price, images, categoryIds, stock, sku, aiHint, featured, discountPercentage, offerStartDate, offerEndDate } = productData; // Added SKU
+    const { name, description, shortDescription, price, images, categoryIds, stock, sku, aiHint, featured, discountPercentage, offerStartDate, offerEndDate } = productData;
     try {
         const db = getDb();
         await db`
@@ -160,7 +160,7 @@ export async function updateProduct(id: number, productData: Partial<Omit<Produc
                 price = COALESCE(${price}, price), 
                 images = COALESCE(${images}, images), 
                 stock = COALESCE(${stock}, stock), 
-                sku = COALESCE(${sku}, sku), // Added SKU
+                "sku" = COALESCE(${sku}, "sku"),
                 ai_hint = COALESCE(${aiHint}, ai_hint), 
                 featured = COALESCE(${featured}, featured), 
                 discount_percentage = ${discountPercentage}, 
