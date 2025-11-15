@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import type { Product, Coupon, SalesMetrics, Category, Order, OrderStatus } from '@/lib/types';
-import { getProducts, getCoupons, getSalesMetrics, getCategories, getOrders } from '@/lib/data';
+import { getProducts } from '@/lib/data/products';
+import { getCoupons, getSalesMetrics, getCategories, getOrders } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

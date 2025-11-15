@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import type { Product, Category } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -24,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { PlusCircle, Edit, Trash2, Loader2, Download, Upload, ChevronsUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Download, Upload, ChevronsUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Pagination } from './Pagination';
 
@@ -35,9 +36,36 @@ type SortableKeys = 'id' | 'name' | 'price' | 'discountPercentage' | 'stock';
 export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onExport, onImport, categories }: { products: Product[], isLoading: boolean, onEdit: (p: Product) => void, onDelete: (id: number) => void, onAdd: () => void, onExport: () => void, onImport: () => void, categories: Category[] }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKeys, direction: 'asc' | 'desc' } | null>(null);
+    const [inputValue, setInputValue] = useState('');
+    const [query, setQuery] = useState('');
+
+    const categoryMap = useMemo(() => {
+        return new Map(categories.map(cat => [cat.id, cat.name]));
+    }, [categories]);
+
+    const searchedProducts = useMemo(() => {
+        const lowercasedQuery = query.toLowerCase();
+        if (!lowercasedQuery) return products;
+
+        return products.filter(product => {
+            const productCategoryNames = product.categoryIds.map(id => categoryMap.get(id) || '');
+
+            const fieldsToSearch = [
+                product.id.toString(),
+                product.name,
+                product.price.toString(),
+                product.salePrice?.toString() || '',
+                product.stock.toString(),
+                product.sku || '',
+                ...productCategoryNames
+            ];
+
+            return fieldsToSearch.some(field => field.toLowerCase().includes(lowercasedQuery));
+        });
+    }, [products, query, categoryMap]);
 
     const sortedProducts = useMemo(() => {
-        let sortableItems = [...products];
+        let sortableItems = [...searchedProducts];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
                 let aValue: string | number;
@@ -65,7 +93,7 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
             });
         }
         return sortableItems;
-    }, [products, sortConfig]);
+    }, [searchedProducts, sortConfig]);
 
     const totalPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE);
     const paginatedProducts = sortedProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -102,6 +130,12 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
         </Button>
     );
 
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setQuery(inputValue.trim());
+        setCurrentPage(1);
+    };
+
     return (
          <Card className="shadow-lg">
             <CardHeader>
@@ -113,15 +147,27 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                         <Button onClick={onAdd}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
                     </div>
                 </div>
-                {totalPages > 1 && (
-                    <div className="flex justify-end pt-4 border-t mt-4">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 mt-4 border-t">
+                     <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full md:flex-1">
+                        <div className="relative w-full">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar por nombre, SKU, categoría..."
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                className="pl-10 w-full"
+                            />
+                        </div>
+                        <Button type="submit">Buscar</Button>
+                    </form>
+                    {totalPages > 1 && (
                         <Pagination 
                             currentPage={currentPage}
                             totalPages={totalPages}
                             onPageChange={handlePageChange}
                         />
-                    </div>
-                )}
+                    )}
+                </div>
             </CardHeader>
             <CardContent className='p-0'>
                 {isLoading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div> : (

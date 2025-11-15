@@ -291,7 +291,7 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setQuery(inputValue);
+        setQuery(inputValue.trim());
         setCurrentPage(1);
     };
 

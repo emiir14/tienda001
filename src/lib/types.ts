@@ -15,6 +15,7 @@ export type Product = {
   images: string[];
   categoryIds: number[];
   stock: number;
+  sku?: string;
   aiHint?: string;
   featured?: boolean;
   discountPercentage?: number | null;
@@ -64,7 +65,7 @@ export type Order = {
   items: CartItem[];
   couponCode?: string | null;
   discountAmount?: number;
-  paymentId?: string;
+  paymentId?: string | null;
   shippingAddress: string;
   shippingCity: string;
   shippingPostalCode: string;

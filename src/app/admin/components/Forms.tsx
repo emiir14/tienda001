@@ -87,7 +87,16 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                 <FormError message={errors.categoryIds?.[0]} />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <div><Label htmlFor="stock">Stock</Label><Input id="stock" name="stock" type="number" min="0" step="1" defaultValue={product?.stock} className={cn(errors.stock && "border-destructive")} /><FormError message={errors.stock?.[0]} /></div>
+                <div>
+                    <Label htmlFor="stock">Stock</Label>
+                    <Input id="stock" name="stock" type="number" min="0" step="1" defaultValue={product?.stock} className={cn(errors.stock && "border-destructive")} />
+                    <FormError message={errors.stock?.[0]} />
+                </div>
+                <div>
+                    <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
+                    <Input id="sku" name="sku" defaultValue={product?.sku} placeholder="Ej: REM-NEG-S" className={cn(errors.sku && "border-destructive")} />
+                    <FormError message={errors.sku?.[0]} />
+                </div>
             </div>
             <div className='space-y-2'>
                 <Label>Imágenes del Producto (hasta 5)</Label>
