@@ -1,6 +1,7 @@
 
 import { Suspense } from 'react';
-import { getProducts, getCategories } from '@/lib/data';
+import { getProducts } from '@/lib/data/products';
+import { getCategories } from '@/lib/data';
 import { Separator } from '@/components/ui/separator';
 import { Percent, Tag, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
