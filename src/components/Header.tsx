@@ -16,7 +16,7 @@ import {
 import { ThemeToggle } from './ThemeToggle';
 import { usePathname } from 'next/navigation';
 import { GlobalSearch } from './GlobalSearch';
-import { getProducts } from '@/lib/data';
+import { getProducts } from '@/lib/data/products';
 import type { Product } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '@/lib/utils';
