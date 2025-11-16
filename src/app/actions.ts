@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import DOMPurify from 'isomorphic-dompurify';
 import { addSubscriber } from "@/lib/subscribers";
-import { createProduct, updateProduct, deleteProduct, getProductById } from '@/lib/data/products';
+import { createProduct, updateProduct, deleteProduct, getProductById, getProducts } from '@/lib/data/products';
 import { createCoupon, updateCoupon, deleteCoupon, createCategory, deleteCategory, updateOrderStatus, getCategories } from '@/lib/data';
 import type { Product, Coupon, OrderStatus } from '@/lib/types';
 
