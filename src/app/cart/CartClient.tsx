@@ -48,7 +48,6 @@ export function CartClient() {
       setCouponCode("");
   }
 
-  // SOLUCIÓN 1: Bloquear caracteres inválidos en el input de cantidad
   const handleNumericKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
       if (['e', 'E', '+', '-'].includes(e.key)) {
           e.preventDefault();
@@ -56,21 +55,17 @@ export function CartClient() {
   };
 
   const handleQuantityChange = (productId: number, value: string) => {
-    // Si el campo está vacío, actualizamos a 0 para validación posterior
     if (value === '') {
         updateQuantity(productId, 0);
     } else {
         const newQuantity = parseInt(value, 10);
-        // Asegurarse de que el valor sea un número y no sea negativo
         if (!isNaN(newQuantity) && newQuantity >= 0) {
             updateQuantity(productId, newQuantity);
         }
     }
   };
 
-  // SOLUCIÓN 2: Validar el carrito antes de proceder al pago
   const handleCheckout = () => {
-    // Buscar items con cantidad inválida (0 o menos)
     const invalidItems = cartItems.filter(item => item.quantity <= 0);
     if (invalidItems.length > 0) {
         toast({
@@ -78,20 +73,18 @@ export function CartClient() {
             description: `Por favor, asegúrate de que todos los productos tengan una cantidad de al menos 1. El producto "${invalidItems[0].product.name}" tiene una cantidad inválida.`,
             variant: "destructive"
         });
-        return; // Detener la ejecución
+        return;
     }
 
-    // Verificar si el carrito está completamente vacío
     if (cartCount <= 0) {
         toast({
             title: "Carrito vacío",
             description: "No puedes proceder al pago con el carrito vacío.",
             variant: "destructive"
         });
-        return; // Detener la ejecución
+        return;
     }
 
-    // Si todas las validaciones pasan, guardar estado y redirigir
     const checkoutState = {
         cartItems: cartItems,
         appliedCoupon: appliedCoupon,
@@ -108,7 +101,6 @@ export function CartClient() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-4xl font-headline font-bold mb-8">Tu Carrito de Compras</h1>
-      {/* Usar cartItems.length para mostrar el estado vacío incluso si un ítem tiene cantidad 0 */}
       {cartItems.length === 0 ? (
         <Card className="text-center py-12">
             <CardContent className="flex flex-col items-center gap-4">
@@ -140,9 +132,9 @@ export function CartClient() {
                 <div className="flex items-center gap-4">
                   <Input
                     type="number"
-                    min="0" // Se permite 0 para la validación, pero no para la compra
-                    value={quantity === 0 ? '' : quantity} // Mostrar campo vacío si la cantidad es 0
-                    onKeyDown={handleNumericKeyDown} // <-- MANEJADOR AÑADIDO
+                    min="0"
+                    value={quantity === 0 ? '' : quantity}
+                    onKeyDown={handleNumericKeyDown}
                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                     className="w-20 h-9 text-center"
                   />
@@ -182,7 +174,6 @@ export function CartClient() {
                 )}
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  {/* El toLocaleString maneja el NaN visualmente, pero el problema de fondo está resuelto */}
                   <span>${subtotal.toLocaleString('es-AR')}</span>
                 </div>
                  {appliedCoupon && (
@@ -205,10 +196,14 @@ export function CartClient() {
                   <span>${totalPrice.toLocaleString('es-AR')}</span>
                 </div>
               </CardContent>
-              <CardFooter>
-                {/* Este botón ahora usa la lógica de validación robusta */}
+              <CardFooter className="flex-col items-stretch">
                 <Button onClick={handleCheckout} size="lg" className="w-full">
                   Proceder al Pago
+                </Button>
+                <Button asChild variant="outline" size="lg" className="w-full mt-2">
+                    <Link href="/tienda">
+                        Seguir Comprando
+                    </Link>
                 </Button>
               </CardFooter>
             </Card>
