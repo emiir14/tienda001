@@ -19,6 +19,15 @@ export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
   const hasStock = product.stock > 0;
 
+  const calculateDiscount = () => {
+    if (product.salePrice && product.price) {
+      return Math.round(((product.price - product.salePrice) / product.price) * 100);
+    }
+    return 0;
+  };
+
+  const discount = calculateDiscount();
+
   return (
     <Card className={cn(
         "flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700",
@@ -36,11 +45,13 @@ export function ProductCard({ product }: ProductCardProps) {
               data-ai-hint={product.aiHint}
             />
           </div>
-          {product.salePrice && <Badge className='absolute top-3 left-3 shadow-md' variant="destructive">OFERTA</Badge>}
-           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div className="absolute top-3 left-3 flex flex-col gap-2">
+          {product.salePrice && <Badge className='shadow-md' variant="destructive">OFERTA</Badge>}
+          {discount > 0 && <Badge className='shadow-md' variant="secondary">{`${discount}% OFF`}</Badge>}           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                 <div className='p-2 bg-background/80 rounded-full'>
                     <Eye className='text-foreground' />
                 </div>
+           </div>
            </div>
         </Link>
       </CardHeader>
