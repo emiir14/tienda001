@@ -104,7 +104,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                 <div className="flex flex-col gap-1">
                     <p className="font-semibold">{product.name}</p>
                     <Button asChild variant="link" className="p-0 h-auto justify-start text-primary">
-                        <Link href="/cart">Ver carrito</Link>
+                        <Link href="/cart" toast-close="">Ver carrito</Link>
                     </Button>
                 </div>
             </span>

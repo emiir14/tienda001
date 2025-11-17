@@ -21,7 +21,7 @@ export function AddToCartButton({ product }: { product: Product }) {
     if (quantity + currentQuantityInCart > product.stock) {
         toast({
             title: "Stock insuficiente",
-            description: `Lo sentimos, solo puedes agregar un máximo de ${product.stock} unidades de este producto (incluyendo las que ya están en tu carrito).`,
+            description: "Lo sentimos, la cantidad ingresada supera el número de stock disponible",
             variant: "destructive",
         });
         return;
