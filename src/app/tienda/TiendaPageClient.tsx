@@ -67,7 +67,7 @@ const SidebarContent = ({
   };
 
   return (
-    <Card>
+    <Card className="border-r-0 rounded-r-none">
         <CardHeader><CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle></CardHeader>
         <CardContent className="space-y-6">
             {/* Mobile-only Search Filter (Reutilizando GlobalSearch) */}
@@ -222,7 +222,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                 </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start px-4 sm:px-6 lg:px-0">
-                <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-4 lg:max-h-[calc(100vh-1.5rem)] lg:overflow-y-auto rounded-xl">
+                <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-28 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto rounded-l-xl custom-scrollbar">
                   <SidebarContent 
                     isMobile={isMobile}
                     accordionValue={accordionValue}
