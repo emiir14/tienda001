@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -18,10 +19,9 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isFocused, setIsFocused] = useState(false);
-  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Debounce for suggestions only
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // Efecto para mostrar/ocultar sugerencias basadas en el término de búsqueda y el foco.
   useEffect(() => {
     if (debouncedSearchTerm && isFocused) {
       const filtered = allProducts
@@ -33,7 +33,6 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
     }
   }, [debouncedSearchTerm, allProducts, isFocused]);
 
-  // Efecto para cerrar las sugerencias si se hace clic fuera del componente.
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
@@ -44,23 +43,14 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Efecto para sincronizar el estado del input si la URL cambia (ej. navegación atrás/adelante).
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || '');
   }, [searchParams]);
 
-  // Maneja el envío del formulario. Esta es la ÚNICA fuente de verdad para la búsqueda.
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const newQuery = searchTerm.trim();
     const currentQuery = new URLSearchParams(searchParams.toString());
-
-    // Si la nueva búsqueda es la misma que la actual, no hacemos nada.
-    if (newQuery === (currentQuery.get('q') || '')) {
-        setIsFocused(false);
-        setSuggestions([]);
-        return;
-    }
 
     if (newQuery) {
       currentQuery.set('q', newQuery);
@@ -71,15 +61,13 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
     const search = currentQuery.toString();
     const query = search ? `?${search}` : '';
 
-    // Solo redirige si estamos en la página de la tienda, de lo contrario solo actualiza la URL
-    const targetPath = pathname === '/tienda' ? `/tienda${query}#products-grid` : `/tienda${query}`;
-    router.push(targetPath, { scroll: false });
+    const targetPath = `/tienda${query}#products-grid`;
+    router.push(targetPath);
     
     setIsFocused(false);
     setSuggestions([]);
   };
 
-  // Maneja el clic en una sugerencia.
   const handleSuggestionClick = (product: Product) => {
     setSearchTerm('');
     router.push(`/products/${product.id}`);
@@ -94,7 +82,7 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
           type="search"
           placeholder="Buscar..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)} // Solo actualiza el estado local
+          onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => setIsFocused(true)}
           className="h-10 w-full rounded-full border-2 border-border focus:border-primary pl-4 pr-10"
           aria-label="Buscar productos"

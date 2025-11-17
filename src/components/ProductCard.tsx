@@ -47,7 +47,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
           <div className="absolute top-3 left-3 flex flex-col gap-2">
           {product.salePrice && <Badge className='shadow-md' variant="destructive">OFERTA</Badge>}
-          {discount > 0 && <Badge className='shadow-md' variant="secondary">{`${discount}% OFF`}</Badge>}           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          {discount > 0 && <Badge className='shadow-md' variant="destructive">{`${discount}% OFF`}</Badge>}           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                 <div className='p-2 bg-background/80 rounded-full'>
                     <Eye className='text-foreground' />
                 </div>
