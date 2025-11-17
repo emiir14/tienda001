@@ -133,6 +133,7 @@ export function CartClient() {
                   <Input
                     type="number"
                     min="0"
+                    max="500"
                     value={quantity === 0 ? '' : quantity}
                     onKeyDown={handleNumericKeyDown}
                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}

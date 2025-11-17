@@ -210,7 +210,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                 if (newQuantity > maxAllowed) {
                     toast({
                         title: `Stock insuficiente para ${item.product.name}`,
-                        description: `La cantidad se ha ajustado al máximo disponible: ${maxAllowed} unidades.`,
+                        description: "La cantidad solicitada supera el stock disponible y ha sido ajustada.",
                         variant: "destructive",
                     });
                     newQuantity = maxAllowed;
