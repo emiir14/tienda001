@@ -14,14 +14,16 @@ import {
   SheetTitle
 } from "@/components/ui/sheet";
 import { ThemeToggle } from './ThemeToggle';
+import { usePathname } from 'next/navigation';
 import { GlobalSearch } from './GlobalSearch';
-import { getProducts } from '@/lib/data';
+import { getProducts } from '@/lib/data/products';
 import type { Product } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 export default function Header() {
+  const pathname = usePathname();
   const { cartCount, setIsSidebarOpen } = useCart();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -92,11 +94,13 @@ export default function Header() {
               </SheetContent>
               </Sheet>
           </div>
-          <div className="hidden md:block w-full max-w-sm">
-            <Suspense fallback={<Skeleton className="h-10 w-full" />}>
-              <GlobalSearch allProducts={products} />
-            </Suspense>
-          </div>
+          {!pathname.startsWith('/admin') && (
+            <div className="hidden md:block w-full max-w-sm">
+              <Suspense fallback={<Skeleton className="h-10 w-full" />}>
+                <GlobalSearch allProducts={products} />
+              </Suspense>
+            </div>
+          )}
         </div>
 
         {/* Center Section: Logo */}
@@ -109,16 +113,18 @@ export default function Header() {
         {/* Right Section: Icons */}
         <div className="flex items-center justify-end space-x-1 flex-1">
           <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} aria-label="Carrito de compras">
-            <div className="relative">
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                  {cartCount}
-                </span>
-              )}
-            </div>
-          </Button>
+          {!pathname.startsWith('/admin') && (
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} aria-label="Carrito de compras">
+              <div className="relative">
+                <ShoppingCart className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                    {cartCount}
+                  </span>
+                )}
+              </div>
+            </Button>
+          )}
         </div>
       </div>
     </header>

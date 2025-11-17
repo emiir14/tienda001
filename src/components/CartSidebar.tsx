@@ -77,7 +77,7 @@ export default function CartSidebar() {
                               min="1"
                               value={quantity}
                               onChange={(e) => updateQuantity(product.id, parseInt(e.target.value))}
-                              className="w-14 h-8 text-center"
+                              className="w-20 h-8 text-center"
                             />
                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(product.id, quantity + 1)}>
                               <Plus className="h-4 w-4" />
@@ -134,7 +134,7 @@ export default function CartSidebar() {
              </div>
             <SheetFooter className="gap-2 pr-6">
                  <Button asChild className="w-full">
-                    <Link href="/checkout" onClick={() => setIsSidebarOpen(false)}>Iniciar Compra</Link>
+                    <Link href="/cart" onClick={() => setIsSidebarOpen(false)}>Iniciar Compra</Link>
                 </Button>
                 <Button variant="outline" asChild className="w-full">
                     <Link href="/tienda" onClick={() => setIsSidebarOpen(false)}>Seguir Comprando</Link>

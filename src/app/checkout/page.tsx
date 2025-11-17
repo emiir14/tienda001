@@ -23,6 +23,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Ticket, ArrowLeft, ShoppingCart, CreditCard, AlertTriangle, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { createOrder } from "@/lib/data";
 
 const shippingSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
@@ -34,20 +35,11 @@ const shippingSchema = z.object({
 
 type ShippingFormData = z.infer<typeof shippingSchema>;
 
-const MP_TEST_USERS = {
-  buyer: "test_user_2602352930@testuser.com",
-};
-
 export default function CheckoutPage() {
   const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [preferenceData, setPreferenceData] = useState<{
-    preferenceId: string;
-    initPoint: string;
-    orderId: number;
-  } | null>(null);
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
   
   const form = useForm<ShippingFormData>({
@@ -55,20 +47,16 @@ export default function CheckoutPage() {
     defaultValues: { name: "", email: "", address: "", city: "", postalCode: "" },
   });
 
-  // Enhanced ad blocker detection
   useEffect(() => {
     const checkAdBlocker = async () => {
       try {
-        const testAdUrl = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
-        await fetch(new Request(testAdUrl)).catch(() => {
+        await fetch(new Request('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js')).catch(() => {
           setShowAdBlockerWarning(true);
         });
       } catch (error) {
         setShowAdBlockerWarning(true);
-        console.log('Ad blocker detected.');
       }
     };
-    
     checkAdBlocker();
   }, []);
 
@@ -80,121 +68,74 @@ export default function CheckoutPage() {
         throw new Error("El carrito está vacío");
       }
       
-      const requestBody = {
-        cartItems: cartItems, // Pass the full cartItems array
-        shippingInfo: {
-          ...values,
-          email: process.env.NODE_ENV === 'development' 
-            ? MP_TEST_USERS.buyer 
-            : values.email,
-        },
-        totalPrice: Math.max(0.01, Number(totalPrice) || 1),
-        discount: Number(discount) || 0,
-        appliedCoupon: appliedCoupon || null
+      const orderDataForDb = {
+        customerName: values.name,
+        customerEmail: values.email, // Guardamos el email real en nuestra BD
+        total: totalPrice,
+        status: 'pending' as const,
+        items: cartItems,
+        shippingAddress: values.address,
+        shippingCity: values.city,
+        shippingPostalCode: values.postalCode,
+        couponCode: appliedCoupon?.code,
+        discountAmount: discount,
       };
 
-      console.log("Creating payment preference with:", requestBody);
+      const orderResponse = await createOrder(orderDataForDb);
+      if (orderResponse.error || !orderResponse.orderId) {
+        throw new Error(orderResponse.error || "No se pudo crear la orden en la base de datos.");
+      }
+      console.log("Order created successfully with ID:", orderResponse.orderId);
+      
+      // Guardamos el ID de la orden pendiente en localStorage, convirtiéndolo a string
+      localStorage.setItem('pendingOrderId', String(orderResponse.orderId));
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      const requestBodyForMp = {
+        items: cartItems,
+        customer: {
+          name: values.name,
+          email: values.email, 
+        },
+        orderId: orderResponse.orderId,
+        discountAmount: discount,
+        couponCode: appliedCoupon?.code
+      };
 
       const response = await fetch('/api/create-preference', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBodyForMp),
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Error de red' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error del servidor: ${response.status}`);
       }
 
-      const data = await response.json();
+      const preferenceData = await response.json();
       
-      if (!data.preferenceId) {
-        throw new Error("No se recibió el ID de preferencia del servidor");
+      if (!preferenceData.id || !preferenceData.init_point) {
+        throw new Error("Datos de preferencia de pago inválidos recibidos del servidor");
       }
 
-      console.log("Preference created successfully:", data);
+      console.log("Preference created successfully, redirecting...", preferenceData);
       
-      setPreferenceData({
-        preferenceId: data.preferenceId,
-        initPoint: data.initPoint || '',
-        orderId: data.orderId
-      });
+      window.location.href = preferenceData.init_point;
       
     } catch (error) {
-      console.error("Error creating preference:", error);
-      
-      let errorMessage = "Error desconocido";
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          errorMessage = "Tiempo de espera agotado. Intenta nuevamente.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      toast({ 
-        title: "Error", 
-        description: errorMessage, 
-        variant: "destructive" 
-      });
-    } finally {
+      console.error("Error during checkout process:", error);
+      let errorMessage = (error instanceof Error) ? error.message : "Error desconocido";
+      toast({ title: "Error en el Checkout", description: errorMessage, variant: "destructive" });
       setIsLoading(false);
     }
   };
-
-  const handlePaymentRedirect = () => {
-    if (!preferenceData?.initPoint) {
-      toast({
-        title: "Error",
-        description: "No se encontró el punto de inicio del pago.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      console.log('Redirecting to:', preferenceData.initPoint);
-      window.location.href = preferenceData.initPoint;
-      
-    } catch (error) {
-      console.error('Error redirecting to payment:', error);
-      toast({
-        title: "Error",
-        description: "Error al redirigir al sistema de pago",
-        variant: "destructive"
-      });
-    }
-  };
   
-  useEffect(() => {
-    if (cartCount === 0 && !isLoading && !preferenceData) {
-      const timer = setTimeout(() => {
-        toast({ 
-          title: 'Tu carrito está vacío', 
-          description: 'Serás redirigido a la tienda.', 
-          variant: 'destructive' 
-        });
-        router.push('/tienda');
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [cartCount, router, isLoading, preferenceData, toast]);
-
-  if (cartCount === 0 && !preferenceData) {
+  if (cartCount === 0 && !isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
         <ShoppingCart className="h-16 w-16 text-muted-foreground" />
         <h1 className="text-2xl font-semibold">Tu carrito está vacío</h1>
-        <p className="text-muted-foreground">Serás redirigido a la tienda...</p>
+        <Button onClick={() => router.push('/tienda')}>Ir a la tienda</Button>
       </div>
     );
   }
@@ -203,12 +144,7 @@ export default function CheckoutPage() {
     return (
       <div className="text-center py-12 text-destructive">
         <h1 className="text-2xl font-semibold">Error de Configuración</h1>
-        <p className="text-muted-foreground mt-2">
-          El sistema de pagos no está configurado. Por favor, contacta al administrador.
-        </p>
-        <p className="text-xs text-muted-foreground mt-4">
-          Variable faltante: NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
-        </p>
+        <p className="text-muted-foreground mt-2">El sistema de pagos no está configurado.</p>
       </div>
     );
   }
@@ -228,7 +164,6 @@ export default function CheckoutPage() {
                       alt={item.product.name} 
                       fill 
                       className="object-cover" 
-                      data-ai-hint={item.product.aiHint}
                     />
                   </div>
                   <div>
@@ -280,27 +215,9 @@ export default function CheckoutPage() {
   );
 
   return (
-    <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
+    <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto py-8">
       <div className="lg:col-span-1">
         <h1 className="text-3xl font-headline font-bold mb-6">Finalizar Compra</h1>
-
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="border-blue-200 bg-blue-50 mb-6">
-            <CardHeader>
-              <CardTitle className="text-blue-800 text-lg">🧪 Modo de Prueba Activo</CardTitle>
-            </CardHeader>
-            <CardContent className="text-blue-700 space-y-2">
-              <p className="text-sm"><strong>Nota:</strong> Para que las redirecciones de Mercado Pago funcionen, asegúrate que la variable `NEXT_PUBLIC_SITE_URL` en tu archivo `.env.local` coincida con la URL de tu servidor de desarrollo (ej: `http://localhost:9002`).</p>
-              <p className="text-sm"><strong>Email de prueba:</strong> {MP_TEST_USERS.buyer}</p>
-              <div className="mt-3 p-3 bg-white rounded text-xs">
-                <p><strong>Tarjetas de prueba:</strong></p>
-                <p>✅ Aprobada: 4509 9535 6623 3704</p>
-                <p>❌ Rechazada: 4000 0000 0000 0002</p>
-                <p>⏳ Pendiente: 4000 0000 0000 0051</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {showAdBlockerWarning && (
           <Card className="border-yellow-200 bg-yellow-50 mb-6">
@@ -316,82 +233,19 @@ export default function CheckoutPage() {
           </Card>
         )}
         
-        <div className="flex items-center gap-4 mb-8">
-          <div className={cn("flex items-center gap-2", !preferenceData ? 'text-primary font-bold' : 'text-muted-foreground')}>
-            <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm", !preferenceData ? 'bg-primary text-primary-foreground' : 'bg-muted')}>1</div>
-            <span>Envío</span>
-          </div>
-          <Separator className="flex-1" />
-          <div className={cn("flex items-center gap-2", preferenceData ? 'text-primary font-bold' : 'text-muted-foreground')}>
-            <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm", preferenceData ? 'bg-primary text-primary-foreground' : 'bg-muted')}>2</div>
-            <span>Pago</span>
-          </div>
-        </div>
-
-        {isLoading && !preferenceData ? (
+        {isLoading ? (
           <div className="flex flex-col justify-center items-center h-96 gap-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground">Configurando tu pago...</p>
+            <p className="text-muted-foreground">Procesando tu orden y preparando el pago...</p>
+            <p className="text-sm text-muted-foreground mt-2">No cierres esta ventana.</p>
           </div>
-        ) : preferenceData ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>2. Finalizar Pago</CardTitle>
-              <CardDescription>
-                Serás redirigido a MercadoPago para completar tu pago de forma segura.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center p-8">
-              <CreditCard className="h-16 w-16 mx-auto mb-4 text-primary" />
-              <h3 className="text-lg font-semibold mb-2">Pago Seguro con MercadoPago</h3>
-              <p className="text-muted-foreground mb-6">
-                Tu información está protegida y será procesada de forma segura
-              </p>
-              
-              {process.env.NODE_ENV === 'development' && (
-                <div className="bg-yellow-100 p-3 rounded mb-4 text-sm text-yellow-800">
-                  <p><strong>Importante:</strong> Usa las credenciales de prueba mostradas arriba</p>
-                </div>
-              )}
-              
-              <Button 
-                size="lg" 
-                onClick={handlePaymentRedirect}
-                disabled={isLoading}
-                className="w-full max-w-sm"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Redirigiendo...
-                  </>
-                ) : (
-                  <>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Continuar al Pago
-                  </>
-                )}
-              </Button>
-            </CardContent>
-            <CardFooter className="justify-center">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setPreferenceData(null);
-                }} 
-                disabled={isLoading}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4"/> Volver a Información de Envío
-              </Button>
-            </CardFooter>
-          </Card>
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleShippingSubmit)} className="space-y-8">
               <Card>
                 <CardHeader>
-                  <CardTitle>1. Información de Envío</CardTitle>
-                  <CardDescription>Completa tus datos para el envío del pedido</CardDescription>
+                  <CardTitle>Información de Envío y Contacto</CardTitle>
+                  <CardDescription>Completa tus datos para el envío y la confirmación del pedido.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField control={form.control} name="name" render={({ field }) => (
@@ -437,10 +291,10 @@ export default function CheckoutPage() {
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Configurando pago...
+                        Procesando...
                       </>
                     ) : (
-                      "Continuar al Pago"
+                      "Continuar y Pagar con Mercado Pago"
                     )}
                   </Button>
                 </CardFooter>

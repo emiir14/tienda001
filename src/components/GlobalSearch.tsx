@@ -1,67 +1,85 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { Product } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
 import { Button } from './ui/button';
 
 export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isFocused, setIsFocused] = useState(false);
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Debounce for suggestions only
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
+  // Efecto para mostrar/ocultar sugerencias basadas en el término de búsqueda y el foco.
   useEffect(() => {
     if (debouncedSearchTerm && isFocused) {
       const filtered = allProducts
         .filter(p => p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
-        .slice(0, 5); // Limit to 5 suggestions
+        .slice(0, 5);
       setSuggestions(filtered);
     } else {
       setSuggestions([]);
     }
   }, [debouncedSearchTerm, allProducts, isFocused]);
 
+  // Efecto para cerrar las sugerencias si se hace clic fuera del componente.
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
         setIsFocused(false);
-        setSuggestions([]);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
+
+  // Efecto para sincronizar el estado del input si la URL cambia (ej. navegación atrás/adelante).
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || '');
   }, [searchParams]);
 
+  // Maneja el envío del formulario. Esta es la ÚNICA fuente de verdad para la búsqueda.
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!searchTerm) return;
+    const newQuery = searchTerm.trim();
+    const currentQuery = new URLSearchParams(searchParams.toString());
 
-    const currentQuery = new URLSearchParams(Array.from(searchParams.entries()));
-    currentQuery.set('q', searchTerm);
-    
+    // Si la nueva búsqueda es la misma que la actual, no hacemos nada.
+    if (newQuery === (currentQuery.get('q') || '')) {
+        setIsFocused(false);
+        setSuggestions([]);
+        return;
+    }
+
+    if (newQuery) {
+      currentQuery.set('q', newQuery);
+    } else {
+      currentQuery.delete('q');
+    }
+
     const search = currentQuery.toString();
     const query = search ? `?${search}` : '';
+
+    // Solo redirige si estamos en la página de la tienda, de lo contrario solo actualiza la URL
+    const targetPath = pathname === '/tienda' ? `/tienda${query}#products-grid` : `/tienda${query}`;
+    router.push(targetPath, { scroll: false });
     
-    router.push(`/tienda${query}#products-grid`);
     setIsFocused(false);
     setSuggestions([]);
   };
 
+  // Maneja el clic en una sugerencia.
   const handleSuggestionClick = (product: Product) => {
     setSearchTerm('');
     router.push(`/products/${product.id}`);
@@ -76,7 +94,7 @@ export function GlobalSearch({ allProducts }: { allProducts: Product[] }) {
           type="search"
           placeholder="Buscar..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)} // Solo actualiza el estado local
           onFocus={() => setIsFocused(true)}
           className="h-10 w-full rounded-full border-2 border-border focus:border-primary pl-4 pr-10"
           aria-label="Buscar productos"

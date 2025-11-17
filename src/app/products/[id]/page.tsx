@@ -1,6 +1,6 @@
 
 import { notFound } from 'next/navigation';
-import { getProductById, getProducts } from '@/lib/data';
+import { getProductById, getProducts } from '@/lib/data/products';
 import { ProductPageClient } from './ProductPageClient';
 import type { Product } from '@/lib/types';
 import type { Metadata, ResolvingMetadata } from 'next'

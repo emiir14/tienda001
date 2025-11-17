@@ -4,6 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
+import { usePathname } from 'next/navigation';
 
 // Using an inline SVG for the WhatsApp icon to avoid adding another library
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -25,6 +26,13 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export default function WhatsAppButton() {
+    const pathname = usePathname();
+
+    // Do not render the button on admin pages
+    if (pathname.startsWith('/admin')) {
+        return null;
+    }
+
     // Replace with your actual phone number and a pre-filled message
     const phoneNumber = "5491122334455"; 
     const message = "Hola! Estoy interesado en uno de sus productos.";

@@ -17,45 +17,46 @@ function CheckoutSuccessClient() {
   const { clearCart } = useCart();
 
   const paymentId = searchParams.get('payment_id');
-  const status = searchParams.get('status');
-  const externalReference = searchParams.get('external_reference');
-  const merchantOrderId = searchParams.get('merchant_order_id');
-  const preferenceId = searchParams.get('preference_id');
+  const status = searchParams.get('status'); // Comes from MP redirect
 
   useEffect(() => {
-    // Only clear the cart if the payment was explicitly approved.
+    // The transaction is complete, so we remove the pending order ID marker.
+    localStorage.removeItem('pendingOrderId');
+
+    // On success, we ALWAYS clear the cart.
     if (status === 'approved') {
-      console.log('Payment approved, clearing cart.');
+      console.log('Payment approved via URL param, clearing cart.');
       clearCart();
     }
     
     if (paymentId) {
-      fetchPaymentDetails();
+      fetchPaymentDetails(paymentId);
     } else {
-      // If there's no payment_id, it's likely not a valid success redirect.
-      // However, we show a generic success message just in case, but don't fetch.
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentId, status]);
+  }, [paymentId, status, clearCart]);
 
-  const fetchPaymentDetails = async () => {
+  const fetchPaymentDetails = async (pId: string) => {
     setLoading(true);
     try {
       const response = await fetch('/api/payment-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId, status, merchantOrderId, preferenceId })
+        body: JSON.stringify({ paymentId: pId })
       });
 
       if (response.ok) {
         const data = await response.json();
         setPaymentData(data);
+        if (data.status === 'approved') {
+          console.log('Payment approved via API confirmation, clearing cart.');
+          clearCart();
+        }
       } else {
         toast({
           title: "Advertencia",
           description: "No se pudieron obtener los detalles del pago, pero tu compra fue registrada.",
-          variant: "default"
         });
       }
     } catch (error) {
@@ -63,46 +64,33 @@ function CheckoutSuccessClient() {
       toast({
         title: "Advertencia",
         description: "No se pudieron obtener los detalles del pago, pero tu compra fue registrada.",
-        variant: "default"
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusMessage = () => {
-    // The "success" page should primarily handle the approved case.
-    // Other cases are handled by their respective pages (pending, failure).
-    return {
-      title: '¡Gracias por tu compra!',
-      message: 'Tu pago ha sido procesado exitosamente.',
-      color: 'text-green-600'
-    };
-  };
-
   if (loading) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Verificando el estado de tu pago...</p>
+          <p className="text-muted-foreground">Confirmando tu compra...</p>
         </div>
     );
   }
-
-  const statusInfo = getStatusMessage();
 
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6">
       <Card className="border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <CheckCircle className={`h-16 w-16 ${statusInfo.color}`} />
+            <CheckCircle className={`h-16 w-16 text-green-600`} />
           </div>
           <CardTitle className="text-2xl font-bold">
-            {statusInfo.title}
+            ¡Gracias por tu compra!
           </CardTitle>
           <p className="text-muted-foreground">
-            {statusInfo.message}
+            Tu pago ha sido procesado exitosamente.
           </p>
         </CardHeader>
       </Card>
@@ -112,33 +100,19 @@ function CheckoutSuccessClient() {
           <CardHeader><CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" />Detalles del Pedido</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">ID del Pago</p>
-                <p className="font-mono text-sm">{paymentData.id}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Estado</p>
-                <p className="font-semibold capitalize">{paymentData.status}</p>
-              </div>
+                <div>
+                    <p className="text-sm text-muted-foreground">ID de Pago</p>
+                    <p className="font-mono text-sm break-all">{paymentData.id}</p>
+                </div>
+                <div>
+                    <p className="text-sm text-muted-foreground">Estado</p>
+                    <p className="font-semibold capitalize">{paymentData.status}</p>
+                </div>
             </div>
-            
-            {paymentData.transaction_amount && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Monto Total</p>
-                  <p className="font-semibold text-lg">${paymentData.transaction_amount.toLocaleString('es-AR')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Método de Pago</p>
-                  <p className="font-semibold">{paymentData.payment_method_id || 'Mercado Pago'}</p>
-                </div>
-              </div>
-            )}
-
-            {externalReference && (
+            {paymentData.external_reference && (
               <div>
-                <p className="text-sm text-muted-foreground">ID de Orden</p>
-                <p className="font-mono text-sm">{externalReference}</p>
+                <p className="text-sm text-muted-foreground">Referencia de Orden</p>
+                <p className="font-mono text-sm">{paymentData.external_reference}</p>
               </div>
             )}
           </CardContent>
@@ -148,29 +122,7 @@ function CheckoutSuccessClient() {
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Próximos Pasos</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold mt-1 shrink-0">1</div>
-              <div>
-                <p className="font-semibold">Confirmación por email</p>
-                <p className="text-sm text-muted-foreground">Te enviaremos un email con los detalles de tu compra y la información de seguimiento.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold mt-1 shrink-0">2</div>
-              <div>
-                <p className="font-semibold">Preparación del pedido</p>
-                <p className="text-sm text-muted-foreground">Comenzaremos a preparar tu pedido. Este proceso puede tomar 1-2 días hábiles.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold mt-1 shrink-0">3</div>
-              <div>
-                <p className="font-semibold">Coordinación del envío</p>
-                <p className="text-sm text-muted-foreground">Nos pondremos en contacto contigo para coordinar la entrega de tu pedido.</p>
-              </div>
-            </div>
-          </div>
+          <p className="text-sm text-muted-foreground">Te enviaremos un email con los detalles de tu compra y la información de seguimiento en breve. Revisa tu bandeja de entrada y de spam.</p>
         </CardContent>
       </Card>
 
@@ -178,22 +130,18 @@ function CheckoutSuccessClient() {
         <Button onClick={() => router.push('/')} className="flex items-center gap-2"><Home className="h-4 w-4" />Ir al Inicio</Button>
         <Button variant="outline" onClick={() => router.push('/tienda')} className="flex items-center gap-2"><Package className="h-4 w-4" />Seguir Comprando</Button>
       </div>
-
-      <Card className="bg-muted/50">
-        <CardContent className="p-4 text-center">
-          <p className="text-sm text-muted-foreground">
-            ¿Tienes alguna pregunta sobre tu pedido? <br />
-            Contáctanos en <strong>soporte@tutienda.com</strong> o al teléfono <strong>(011) 1234-5678</strong>
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
 
 export default function CheckoutSuccessPage() {
   return (
-    <Suspense fallback={<div className="flex justify-center items-center h-96"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+    <Suspense fallback={
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground">Cargando resultado...</p>
+        </div>
+    }>
       <CheckoutSuccessClient />
     </Suspense>
   );

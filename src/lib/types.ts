@@ -15,11 +15,13 @@ export type Product = {
   images: string[];
   categoryIds: number[];
   stock: number;
+  sku?: string;
   aiHint?: string;
   featured?: boolean;
   discountPercentage?: number | null;
   offerStartDate?: Date | null;
   offerEndDate?: Date | null;
+  createdAt?: Date;
 };
 
 export type CartItem = {
@@ -34,6 +36,7 @@ export type Coupon = {
   discountValue: number;
   expiryDate: Date | null;
   isActive: boolean;
+  minPurchaseAmount?: number | null;
 };
 
 export type OrderStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'shipped' | 'delivered' | 'refunded';
@@ -62,7 +65,7 @@ export type Order = {
   items: CartItem[];
   couponCode?: string | null;
   discountAmount?: number;
-  paymentId?: string;
+  paymentId?: string | null;
   shippingAddress: string;
   shippingCity: string;
   shippingPostalCode: string;

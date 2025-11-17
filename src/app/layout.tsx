@@ -2,16 +2,13 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
-import { Toaster } from '@/components/ui/toaster';
 import { CartProvider } from '@/contexts/CartContext';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import WhatsAppButton from '@/components/WhatsAppButton';
 import Script from 'next/script';
-import CartSidebar from '@/components/CartSidebar';
-import TopBar from '@/components/TopBar';
+import { LayoutClient } from '@/components/LayoutClient'; // Importamos el nuevo componente cliente
 
+// El layout principal es un Componente de Servidor.
+// Aquí se define la metadata global.
 export const metadata: Metadata = {
   title: 'Joya - Elegancia Atemporal',
   description: 'Una simple tienda de e-commerce con recomendaciones de IA.',
@@ -36,22 +33,12 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
         >
+            {/* CartProvider envuelve a LayoutClient para que este último tenga acceso al contexto */}
             <CartProvider>
-              <div className="relative flex min-h-dvh flex-col bg-background/80 backdrop-blur-sm">
-                <TopBar />
-                <Header />
-                <main className="flex-1">
-                  {children}
-                </main>
-                <Footer />
-              </div>
-              <CartSidebar />
-              <WhatsAppButton />
-              <Toaster />
+                <LayoutClient>{children}</LayoutClient>
             </CartProvider>
         </ThemeProvider>
         
-        {/* Hotjar Tracking Code - Replace 'YOUR_SITE_ID' with your actual Site ID */}
         <Script id="hotjar-integration" strategy="afterInteractive">
           {`
             (function(h,o,t,j,a,r){

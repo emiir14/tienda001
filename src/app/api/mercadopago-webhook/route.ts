@@ -1,87 +1,72 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
-import { updateOrderStatus, restockItemsForOrder } from '@/lib/data';
-import type { OrderStatus } from '@/lib/types';
+import { updateOrderStatusFromWebhook, deductStockFromWebhook } from '@/lib/webhook-db';
 
-// Initialize MercadoPago
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
-});
-
-const payment = new Payment(client);
+const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
 
 export async function POST(request: NextRequest) {
-  try {
+    console.log('[WEBHOOK] ✅ INCOMING NOTIFICATION');
     const body = await request.json();
-    console.log('Webhook received:', JSON.stringify(body, null, 2));
+    console.log('[WEBHOOK] Body received:', body);
 
-    // Validate the webhook data
-    if (body.type !== 'payment' || !body.data || !body.data.id) {
-      console.log('Invalid or non-payment webhook data received');
-      return NextResponse.json({ received: true }, { status: 200 });
+    if (body.type === 'payment') {
+        const paymentId = body.data.id as string;
+        console.log(`[WEBHOOK] Received payment notification for ID: ${paymentId}.`);
+
+        try {
+            // CORRECT WAY: Fetch the payment directly using its ID
+            console.log(`[WEBHOOK] Fetching payment details for ID: ${paymentId}`);
+            const payment = await new Payment(client).get({ id: paymentId });
+            console.log('[WEBHOOK] Payment details fetched successfully.');
+
+            const orderId = payment.external_reference;
+            if (!orderId) {
+                console.error('[WEBHOOK] CRITICAL: Payment is missing external_reference.', payment);
+                return NextResponse.json({ error: 'External reference not found in payment' }, { status: 400 });
+            }
+            console.log(`[WEBHOOK] Order ID (external_reference): ${orderId}`);
+
+            if (payment.status === 'approved') {
+                console.log(`[WEBHOOK] Payment for order ${orderId} is approved.`);
+
+                // 1. Update order status to 'paid'
+                console.log(`[WEBHOOK] ==> Step 1: Updating order status to 'paid' for order ${orderId}.`);
+                await updateOrderStatusFromWebhook(Number(orderId), 'paid', paymentId);
+                console.log(`[WEBHOOK] <== Step 1 complete.`);
+
+                // 2. Deduct stock
+                try {
+                    console.log(`[WEBHOOK] ==> Step 2: Deducting stock for order ${orderId}.`);
+                    await deductStockFromWebhook(Number(orderId));
+                    console.log(`[WEBHOOK] <== Step 2 complete.`);
+                } catch (stockError: any) {
+                    console.error(`[WEBHOOK] CRITICAL FAILURE IN STEP 2: Failed to deduct stock for order ${orderId}. MANUAL INTERVENTION REQUIRED.`, stockError);
+                }
+
+                console.log(`[WEBHOOK] ✅ Order ${orderId} processed successfully.`);
+                return NextResponse.json({ success: true, orderId });
+
+            } else {
+                console.log(`[WEBHOOK] Payment for order ${orderId} is not approved. Status is: ${payment.status}.`);
+                // Map other Mercado Pago statuses to your app's statuses
+                const newStatus = (payment.status === 'pending' || payment.status === 'in_process') ? 'pending' : 'failed';
+                await updateOrderStatusFromWebhook(Number(orderId), newStatus, paymentId);
+                console.log(`[WEBHOOK] Order ${orderId} status updated to ${newStatus}.`);
+                return NextResponse.json({ success: true, message: `Status updated to ${newStatus}` });
+            }
+
+        } catch (error: any) {
+            console.error(`[WEBHOOK] 💥 GENERAL ERROR processing payment ${paymentId}:`, {
+                message: error.message,
+                stack: error.stack,
+                cause: error.cause
+            });
+            return NextResponse.json({ error: 'Failed to process payment notification' }, { status: 500 });
+        }
     }
 
-    const paymentId = body.data.id;
-    
-    // Get payment details from MercadoPago
-    const paymentData = await payment.get({ id: paymentId });
-    
-    console.log('Payment details:', {
-      id: paymentData.id,
-      status: paymentData.status,
-      status_detail: paymentData.status_detail,
-      external_reference: paymentData.external_reference,
-      transaction_amount: paymentData.transaction_amount
-    });
-
-    if (!paymentData.external_reference) {
-        console.warn(`Payment ${paymentId} is missing an external_reference. Cannot process order.`);
-        return NextResponse.json({ status: 'ok' }, { status: 200 });
-    }
-
-    const orderId = parseInt(paymentData.external_reference, 10);
-    let newStatus: OrderStatus;
-
-    // Handle different payment statuses
-    switch (paymentData.status) {
-      case 'approved':
-        newStatus = 'paid';
-        console.log(`Payment ${paymentId} approved for order ${orderId}. Updating status to '${newStatus}'.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-        break;
-        
-      case 'in_process':
-      case 'pending':
-        newStatus = 'pending';
-        console.log(`Payment ${paymentId} is pending for order ${orderId}. Updating status to '${newStatus}'.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-        break;
-        
-      case 'rejected':
-        newStatus = 'failed';
-        console.log(`Payment ${paymentId} rejected for order ${orderId}: ${paymentData.status_detail}. Updating status to '${newStatus}' and restoking items.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-        await restockItemsForOrder(orderId);
-        break;
-        
-      case 'cancelled':
-        newStatus = 'cancelled';
-        console.log(`Payment ${paymentId} cancelled for order ${orderId}. Updating status to '${newStatus}' and restoking items.`);
-        await updateOrderStatus(orderId, newStatus, String(paymentId));
-        await restockItemsForOrder(orderId);
-        break;
-        
-      default:
-        console.log(`Ignoring unhandled payment status '${paymentData.status}' for payment ${paymentId}.`);
-    }
-
-    // Always return 200 to acknowledge receipt
-    return NextResponse.json({ received: true }, { status: 200 });
-    
-  } catch (error) {
-    console.error('Webhook error:', error);
-    // Still return 200 to prevent MercadoPago from retrying
-    return NextResponse.json({ error: 'Webhook processing error' }, { status: 200 });
-  }
+    // This console.log now uses double quotes to prevent syntax errors
+    console.log("[WEBHOOK] Notification is not of type 'payment'. Ignoring.");
+    return NextResponse.json({ success: true, message: 'Notification acknowledged' });
 }

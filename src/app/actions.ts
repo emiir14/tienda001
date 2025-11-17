@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import DOMPurify from 'isomorphic-dompurify';
 import { addSubscriber } from "@/lib/subscribers";
-import { createProduct, updateProduct, deleteProduct, createCoupon, updateCoupon, deleteCoupon, createCategory, deleteCategory, updateOrderStatus, getProductById, getCategories } from '@/lib/data';
+import { createProduct, updateProduct, deleteProduct, getProductById, getProducts } from '@/lib/data/products';
+import { createCoupon, updateCoupon, deleteCoupon, createCategory, deleteCategory, updateCategory, updateOrderStatus, getCategories } from '@/lib/data';
 import type { Product, Coupon, OrderStatus } from '@/lib/types';
 
 // Helper function to sanitize form data
@@ -23,7 +24,7 @@ function sanitizeData(data: Record<string, any>): Record<string, any> {
 
 
 const productSchema = z.object({
-    id: z.coerce.number().optional(), // ID is optional for creation
+    id: z.coerce.number().optional(), // ID es opcional aquí
     name: z.string().min(1, "El nombre es requerido."),
     description: z.string().min(1, "La descripción es requerida."),
     shortDescription: z.string().optional(),
@@ -36,6 +37,9 @@ const productSchema = z.object({
     images: z.array(z.string().url("La URL de la imagen no es válida.")).min(1, "Se requiere al menos una imagen."),
     aiHint: z.string().optional(),
 });
+
+const createProductSchema = productSchema.omit({ id: true });
+
 
 
 export async function addProductAction(formData: FormData) {
@@ -54,7 +58,7 @@ export async function addProductAction(formData: FormData) {
     }
     const categoryIds = formData.getAll('categoryIds').map(id => Number(id));
 
-    const validatedFields = productSchema.safeParse({
+    const validatedFields = createProductSchema.safeParse({
       ...sanitizedData,
       featured: sanitizedData.featured === 'on',
       images,
@@ -63,14 +67,20 @@ export async function addProductAction(formData: FormData) {
 
     if (!validatedFields.success) {
         console.error("Validation failed", validatedFields.error.flatten().fieldErrors);
+        // Crea un mensaje de error detallado para mostrar en el panel
+        const fieldErrors = validatedFields.error.flatten().fieldErrors;
+        const errorMessages = Object.entries(fieldErrors)
+            .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+            .join(' | ');
+
         return {
-            error: "Datos inválidos. Por favor, revisa los campos.",
-            fieldErrors: validatedFields.error.flatten().fieldErrors,
+            error: `Error de validación. Detalles: ${errorMessages}`,
+            fieldErrors: fieldErrors,
         };
     }
 
     // @ts-ignore - featured is not in the schema anymore, but we don't want to break if it's passed
-    const { featured, ...productData } = validatedFields.data;
+    const { id, featured, ...productData } = validatedFields.data;
 
     try {
         await createProduct(productData);
@@ -177,8 +187,9 @@ const couponSchema = z.object({
     code: z.string().min(3, "El código debe tener al menos 3 caracteres.").max(50, "El código no puede tener más de 50 caracteres."),
     discountType: z.enum(['percentage', 'fixed'], { required_error: "El tipo de descuento es requerido."}),
     discountValue: z.coerce.number({ required_error: "El valor es requerido." }).positive("El valor del descuento debe ser un número positivo."),
+    minPurchaseAmount: z.coerce.number().positive("El monto de compra mínima debe ser positivo.").optional().nullable(),
     expiryDate: z.string().optional().nullable().transform(val => val ? new Date(val) : null),
-    isActive: z.boolean().optional(),
+    isActive: z.boolean(),
 }).refine(data => {
     if (data.discountType === 'percentage') {
         return data.discountValue <= 100;
@@ -195,6 +206,7 @@ export async function addCouponAction(formData: FormData) {
     const sanitizedData = sanitizeData(rawData);
 
     if (sanitizedData.expiryDate === '') sanitizedData.expiryDate = null;
+    if (sanitizedData.minPurchaseAmount === '') sanitizedData.minPurchaseAmount = null;
     
     const validatedFields = couponSchema.safeParse({
         ...sanitizedData,
@@ -227,6 +239,7 @@ export async function updateCouponAction(id: number, formData: FormData) {
     const sanitizedData = sanitizeData(rawData);
     
     if (sanitizedData.expiryDate === '') sanitizedData.expiryDate = null;
+    if (sanitizedData.minPurchaseAmount === '') sanitizedData.minPurchaseAmount = null;
 
     const validatedFields = couponSchema.safeParse({
         ...sanitizedData,
@@ -297,13 +310,18 @@ export async function addSubscriberAction(formData: FormData) {
 
 const categorySchema = z.object({
     name: z.string().min(2, "El nombre de la categoría es requerido."),
+    parentId: z.coerce.number().optional().nullable(),
 });
 
+
 export async function addCategoryAction(formData: FormData) {
-    const rawData = Object.fromEntries(formData.entries());
-    const sanitizedData = sanitizeData(rawData);
-    
-    const validatedFields = categorySchema.safeParse(sanitizedData);
+    const name = formData.get('name') as string;
+    const parentId = formData.get('parentId');
+
+    const validatedFields = categorySchema.safeParse({
+        name,
+        parentId: parentId ? Number(parentId) : null,
+    });
 
     if (!validatedFields.success) {
         return {
@@ -313,13 +331,38 @@ export async function addCategoryAction(formData: FormData) {
     }
     
     try {
-        await createCategory(validatedFields.data.name);
+        await createCategory(validatedFields.data.name, validatedFields.data.parentId);
         revalidatePath("/admin");
+        revalidatePath("/tienda");
         return { message: "Categoría creada exitosamente." };
     } catch (e: any) {
         return { error: e.message || "No se pudo crear la categoría." };
     }
 }
+
+
+export async function updateCategoryAction(id: number, formData: FormData) {
+    const name = formData.get('name') as string;
+
+    const validatedFields = categorySchema.pick({ name: true }).safeParse({ name });
+
+    if (!validatedFields.success) {
+        return {
+            error: "Nombre de categoría inválido.",
+            fieldErrors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        await updateCategory(id, validatedFields.data.name);
+        revalidatePath("/admin");
+        revalidatePath("/tienda");
+        return { message: "Categoría actualizada exitosamente." };
+    } catch (e: any) {
+        return { error: e.message || "No se pudo actualizar la categoría." };
+    }
+}
+
 
 export async function deleteCategoryAction(id: number) {
     try {
@@ -335,7 +378,7 @@ export async function deleteCategoryAction(id: number) {
 }
 
 // Order Actions
-const orderStatusSchema = z.enum(['pending', 'delivered', 'failed']);
+const orderStatusSchema = z.enum(['pending', 'paid', 'failed', 'cancelled', 'shipped', 'delivered', 'refunded']);
 
 export async function updateOrderStatusAction(orderId: number, newStatus: OrderStatus) {
     const validatedStatus = orderStatusSchema.safeParse(newStatus);
@@ -454,7 +497,7 @@ export async function importProductsAction(data: string, format: 'csv' | 'json')
             const categoryNames = (rowData.categories || '').split(';').map((c: string) => c.trim().toLowerCase());
             const categoryIds = categoryNames
                 .map((name: string) => categoryMap.get(name))
-                .filter((id): id is number => id !== undefined);
+                .filter((id: number | undefined): id is number => id !== undefined);
 
             if (categoryIds.length === 0 && rowData.categories) {
                  console.warn(`No valid categories found for names: ${rowData.categories}. Check spelling and if they exist.`);
