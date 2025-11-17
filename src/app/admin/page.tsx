@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { authenticateAdmin } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // CORRECCIÓN: Importación añadida
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LogIn, Loader2 } from 'lucide-react';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -27,11 +27,8 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
   const [state, dispatch] = useFormState(authenticateAdmin, initialState);
 
   useEffect(() => {
-    // Check for session token on initial load
     const sessionToken = localStorage.getItem('admin_session');
     if (sessionToken) {
-        // Here you might want to add a check to validate the token against the backend
-        // For simplicity, we'll just set isAuthenticated to true
         setIsAuthenticated(true);
     }
   }, []);
@@ -39,13 +36,11 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
   useEffect(() => {
     if (state.success) {
       setIsAuthenticated(true);
-      // Store a session token on successful login
-      localStorage.setItem('admin_session', 'true'); // Replace 'true' with a real token
+      localStorage.setItem('admin_session', 'true');
     }
   }, [state.success]);
 
   const handleLogout = () => {
-    // Clear session token on logout
     localStorage.removeItem('admin_session');
     setIsAuthenticated(false);
   }
@@ -80,6 +75,12 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
   }
 
   return (
-      <AdminDashboard onLogout={handleLogout} dbConnected={dbConnected} />
+      <Suspense fallback={
+        <div className="flex justify-center items-center min-h-[60vh]">
+            <Loader2 className="h-16 w-16 animate-spin text-primary" />
+        </div>
+      }>
+        <AdminDashboard onLogout={handleLogout} dbConnected={dbConnected} />
+      </Suspense>
   );
 }

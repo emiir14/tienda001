@@ -9,12 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, LogOut, Loader2, Mail, Database, HardDrive } from 'lucide-react';
-import { addProductAction, updateProductAction, deleteProductAction, addCouponAction, updateCouponAction, deleteCouponAction, addCategoryAction, deleteCategoryAction, updateOrderStatusAction, importProductsAction } from '@/app/actions';
+import { addProductAction, updateProductAction, deleteProductAction, addCouponAction, updateCouponAction, deleteCouponAction, updateOrderStatusAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
-// Importa los componentes de las pestañas
+// Import tab components
 import { MetricsTab } from './MetricsTab';
 import { ProductsTab } from './ProductsTab';
 import { CategoriesTab } from './CategoriesTab';
@@ -55,7 +55,8 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
     const mailchimpConfigured = process.env.NEXT_PUBLIC_MAILCHIMP_CONFIGURED === 'true';
 
     const fetchData = async () => {
-        setIsLoading(true);
+        // Set loading to true only if it's the initial load
+        if (isLoading) setIsLoading(true);
         try {
             const [fetchedProducts, fetchedCoupons, fetchedMetrics, fetchedCategories, fetchedOrders] = await Promise.all([
                 getProducts(),
@@ -155,28 +156,6 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
         }
     }
 
-    const handleAddCategory = async (name: string) => {
-        const formData = new FormData();
-        formData.append('name', name);
-        const result = await addCategoryAction(formData);
-        if (result?.error) {
-            toast({ title: 'Error', description: result.error, variant: 'destructive' });
-        } else {
-            toast({ title: 'Éxito', description: result.message });
-            fetchData();
-        }
-    }
-    
-    const handleDeleteCategory = async (id: number) => {
-        const result = await deleteCategoryAction(id);
-        if (result?.error) {
-            toast({ title: 'Error', description: result.error, variant: 'destructive' });
-        } else {
-            toast({ title: 'Éxito', description: result.message });
-            fetchData();
-        }
-    }
-
     const handleOrderStatusChange = async (orderId: number, newStatus: OrderStatus) => {
         const originalOrders = [...orders];
         setOrders(prevOrders => prevOrders.map(o => o.id === orderId ? {...o, status: newStatus} : o));
@@ -238,7 +217,7 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
                     <p className="text-muted-foreground">Métricas y gestión de productos, cupones y más.</p>
                 </div>
                  <div className="flex items-center gap-2 self-center md:self-auto">
-                    <Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading}>{isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}</Button>
+                    <Button variant="outline" size="icon" onClick={() => fetchData()} disabled={isLoading}>{isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}</Button>
                     <Button variant="outline" onClick={onLogout}><LogOut className="mr-2 h-4 w-4" />Cerrar Sesión</Button>
                 </div>
             </div>
@@ -267,7 +246,7 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
                 </div>
                 <TabsContent value="overview" className="mt-6"><MetricsTab products={products} salesMetrics={salesMetrics} isLoading={isLoading} categories={categories} /></TabsContent>
                 <TabsContent value="products" className="mt-6"><ProductsTab products={products} isLoading={isLoading} onAdd={() => handleOpenProductDialog()} onEdit={handleOpenProductDialog} onDelete={handleDeleteProduct} onExport={exportProductsToCSV} onImport={handleOpenImportDialog} categories={categories} /></TabsContent>
-                <TabsContent value="categories" className="mt-6"><CategoriesTab categories={categories} isLoading={isLoading} onAdd={handleAddCategory} onDelete={handleDeleteCategory} /></TabsContent>
+                <TabsContent value="categories" className="mt-6"><CategoriesTab categories={categories} isLoading={isLoading} onActionComplete={fetchData} /></TabsContent>
                 <TabsContent value="coupons" className="mt-6"><CouponsTab coupons={coupons} isLoading={isLoading} onAdd={() => handleOpenCouponDialog()} onEdit={handleOpenCouponDialog} onDelete={handleDeleteCoupon} onExport={exportCouponsToCSV} /></TabsContent>
                 <TabsContent value="orders" className="mt-6"><OrdersTab orders={orders} isLoading={isLoading} onExport={exportOrdersToCSV} onStatusChange={handleOrderStatusChange} /></TabsContent>
             </Tabs>
