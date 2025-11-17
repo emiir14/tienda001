@@ -222,7 +222,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                 </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start px-4 sm:px-6 lg:px-0">
-                <aside className="lg:col-span-1 space-y-6">
+                <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
                   <SidebarContent 
                     isMobile={isMobile}
                     accordionValue={accordionValue}
