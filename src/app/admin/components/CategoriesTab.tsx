@@ -1,7 +1,5 @@
 "use client";
-// probado fork asd
-//asfqwefgeqgasfewg
-//asfqegqergqrwh
+
 import { useState, useMemo, useRef } from 'react';
 import type { Category } from '@/lib/types';
 import { Button } from '@/components/ui/button';
