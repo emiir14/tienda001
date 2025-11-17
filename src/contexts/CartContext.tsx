@@ -201,13 +201,28 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   const updateQuantity = useCallback((productId: number, quantity: number) => {
-    const newQuantity = Math.max(1, Math.min(quantity, MAX_ITEM_QUANTITY));
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.product.id === productId ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  }, []);
+    setCartItems(prevItems => {
+        const updatedItems = prevItems.map(item => {
+            if (item.product.id === productId) {
+                const maxAllowed = item.product.stock;
+                let newQuantity = Math.max(1, quantity);
+
+                if (newQuantity > maxAllowed) {
+                    toast({
+                        title: `Stock insuficiente para ${item.product.name}`,
+                        description: `La cantidad se ha ajustado al máximo disponible: ${maxAllowed} unidades.`,
+                        variant: "destructive",
+                    });
+                    newQuantity = maxAllowed;
+                }
+                
+                return { ...item, quantity: Math.min(newQuantity, MAX_ITEM_QUANTITY) };
+            }
+            return item;
+        });
+        return updatedItems;
+    });
+}, [toast]);
 
   const applyCoupon = useCallback((coupon: Coupon) => {
     if (!isCouponApplicable) {
