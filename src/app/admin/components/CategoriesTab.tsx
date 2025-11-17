@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PlusCircle, Trash2, Loader2, Edit, CornerDownRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { addCategoryAction, updateCategoryAction, deleteCategoryAction } from '@/app/actions';
+import { addCategoryAction, updateCategoryAction, deleteCategoryAction } from '@/app/actions/category-actions';
 
 type CategoryWithChildren = Category & { children: Category[] };
 

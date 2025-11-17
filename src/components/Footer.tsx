@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { addSubscriberAction } from "@/app/actions";
+import { addSubscriberAction } from "@/app/actions/subscriber-actions";
 import { useRef } from "react";
 import Image from 'next/image';
 
@@ -96,7 +96,7 @@ export default function Footer() {
                 <h4 className="font-semibold text-lg">Newsletter</h4>
                 <p className="text-sm text-muted-foreground">
                     {mailchimpConfigured 
-                        ? "Suscríbete para recibir ofertas y novedades."
+                        ? "Suscríbete para recibir novedades y ofertas."
                         : "La suscripción no está disponible."
                     }
                 </p>
