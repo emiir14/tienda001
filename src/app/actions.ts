@@ -315,15 +315,13 @@ const categorySchema = z.object({
 
 
 export async function addCategoryAction(formData: FormData) {
-    const rawData = Object.fromEntries(formData.entries());
-    const sanitizedData = sanitizeData(rawData);
+    const name = formData.get('name') as string;
+    const parentId = formData.get('parentId');
 
-    // Si parentId viene vacío, lo convertimos a null
-    if (sanitizedData.parentId === '') {
-        sanitizedData.parentId = null;
-    }
-
-    const validatedFields = categorySchema.safeParse(sanitizedData);
+    const validatedFields = categorySchema.safeParse({
+        name,
+        parentId: parentId ? Number(parentId) : null,
+    });
 
     if (!validatedFields.success) {
         return {
@@ -344,10 +342,9 @@ export async function addCategoryAction(formData: FormData) {
 
 
 export async function updateCategoryAction(id: number, formData: FormData) {
-    const rawData = Object.fromEntries(formData.entries());
-    const sanitizedData = sanitizeData(rawData);
+    const name = formData.get('name') as string;
 
-    const validatedFields = categorySchema.pick({ name: true }).safeParse(sanitizedData);
+    const validatedFields = categorySchema.pick({ name: true }).safeParse({ name });
 
     if (!validatedFields.success) {
         return {

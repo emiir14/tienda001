@@ -27,17 +27,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { PlusCircle, Trash2, Loader2, Edit, CornerDownRight, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Edit, CornerDownRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { addCategoryAction, updateCategoryAction } from '@/app/actions';
+import { addCategoryAction, updateCategoryAction, deleteCategoryAction } from '@/app/actions';
 
 type CategoryWithChildren = Category & { children: Category[] };
 
-// --- EditCategoryDialog Component ---
+
 function EditCategoryDialog({ parentCategory, onActionComplete }: { parentCategory: CategoryWithChildren, onActionComplete: () => void }) {
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isAddingChild, setIsAddingChild] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
     const editFormRef = useRef<HTMLFormElement>(null);
     const addChildFormRef = useRef<HTMLFormElement>(null);
 
@@ -48,12 +49,11 @@ function EditCategoryDialog({ parentCategory, onActionComplete }: { parentCatego
         const result = await updateCategoryAction(parentCategory.id, formData);
         if (result?.error) {
             toast({ variant: "destructive", title: "Error", description: result.error });
+            setIsUpdating(false);
         } else {
             toast({ title: "Éxito", description: "Nombre de la categoría actualizado." });
-            editFormRef.current?.reset();
             onActionComplete(); 
         }
-        setIsUpdating(false);
     };
 
     const handleAddChild = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -64,23 +64,22 @@ function EditCategoryDialog({ parentCategory, onActionComplete }: { parentCatego
         const result = await addCategoryAction(formData);
         if (result?.error) {
             toast({ variant: "destructive", title: "Error", description: result.error });
+            setIsAddingChild(false);
         } else {
             toast({ title: "Éxito", description: "Subcategoría añadida." });
-            addChildFormRef.current?.reset();
             onActionComplete();
         }
-        setIsAddingChild(false);
     };
 
     return (
-        <Dialog onOpenChange={(isOpen) => !isOpen && onActionComplete()}>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/>Editar / Añadir</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Editar Categoría: {parentCategory.name}</DialogTitle>
-                    <DialogDescription>Modifica el nombre de la categoría principal o añade nuevas subcategorías.</DialogDescription>
+                    <DialogDescription>Modifica el nombre o añade nuevas subcategorías.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-4">
                     <form ref={editFormRef} onSubmit={handleUpdateName} className="space-y-3">
@@ -115,15 +114,11 @@ function EditCategoryDialog({ parentCategory, onActionComplete }: { parentCatego
 }
 
 
-// --- Main CategoriesTab Component ---
-export function CategoriesTab({ categories, isLoading, onDelete, onAdd }: { categories: Category[], isLoading: boolean, onDelete: (id: number) => void, onAdd: (formData: FormData) => Promise<any> }) {
+export function CategoriesTab({ categories, isLoading }: { categories: Category[], isLoading: boolean }) {
     const { toast } = useToast();
     const formRef = useRef<HTMLFormElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
-    
-    // This state is to force a re-render of the tree when an action happens
-    const [_, setForceUpdate] = useState(0);
 
     const categoryTree = useMemo(() => {
         const tree: CategoryWithChildren[] = [];
@@ -140,31 +135,33 @@ export function CategoriesTab({ categories, isLoading, onDelete, onAdd }: { cate
         return tree.sort((a,b) => a.name.localeCompare(b.name));
     }, [categories]);
     
+    const handleActionComplete = () => {
+       window.location.reload();
+    };
+
     const handleAddParentCategory = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitting(true);
         const formData = new FormData(event.currentTarget);
-        const result = await onAdd(formData);
+        const result = await addCategoryAction(formData);
         if (result?.error) {
             toast({ variant: "destructive", title: "Error", description: result.error });
+            setIsSubmitting(false);
         } else {
             toast({ title: "Éxito", description: "Categoría principal creada." });
-            formRef.current?.reset();
+            handleActionComplete();
         }
-        setIsSubmitting(false);
-    };
-
-    const handleActionComplete = () => {
-       setForceUpdate(v => v + 1); 
-       // We don't close the accordions to maintain the user's view
     };
 
     const handleDelete = async (id: number, name: string) => {
-        await onDelete(id);
-        toast({ title: "Éxito", description: `Categoría "${name}" eliminada.` });
-        handleActionComplete();
+        const result = await deleteCategoryAction(id);
+         if (result?.error) {
+            toast({ variant: "destructive", title: "Error", description: result.error });
+        } else {
+            toast({ title: "Éxito", description: `Categoría "${name}" eliminada.` });
+            handleActionComplete();
+        }
     };
-
 
     return (
         <Card className="shadow-lg">
