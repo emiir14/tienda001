@@ -6,7 +6,7 @@ import { z } from "zod";
 import DOMPurify from 'isomorphic-dompurify';
 import { addSubscriber } from "@/lib/subscribers";
 import { createProduct, updateProduct, deleteProduct, getProductById, getProducts } from '@/lib/data/products';
-import { createCoupon, updateCoupon, deleteCoupon, createCategory, deleteCategory, updateOrderStatus, getCategories } from '@/lib/data';
+import { createCoupon, updateCoupon, deleteCoupon, createCategory, deleteCategory, updateCategory, updateOrderStatus, getCategories } from '@/lib/data';
 import type { Product, Coupon, OrderStatus } from '@/lib/types';
 
 // Helper function to sanitize form data
@@ -310,12 +310,19 @@ export async function addSubscriberAction(formData: FormData) {
 
 const categorySchema = z.object({
     name: z.string().min(2, "El nombre de la categoría es requerido."),
+    parentId: z.coerce.number().optional().nullable(),
 });
+
 
 export async function addCategoryAction(formData: FormData) {
     const rawData = Object.fromEntries(formData.entries());
     const sanitizedData = sanitizeData(rawData);
-    
+
+    // Si parentId viene vacío, lo convertimos a null
+    if (sanitizedData.parentId === '') {
+        sanitizedData.parentId = null;
+    }
+
     const validatedFields = categorySchema.safeParse(sanitizedData);
 
     if (!validatedFields.success) {
@@ -326,13 +333,39 @@ export async function addCategoryAction(formData: FormData) {
     }
     
     try {
-        await createCategory(validatedFields.data.name);
+        await createCategory(validatedFields.data.name, validatedFields.data.parentId);
         revalidatePath("/admin");
+        revalidatePath("/tienda");
         return { message: "Categoría creada exitosamente." };
     } catch (e: any) {
         return { error: e.message || "No se pudo crear la categoría." };
     }
 }
+
+
+export async function updateCategoryAction(id: number, formData: FormData) {
+    const rawData = Object.fromEntries(formData.entries());
+    const sanitizedData = sanitizeData(rawData);
+
+    const validatedFields = categorySchema.pick({ name: true }).safeParse(sanitizedData);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Nombre de categoría inválido.",
+            fieldErrors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        await updateCategory(id, validatedFields.data.name);
+        revalidatePath("/admin");
+        revalidatePath("/tienda");
+        return { message: "Categoría actualizada exitosamente." };
+    } catch (e: any) {
+        return { error: e.message || "No se pudo actualizar la categoría." };
+    }
+}
+
 
 export async function deleteCategoryAction(id: number) {
     try {

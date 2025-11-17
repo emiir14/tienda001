@@ -39,11 +39,11 @@ export async function getCategories(): Promise<Category[]> {
     }
 }
 
-export async function createCategory(name: string): Promise<Category> {
+export async function createCategory(name: string, parentId: number | null = null): Promise<Category> {
     if (!isDbConfigured) return createCategoryFromHardcodedData(name);
     try {
         const db = getDb();
-        const result = await db`INSERT INTO categories (name) VALUES (${name}) RETURNING *;`;
+        const result = await db`INSERT INTO categories (name, parent_id) VALUES (${name}, ${parentId}) RETURNING *;`;
         return _mapDbRowToCategory(result[0]);
     } catch (error: any) {
         if (error.message.includes('duplicate key value')) {
@@ -54,13 +54,38 @@ export async function createCategory(name: string): Promise<Category> {
     }
 }
 
+
+export async function updateCategory(id: number, name: string): Promise<Category> {
+    if (!isDbConfigured) throw new Error("Database not configured, cannot update."); 
+    try {
+        const db = getDb();
+        const result = await db`UPDATE categories SET name = ${name} WHERE id = ${id} RETURNING *;`;
+        if (result.length === 0) throw new Error("Category not found.");
+        return _mapDbRowToCategory(result[0]);
+    } catch (error: any) {
+        if (error.message.includes('duplicate key value')) {
+            throw new Error(`El nombre de categoría '${name}' ya está en uso.`);
+        }
+        console.error('Database Error:', error);
+        throw new Error('Failed to update category.');
+    }
+}
+
+
+
 export async function deleteCategory(id: number): Promise<{ success: boolean; message?: string }> {
     if (!isDbConfigured) return deleteCategoryFromHardcodedData(id);
     try {
         const db = getDb();
+        // Check if category has children
+        const children = await db`SELECT 1 FROM categories WHERE parent_id = ${id} LIMIT 1`;
+        if (children.length > 0) {
+            return { success: false, message: 'No se puede eliminar. La categoría tiene subcategorías asociadas.' };
+        }
+        // Check if category is assigned to products
         const products = await db`SELECT 1 FROM product_categories WHERE category_id = ${id} LIMIT 1`;
         if (products.length > 0) {
-            return { success: false, message: 'Categoría asignada a productos.' };
+            return { success: false, message: 'No se puede eliminar. La categoría está asignada a uno o más productos.' };
         }
         await db`DELETE FROM categories WHERE id = ${id}`;
         return { success: true };
@@ -69,6 +94,7 @@ export async function deleteCategory(id: number): Promise<{ success: boolean; me
         throw new Error('Failed to delete category.');
     }
 }
+
 
 function _mapDbRowToCoupon(row: any): Coupon {
     return {
