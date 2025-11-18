@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, KeyboardEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ProductCard } from '@/components/ProductCard';
 import { Separator } from '@/components/ui/separator';
-import { Percent, Tag, Search, ListFilter, ChevronRight } from 'lucide-react';
+import { Percent, Tag, Search, ListFilter, ChevronRight, ChevronDown } from 'lucide-react';
 import type { Product, Category } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { GlobalSearch } from '@/components/GlobalSearch';
+
+const ITEMS_PER_PAGE = 12;
 
 // Helper function to build search query
 const buildSearchQuery = (params: URLSearchParams) => {
@@ -127,6 +129,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const activeMinPrice = searchParams.get('minPrice') || '';
   const activeMaxPrice = searchParams.get('maxPrice') || '';
 
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [pendingMinPrice, setPendingMinPrice] = useState<string>(activeMinPrice);
   const [pendingMaxPrice, setPendingMaxPrice] = useState<string>(activeMaxPrice);
   const [accordionValue, setAccordionValue] = useState<string | undefined>();
@@ -142,6 +145,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     if (minP !== pendingMinPrice) setPendingMinPrice(minP);
     if (maxP !== pendingMaxPrice) setPendingMaxPrice(maxP);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const { categoryTree } = useMemo(() => {
@@ -162,6 +166,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const updateURL = (params: URLSearchParams) => {
     const query = buildSearchQuery(params);
     router.push(`/tienda${query}#products-grid`, { scroll: false });
+    setVisibleCount(ITEMS_PER_PAGE); // Reset pagination on filter change
   };
 
   const handleCategoryClick = (categoryId: string) => {
@@ -198,6 +203,12 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     if (!isNaN(max) && max > 0) items = items.filter(p => (p.salePrice ?? p.price) <= max);
     return items;
   }, [allProducts, searchQuery, activeCategory, activeMinPrice, activeMaxPrice, allCategories]);
+
+  const itemsToShow = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
+
+  const handleVerMas = () => {
+      setVisibleCount(prevCount => prevCount + ITEMS_PER_PAGE);
+  };
 
   return (
     <div className="space-y-12">
@@ -239,7 +250,19 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                   />
                 </aside>
                 <main className="lg:col-span-3">
-                    {filteredProducts.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">{filteredProducts.map((product) => <ProductCard key={product.id} product={product} />)}</div> : <Card className="text-center py-24 col-span-full"><CardContent><Search className="w-16 h-16 mx-auto text-muted-foreground" /><p className="mt-4 text-xl font-semibold text-muted-foreground">No se encontraron productos</p><p className="text-muted-foreground mt-2">Intenta ajustar tus filtros de búsqueda.</p></CardContent></Card>}
+                    {itemsToShow.length > 0 ? (
+                        <div className='flex flex-col items-center gap-12'>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 w-full">{itemsToShow.map((product) => <ProductCard key={product.id} product={product} />)}</div>
+                            {visibleCount < filteredProducts.length && (
+                                <Button onClick={handleVerMas} size='lg' className='gap-2 px-8'>
+                                    Ver Más
+                                    <ChevronDown className='w-5 h-5'/>
+                                </Button>
+                            )}
+                        </div>
+                    ) : (
+                        <Card className="text-center py-24 col-span-full"><CardContent><Search className="w-16 h-16 mx-auto text-muted-foreground" /><p className="mt-4 text-xl font-semibold text-muted-foreground">No se encontraron productos</p><p className="text-muted-foreground mt-2">Intenta ajustar tus filtros de búsqueda.</p></CardContent></Card>
+                    )}
                 </main>
             </div>
         </section>

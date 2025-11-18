@@ -34,7 +34,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const pathname = usePathname();
   
   const stableSetIsSidebarOpen = useCallback(setIsSidebarOpen, []);
@@ -103,15 +103,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                 </div>
                 <div className="flex flex-col gap-1">
                     <p className="font-semibold">{product.name}</p>
-                    <Button asChild variant="link" className="p-0 h-auto justify-start text-primary">
-                        <Link href="/cart" toast-close="">Ver carrito</Link>
+                    <Button asChild variant="link" className="p-0 h-auto justify-start text-primary" onClick={() => dismiss()}>
+                        <Link href="/cart">Ver carrito</Link>
                     </Button>
                 </div>
             </span>
           ),
         });
     }
-  }, [toast, isSidebarOpen]);
+  }, [toast, dismiss, isSidebarOpen]);
 
   const clearCart = useCallback(() => {
     setCartItems([]);
@@ -204,25 +204,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setCartItems(prevItems => {
         const updatedItems = prevItems.map(item => {
             if (item.product.id === productId) {
-                const maxAllowed = item.product.stock;
-                let newQuantity = Math.max(1, quantity);
-
-                if (newQuantity > maxAllowed) {
-                    toast({
-                        title: `Stock insuficiente para ${item.product.name}`,
-                        description: "La cantidad solicitada supera el stock disponible y ha sido ajustada.",
-                        variant: "destructive",
-                    });
-                    newQuantity = maxAllowed;
-                }
-                
+                const newQuantity = Math.max(1, quantity);
                 return { ...item, quantity: Math.min(newQuantity, MAX_ITEM_QUANTITY) };
             }
             return item;
         });
         return updatedItems;
     });
-}, [toast]);
+}, []);
 
   const applyCoupon = useCallback((coupon: Coupon) => {
     if (!isCouponApplicable) {

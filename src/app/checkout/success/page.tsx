@@ -43,7 +43,8 @@ function CheckoutSuccessClient() {
       const response = await fetch('/api/payment-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId: pId })
+        body: JSON.stringify({ paymentId: pId }),
+        cache: 'no-store'
       });
 
       if (response.ok) {
@@ -54,17 +55,21 @@ function CheckoutSuccessClient() {
           clearCart();
         }
       } else {
-        toast({
-          title: "Advertencia",
-          description: "No se pudieron obtener los detalles del pago, pero tu compra fue registrada.",
-        });
+        if (status !== 'approved') {
+            toast({
+              title: "Advertencia",
+              description: "No se pudieron obtener los detalles del pago, pero tu compra fue registrada.",
+            });
+        }
       }
     } catch (error) {
       console.error('Error fetching payment details:', error);
-      toast({
-        title: "Advertencia",
-        description: "No se pudieron obtener los detalles del pago, pero tu compra fue registrada.",
-      });
+      if (status !== 'approved') {
+          toast({
+            title: "Advertencia",
+            description: "No se pudieron obtener los detalles del pago, pero tu compra fue registrada.",
+          });
+      }
     } finally {
       setLoading(false);
     }
