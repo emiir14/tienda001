@@ -66,6 +66,17 @@ export function CartClient() {
   };
 
   const handleCheckout = () => {
+    // Check for items over stock first
+    const itemOverStock = cartItems.find(item => item.quantity > item.product.stock);
+    if (itemOverStock) {
+      toast({
+        title: "Stock Insuficiente",
+        description: `Disculpe las molestias. Para "${itemOverStock.product.name}", la cantidad ingresada supera el stock disponible.`,
+        variant: "destructive",
+      });
+      return; // Stop the checkout process
+    }
+
     const invalidItems = cartItems.filter(item => item.quantity <= 0);
     if (invalidItems.length > 0) {
         toast({

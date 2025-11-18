@@ -5,7 +5,7 @@ import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { Instagram, MapPin } from 'lucide-react';
+import { Instagram, MapPin, ArrowRight } from 'lucide-react';
 import { HeroCarousel } from '@/components/HeroCarousel';
 
 export default async function Home() {
@@ -29,7 +29,7 @@ export default async function Home() {
                     </div>
                     {featuredProducts.length > 0 ? (
                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            {featuredProducts.map((product) => (
+                            {featuredProducts.slice(0, 8).map((product) => (
                                 <ProductCard key={product.id} product={product} />
                             ))}
                         </div>
@@ -42,9 +42,10 @@ export default async function Home() {
 
                 {/* Ver Mas Button */}
                 <div className="text-center mt-12">
-                    <Button asChild size="lg" className="shadow-md">
+                    <Button asChild size="lg" className="gap-2 px-10 py-6 text-lg font-semibold tracking-wider shadow-lg transform transition-transform duration-200 hover:scale-105">
                         <Link href="/tienda">
-                            Ver Más
+                            Ver Todos los Productos
+                            <ArrowRight className='w-6 h-6'/>
                         </Link>
                     </Button>
                 </div>
