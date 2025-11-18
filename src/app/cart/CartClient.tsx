@@ -127,20 +127,20 @@ export function CartClient() {
         <div className="grid md:grid-cols-3 gap-8 items-start">
           <div className="md:col-span-2 space-y-4">
             {cartItems.map(({ product, quantity }) => (
-              <Card key={product.id} className="flex items-center p-4">
-                <div className="relative w-24 h-24 rounded-md overflow-hidden">
+              <Card key={product.id} className="flex items-center p-3">
+                <div className="relative w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
                     <Image
-                      src={product.images[0] ?? "https://placehold.co/100x100.png"}
+                      src={product.images[0] ?? "https://placehold.co/80x80.png"}
                       alt={product.name}
                       fill
                       className="object-cover"
                     />
                 </div>
-                <div className="flex-1 ml-4">
-                  <Link href={`/products/${product.id}`} className="font-semibold hover:text-primary">{product.name}</Link>
-                  <p className="text-sm text-muted-foreground">${(product.salePrice ?? product.price).toLocaleString('es-AR')}</p>
+                <div className="flex-1 ml-3">
+                  <Link href={`/products/${product.id}`} className="font-semibold hover:text-primary text-base leading-tight">{product.name}</Link>
+                  <p className="text-sm text-muted-foreground mt-1">${(product.salePrice ?? product.price).toLocaleString('es-AR')}</p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 ml-2">
                   <Input
                     type="number"
                     min="0"
@@ -148,10 +148,11 @@ export function CartClient() {
                     value={quantity === 0 ? '' : quantity}
                     onKeyDown={handleNumericKeyDown}
                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                    className="w-20 h-9 text-center"
+                    className="w-16 h-9 text-center"
+                    aria-label={`Cantidad de ${product.name}`}
                   />
-                  <Button variant="ghost" size="icon" onClick={() => removeFromCart(product.id)}>
-                    <Trash2 className="h-5 w-5 text-destructive" />
+                  <Button variant="ghost" size="icon" onClick={() => removeFromCart(product.id)} aria-label={`Quitar ${product.name} del carrito`}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               </Card>

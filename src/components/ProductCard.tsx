@@ -55,29 +55,29 @@ export function ProductCard({ product }: ProductCardProps) {
            </div>
         </Link>
       </CardHeader>
-      <CardContent className="flex-1 p-4 bg-card">
+      <CardContent className="flex-1 p-3 bg-card">
         <Link href={`/products/${product.id}`} className={cn('group', !hasStock && "pointer-events-none")}>
-          <CardTitle className="font-headline text-lg hover:text-primary transition-colors leading-tight">{product.name}</CardTitle>
+          <CardTitle className="font-headline text-base hover:text-primary transition-colors leading-tight">{product.name}</CardTitle>
         </Link>
-        {product.shortDescription && <CardDescription className="mt-1 text-sm">{product.shortDescription}</CardDescription>}
+        {product.shortDescription && <CardDescription className="mt-0.5 text-xs">{product.shortDescription}</CardDescription>}
         
         {product.salePrice ? (
-            <div className='flex items-baseline gap-2 mt-2'>
-                <p className="text-2xl font-bold text-primary">
+            <div className='flex items-baseline gap-1.5 mt-1.5'>
+                <p className="text-xl font-bold text-primary">
                     ${product.salePrice.toLocaleString('es-AR')}
                 </p>
-                <p className="text-lg font-medium text-muted-foreground line-through">
+                <p className="text-base font-medium text-muted-foreground line-through">
                     ${product.price.toLocaleString('es-AR')}
                 </p>
             </div>
         ) : (
-            <p className="mt-2 text-2xl font-bold text-foreground">
+            <p className="mt-1.5 text-xl font-bold text-foreground">
                 ${product.price.toLocaleString('es-AR')}
             </p>
         )}
       </CardContent>
-      <CardFooter className="p-4 pt-0 bg-card">
-        <Button onClick={() => addToCart(product)} className="w-full shadow-md" disabled={!hasStock}>
+      <CardFooter className="p-3 pt-0 bg-card">
+        <Button onClick={() => addToCart(product)} size="sm" className="w-full shadow-md" disabled={!hasStock}>
             {hasStock ? <><ShoppingCart className="mr-2 h-4 w-4" /> Añadir al Carrito</> : <><Ban className="mr-2 h-4 w-4" />Sin Stock</>}
         </Button>
       </CardFooter>
