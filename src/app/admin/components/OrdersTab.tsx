@@ -35,7 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Download, ChevronRight, User, Mail, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown, ListFilter, Search } from 'lucide-react';
+import { Loader2, Download, ChevronRight, User, Mail, Phone, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown, ListFilter, Search } from 'lucide-react';
 import { Pagination } from './Pagination';
 
 const ITEMS_PER_PAGE = 50;
@@ -165,6 +165,7 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                                     <div className="space-y-2 text-sm">
                                         <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" /> <span>{order.customerName}</span></div>
                                         <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> <a href={`mailto:${order.customerEmail}`} className="text-primary hover:underline">{order.customerEmail}</a></div>
+                                        <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> <span>{order.customerPhone || 'No disponible'}</span></div>
                                     </div>
                                     <h4 className="font-semibold text-lg">Envío</h4>
                                     <div className="space-y-2 text-sm">
@@ -203,6 +204,7 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                 order.id.toString(),
                 order.customerName,
                 order.customerEmail,
+                order.customerPhone || '',
                 order.total.toString(),
                 format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es }),
                 order.shippingAddress,

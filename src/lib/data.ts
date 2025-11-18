@@ -174,10 +174,10 @@ export async function createOrder(orderData: OrderData): Promise<{orderId?: numb
                 return { error: `Stock insuficiente para \\\"${productResult[0].name}\\\".` };
             }
         }
-        const { customerName, customerEmail, total, items, couponCode, discountAmount, shippingAddress, shippingCity, shippingPostalCode } = orderData;
+        const { customerName, customerEmail, customerPhone, total, items, couponCode, discountAmount, shippingAddress, shippingCity, shippingPostalCode } = orderData;
         const orderResult = await db`
-            INSERT INTO orders (customer_name, customer_email, total, status, items, coupon_code, discount_amount, shipping_address, shipping_city, shipping_postal_code, created_at)
-            VALUES (${customerName}, ${customerEmail}, ${total}, 'pending', ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
+            INSERT INTO orders (customer_name, customer_email, customer_phone, total, status, items, coupon_code, discount_amount, shipping_address, shipping_city, shipping_postal_code, created_at)
+            VALUES (${customerName}, ${customerEmail}, ${customerPhone}, ${total}, 'pending', ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
             RETURNING id;
         `;
         return { orderId: orderResult[0].id };
@@ -226,6 +226,7 @@ function mapOrderFromDb(row: any): Order {
         id: row.id,
         customerName: row.customer_name,
         customerEmail: row.customer_email,
+        customerPhone: row.customer_phone,
         total: parseFloat(row.total),
         status: row.status as OrderStatus,
         createdAt: new Date(row.created_at),
