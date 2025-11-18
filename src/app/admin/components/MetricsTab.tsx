@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export function MetricsTab({ products, salesMetrics, isLoading, categories }: { products: Product[], salesMetrics: SalesMetrics | null, isLoading: boolean, categories: Category[] }) {
     const totalProducts = products.length;
     const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
-    const lowStockProducts = products.filter(p => p.stock > 0 && p.stock <= 3);
+    const lowStockProducts = products.filter(p => p.stock >= 0 && p.stock <= 3);
 
     const categoryData = useMemo(() => {
       const parentCategories = categories.filter(c => !c.parentId);
@@ -97,7 +97,7 @@ export function MetricsTab({ products, salesMetrics, isLoading, categories }: { 
                 <Card className="shadow-md">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><AlertTriangle className="text-amber-500"/>Alertas de Stock Bajo</CardTitle>
-                        <CardDescription>Productos con 3 unidades o menos en stock.</CardDescription>
+                        <CardDescription>Productos con 3 unidades o menos en stock, incluyendo agotados.</CardDescription>
                     </CardHeader>
                     <CardContent>
                          <div className="overflow-x-auto">

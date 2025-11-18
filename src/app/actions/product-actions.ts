@@ -84,10 +84,15 @@ export async function addProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(id: number, formData: FormData) {
+    const existingProduct = await getProductById(id);
+    if (!existingProduct) {
+        return { error: "Producto no encontrado." };
+    }
+
     const rawData = Object.fromEntries(formData.entries());
     const processedData: Record<string, any> = {};
     for (const [key, value] of Object.entries(rawData)) {
-        const cleanKey = key.startsWith('1_') ? key.substring(2) : key;
+        const cleanKey = key.startsWith(`${id}_`) ? key.substring(String(id).length + 1) : key;
         processedData[cleanKey] = value;
     }
     
@@ -104,14 +109,15 @@ export async function updateProductAction(id: number, formData: FormData) {
         }
     }
     
-    const categoryIds = formData.getAll('1_categoryIds').length > 0 
-        ? formData.getAll('1_categoryIds').map(id => Number(id))
-        : formData.getAll('categoryIds').map(id => Number(id));
+    const categoryIds = formData.getAll(`${id}_categoryIds`).length > 0 
+        ? formData.getAll(`${id}_categoryIds`).map(catId => Number(catId))
+        : formData.getAll('categoryIds').map(catId => Number(catId));
 
     const validatedFields = productSchema.safeParse({
-        ...sanitizedData,
+        ...existingProduct, // Start with existing data
+        ...sanitizedData,   // Override with form data
         id,
-        featured: sanitizedData.featured === 'on',
+        featured: sanitizedData.featured === 'on', // Explicitly handle checkbox
         images,
         categoryIds,
     });
