@@ -39,6 +39,26 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
         }));
     }, [categories]);
 
+    const defaultOpenAccordionItems = useMemo(() => {
+        if (!product?.categoryIds) return [];
+
+        const selectedCategoryIds = new Set(product.categoryIds);
+        const openItems = new Set<string>();
+
+        groupedCategories.forEach(parent => {
+            if (selectedCategoryIds.has(parent.id)) {
+                openItems.add(String(parent.id));
+            }
+            parent.children.forEach(child => {
+                if (selectedCategoryIds.has(child.id)) {
+                    openItems.add(String(parent.id));
+                }
+            });
+        });
+
+        return Array.from(openItems);
+    }, [product?.categoryIds, groupedCategories]);
+
     const HiddenDateInputs = () => (
         <>
             <input type="hidden" name="offerStartDate" value={startDate?.toISOString() ?? ''} />
@@ -85,7 +105,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
             <div>
                 <Label>Categorías *</Label>
                 <ScrollArea className="h-48 w-full rounded-md border">
-                    <Accordion type="multiple" className="w-full">
+                    <Accordion type="multiple" className="w-full" defaultValue={defaultOpenAccordionItems}>
                         {groupedCategories.map(parent => (
                              <AccordionItem value={String(parent.id)} key={parent.id}>
                                 <AccordionTrigger className="px-4 font-semibold">{parent.name}</AccordionTrigger>
