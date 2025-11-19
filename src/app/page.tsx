@@ -5,8 +5,9 @@ import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { Instagram, MapPin, ArrowRight } from 'lucide-react';
+import { MapPin, ArrowRight } from 'lucide-react';
 import { HeroCarousel } from '@/components/HeroCarousel';
+import { InstagramIcon } from '@/components/icons/InstagramIcon';
 
 export default async function Home() {
     const products: Product[] = await getProducts();
@@ -59,7 +60,7 @@ export default async function Home() {
                         <div className="text-center flex-shrink-0">
                             <Button asChild variant="ghost" className="group h-auto rounded-full px-5 py-1 text-2xl font-headline text-muted-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors">
                                 <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4">
-                                    <Instagram className="h-28 w-28 text-muted-foreground transition-colors group-hover:text-[#E1306C]" />
+                                    <InstagramIcon size={112} className="text-muted-foreground transition-colors group-hover:text-[#E1306C]" />
                                     <span>osadia.cta</span>
                                 </Link>
                             </Button>
@@ -96,7 +97,7 @@ export default async function Home() {
                         <div className='flex flex-wrap gap-4 pt-4'>
                              <Button asChild className="shadow-md" size="lg">
                                 <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer">
-                                    <Instagram className="mr-2" /> Síguenos en Instagram
+                                    <InstagramIcon className="mr-2" /> Síguenos en Instagram
                                 </Link>
                             </Button>
                              <Button asChild variant="outline" className="shadow-md" size="lg">
