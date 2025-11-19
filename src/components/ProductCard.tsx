@@ -45,14 +45,19 @@ export function ProductCard({ product }: ProductCardProps) {
               data-ai-hint={product.aiHint}
             />
           </div>
+          
+          {/* Badges on the top-left */}
           <div className="absolute top-3 left-3 flex flex-col gap-2">
-          {product.salePrice && <Badge className='shadow-md' variant="destructive">OFERTA</Badge>}
-          {discount > 0 && <Badge className='shadow-md' variant="destructive">{`${discount}% OFF`}</Badge>}           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className='p-2 bg-background/80 rounded-full'>
-                    <Eye className='text-foreground' />
-                </div>
-           </div>
-           </div>
+            {product.salePrice && <Badge className='shadow-md' variant="destructive">OFERTA</Badge>}
+            {discount > 0 && <Badge className='shadow-md' variant="destructive">{`${discount}% OFF`}</Badge>}
+          </div>
+
+          {/* Eye icon on the top-right, visible on hover */}
+          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className='p-2 bg-background/80 rounded-full shadow-lg'>
+                <Eye className='text-foreground' />
+            </div>
+          </div>
         </Link>
       </CardHeader>
       <CardContent className="flex-1 p-3 bg-card">
