@@ -11,47 +11,42 @@ import { LayoutClient } from '@/components/LayoutClient'; // Importamos el nuevo
 // Aquí se define la metadata global..
 export const metadata: Metadata = {
   title: 'Osadía Joyas',
-  description: 'Una simple tienda de e-commerce con recomendaciones de IA.',
+  description: 'Joyas contemporáneas que expresan identidad con simplicidad y elegancia.',
+  icons: {
+    icon: '/favicon.ico', // <-- Se declara explícitamente el favicon
+    shortcut: '/favicon.ico', // <-- Se declara explícitamente el favicon
+    apple: '/icon.png', // <-- Se declara explícitamente el favicon
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Fino+Sans&family=Madeleina+Sans&display=swap" rel="stylesheet" />
-      </head>
-      <body className={cn('min-h-screen bg-background font-body antialiased')}>
+      <body
+        className={cn(
+          'min-h-screen bg-background font-sans antialiased',
+        )}
+      >
         <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
         >
-            {/* CartProvider envuelve a LayoutClient para que este último tenga acceso al contexto */}
-            <CartProvider>
-                <LayoutClient>{children}</LayoutClient>
-            </CartProvider>
+          <CartProvider>
+            <LayoutClient>{children}</LayoutClient>
+          </CartProvider>
         </ThemeProvider>
-        
-        <Script id="hotjar-integration" strategy="afterInteractive">
-          {`
-            (function(h,o,t,j,a,r){
-                h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
-                h._hjSettings={hjid:'YOUR_SITE_ID',hjsv:6};
-                a=o.getElementsByTagName('head')[0];
-                r=o.createElement('script');r.async=1;
-                r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
-                a.appendChild(r);
-            })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
-          `}
-        </Script>
+        <Script
+          src="https://upload-widget.cloudinary.com/global/all.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
 }
+
