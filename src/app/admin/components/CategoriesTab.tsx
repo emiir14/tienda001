@@ -1,7 +1,5 @@
 "use client";
-// probado fork asd
-//asfqwefgeqg
-//asfqegqergqrwh
+
 import { useState, useMemo, useRef } from 'react';
 import type { Category } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -31,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PlusCircle, Trash2, Loader2, Edit, CornerDownRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { addCategoryAction, updateCategoryAction, deleteCategoryAction } from '@/app/actions';
+import { addCategoryAction, updateCategoryAction, deleteCategoryAction } from '@/app/actions/category-actions';
 
 type CategoryWithChildren = Category & { children: Category[] };
 

@@ -28,6 +28,7 @@ import { createOrder } from "@/lib/data";
 const shippingSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   email: z.string().email("Email inválido."),
+  phone: z.string().min(10, "El número de teléfono debe tener al menos 10 dígitos.").max(15, "El número de teléfono no puede tener más de 15 dígitos."),
   address: z.string().min(5, "La dirección es requerida."),
   city: z.string().min(2, "La ciudad es requerida."),
   postalCode: z.string().min(4, "El código postal es requerido."),
@@ -44,7 +45,7 @@ export default function CheckoutPage() {
   
   const form = useForm<ShippingFormData>({
     resolver: zodResolver(shippingSchema),
-    defaultValues: { name: "", email: "", address: "", city: "", postalCode: "" },
+    defaultValues: { name: "", email: "", phone: "", address: "", city: "", postalCode: "" },
   });
 
   useEffect(() => {
@@ -70,7 +71,8 @@ export default function CheckoutPage() {
       
       const orderDataForDb = {
         customerName: values.name,
-        customerEmail: values.email, // Guardamos el email real en nuestra BD
+        customerEmail: values.email,
+        customerPhone: values.phone,
         total: totalPrice,
         status: 'pending' as const,
         items: cartItems,
@@ -87,7 +89,6 @@ export default function CheckoutPage() {
       }
       console.log("Order created successfully with ID:", orderResponse.orderId);
       
-      // Guardamos el ID de la orden pendiente en localStorage, convirtiéndolo a string
       localStorage.setItem('pendingOrderId', String(orderResponse.orderId));
 
       const requestBodyForMp = {
@@ -255,13 +256,22 @@ export default function CheckoutPage() {
                       <FormMessage />
                     </FormItem>
                   )}/>
-                  <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}/>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="email" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}/>
+                    <FormField control={form.control} name="phone" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Teléfono</FormLabel>
+                        <FormControl><Input type="tel" {...field} placeholder="1122334455" /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}/>
+                  </div>
                   <FormField control={form.control} name="address" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Dirección</FormLabel>

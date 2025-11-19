@@ -34,7 +34,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const pathname = usePathname();
   
   const stableSetIsSidebarOpen = useCallback(setIsSidebarOpen, []);
@@ -103,7 +103,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                 </div>
                 <div className="flex flex-col gap-1">
                     <p className="font-semibold">{product.name}</p>
-                    <Button asChild variant="link" className="p-0 h-auto justify-start text-primary">
+                    <Button asChild variant="link" className="p-0 h-auto justify-start text-primary" onClick={() => dismiss()}>
                         <Link href="/cart">Ver carrito</Link>
                     </Button>
                 </div>
@@ -111,7 +111,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           ),
         });
     }
-  }, [toast, isSidebarOpen]);
+  }, [toast, dismiss, isSidebarOpen]);
 
   const clearCart = useCallback(() => {
     setCartItems([]);
@@ -201,13 +201,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
 
   const updateQuantity = useCallback((productId: number, quantity: number) => {
-    const newQuantity = Math.max(1, Math.min(quantity, MAX_ITEM_QUANTITY));
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.product.id === productId ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  }, []);
+    setCartItems(prevItems => {
+        const updatedItems = prevItems.map(item => {
+            if (item.product.id === productId) {
+                const newQuantity = Math.max(1, quantity);
+                return { ...item, quantity: Math.min(newQuantity, MAX_ITEM_QUANTITY) };
+            }
+            return item;
+        });
+        return updatedItems;
+    });
+}, []);
 
   const applyCoupon = useCallback((coupon: Coupon) => {
     if (!isCouponApplicable) {

@@ -5,7 +5,7 @@ import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { Instagram, MapPin } from 'lucide-react';
+import { Instagram, MapPin, ArrowRight } from 'lucide-react';
 import { HeroCarousel } from '@/components/HeroCarousel';
 
 export default async function Home() {
@@ -29,7 +29,7 @@ export default async function Home() {
                     </div>
                     {featuredProducts.length > 0 ? (
                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            {featuredProducts.map((product) => (
+                            {featuredProducts.slice(0, 8).map((product) => (
                                 <ProductCard key={product.id} product={product} />
                             ))}
                         </div>
@@ -40,7 +40,17 @@ export default async function Home() {
                     )}
                 </section>
 
-                <Separator className="w-1/2 mx-auto my-4"/>
+                {/* Ver Mas Button */}
+                <div className="text-center mt-12">
+                    <Button asChild size="lg" className="gap-2 px-10 py-6 text-lg font-semibold tracking-wider shadow-lg transform transition-transform duration-200 hover:scale-105">
+                        <Link href="/tienda">
+                            Ver Todos los Productos
+                            <ArrowRight className='w-6 h-6'/>
+                        </Link>
+                    </Button>
+                </div>
+
+                <Separator className="w-1/2 mx-auto my-16"/>
 
                 {/* Instagram Section */}
                 <section id="instagram">
@@ -61,13 +71,13 @@ export default async function Home() {
                     </div>
                 </section>
 
-                <Separator className="w-1/2 mx-auto my-4"/>
+                <Separator className="w-1/2 mx-auto my-16"/>
 
                 {/* About Us Section */}
                 <section id="about" className="grid md:grid-cols-2 gap-12 items-center py-16">
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl">
                          <iframe
-                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3489.178726265741!2d-65.77926212459999!3d-28.47352947579177!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x942428a23075253b%3A0xe5449751e343a443!2sLa%20Rioja%20416%2C%20K4700BBI%20San%20Fernando%20del%20Valle%20de%20Catamarca%2C%20Catamarca%2C%20Argentina!5e0!3m2!1sen!2sus!4v1718043689408!5m2!1sen!2sus"
+                            src="https://maps.google.com/maps?q=La%20Rioja%20416,%20Catamarca,%20Argentina&t=&z=15&ie=UTF8&iwloc=&output=embed"
                             width="100%"
                             height="100%"
                             style={{ border: 0 }}

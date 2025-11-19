@@ -50,12 +50,11 @@ export default function Header() {
 
   const navLinks = [
     { href: '/', label: 'Inicio' },
-    { href: '/tienda', label: 'Tienda' },
+    { href: '/tienda', label: 'Productos' },
     { href: '/#about', label: 'Sobre Nosotros' },
     { href: '/pages/garantia', label: 'Garantía' },
     { href: '/pages/preguntas-frecuentes', label: 'Preguntas Frecuentes' },
     { href: '/pages/como-comprar', label: 'Cómo Comprar' },
-    { href: '/admin', label: 'Admin' },
   ];
 
   return (

@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, KeyboardEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ProductCard } from '@/components/ProductCard';
 import { Separator } from '@/components/ui/separator';
-import { Percent, Tag, Search, ListFilter, ChevronRight } from 'lucide-react';
+import { Percent, Tag, Search, ListFilter, ChevronRight, ChevronDown } from 'lucide-react';
 import type { Product, Category } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { GlobalSearch } from '@/components/GlobalSearch';
+
+const ITEMS_PER_PAGE = 12;
+const OFFERS_INITIAL_COUNT = 3;
+const OFFERS_PER_PAGE = 9;
 
 // Helper function to build search query
 const buildSearchQuery = (params: URLSearchParams) => {
@@ -67,7 +71,7 @@ const SidebarContent = ({
   };
 
   return (
-    <Card>
+    <Card className="border-r-0 rounded-r-none">
         <CardHeader><CardTitle className='flex items-center gap-2'><ListFilter className="w-5 h-5"/> Filtros</CardTitle></CardHeader>
         <CardContent className="space-y-6">
             {/* Mobile-only Search Filter (Reutilizando GlobalSearch) */}
@@ -127,6 +131,8 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const activeMinPrice = searchParams.get('minPrice') || '';
   const activeMaxPrice = searchParams.get('maxPrice') || '';
 
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+  const [visibleOfferCount, setVisibleOfferCount] = useState(OFFERS_INITIAL_COUNT);
   const [pendingMinPrice, setPendingMinPrice] = useState<string>(activeMinPrice);
   const [pendingMaxPrice, setPendingMaxPrice] = useState<string>(activeMaxPrice);
   const [accordionValue, setAccordionValue] = useState<string | undefined>();
@@ -142,6 +148,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     if (minP !== pendingMinPrice) setPendingMinPrice(minP);
     if (maxP !== pendingMaxPrice) setPendingMaxPrice(maxP);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const { categoryTree } = useMemo(() => {
@@ -162,6 +169,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const updateURL = (params: URLSearchParams) => {
     const query = buildSearchQuery(params);
     router.push(`/tienda${query}#products-grid`, { scroll: false });
+    setVisibleCount(ITEMS_PER_PAGE); // Reset pagination on filter change
   };
 
   const handleCategoryClick = (categoryId: string) => {
@@ -199,6 +207,17 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
     return items;
   }, [allProducts, searchQuery, activeCategory, activeMinPrice, activeMaxPrice, allCategories]);
 
+  const itemsToShow = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
+  const offersToShow = useMemo(() => offerProducts.slice(0, visibleOfferCount), [offerProducts, visibleOfferCount]);
+
+  const handleVerMas = () => {
+      setVisibleCount(prevCount => prevCount + ITEMS_PER_PAGE);
+  };
+  
+  const handleVerMasOfertas = () => {
+      setVisibleOfferCount(prevCount => prevCount + OFFERS_PER_PAGE);
+  };
+
   return (
     <div className="space-y-12">
         <section className="text-center bg-secondary/50 p-8 rounded-lg">
@@ -211,7 +230,23 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
             <p className="mt-2 max-w-2xl mx-auto text-lg text-muted-foreground">
                 ¡Aprovecha nuestros descuentos exclusivos por tiempo limitado!
             </p>
-            {offerProducts.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">{offerProducts.slice(0, 3).map((product) => <ProductCard key={product.id} product={product} />)}</div> : <p className="mt-8 text-muted-foreground">No hay ofertas especiales en este momento.</p>}
+            {offerProducts.length > 0 ? (
+                <div className="flex flex-col items-center gap-8 mt-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
+                        {offersToShow.map((product) => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
+                    </div>
+                    {visibleOfferCount < offerProducts.length && (
+                        <Button onClick={handleVerMasOfertas} size='lg' className='gap-2 px-8'>
+                            Ver más Ofertas
+                            <ChevronDown className='w-5 h-5'/>
+                        </Button>
+                    )}
+                </div>
+            ) : (
+                <p className="mt-8 text-muted-foreground">No hay ofertas especiales en este momento.</p>
+            )}
         </section>
         <Separator />
         <section id="products-grid" className="scroll-mt-24">
@@ -222,7 +257,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                 </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start px-4 sm:px-6 lg:px-0">
-                <aside className="lg:col-span-1 space-y-6">
+                <aside className="lg:col-span-1 space-y-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto rounded-l-xl custom-scrollbar">
                   <SidebarContent 
                     isMobile={isMobile}
                     accordionValue={accordionValue}
@@ -239,7 +274,19 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                   />
                 </aside>
                 <main className="lg:col-span-3">
-                    {filteredProducts.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">{filteredProducts.map((product) => <ProductCard key={product.id} product={product} />)}</div> : <Card className="text-center py-24 col-span-full"><CardContent><Search className="w-16 h-16 mx-auto text-muted-foreground" /><p className="mt-4 text-xl font-semibold text-muted-foreground">No se encontraron productos</p><p className="text-muted-foreground mt-2">Intenta ajustar tus filtros de búsqueda.</p></CardContent></Card>}
+                    {itemsToShow.length > 0 ? (
+                        <div className='flex flex-col items-center gap-12'>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 w-full">{itemsToShow.map((product) => <ProductCard key={product.id} product={product} />)}</div>
+                            {visibleCount < filteredProducts.length && (
+                                <Button onClick={handleVerMas} size='lg' className='gap-2 px-8'>
+                                    Ver Más
+                                    <ChevronDown className='w-5 h-5'/>
+                                </Button>
+                            )}
+                        </div>
+                    ) : (
+                        <Card className="text-center py-24 col-span-full"><CardContent><Search className="w-16 h-16 mx-auto text-muted-foreground" /><p className="mt-4 text-xl font-semibold text-muted-foreground">No se encontraron productos</p><p className="text-muted-foreground mt-2">Intenta ajustar tus filtros de búsqueda.</p></CardContent></Card>
+                    )}
                 </main>
             </div>
         </section>

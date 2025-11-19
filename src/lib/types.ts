@@ -44,6 +44,7 @@ export type OrderStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'shipped
 export type OrderData = {
     customerName: string;
     customerEmail: string;
+    customerPhone?: string;
     total: number;
     status: OrderStatus;
     items: CartItem[];
@@ -59,6 +60,7 @@ export type Order = {
   id: number;
   customerName: string;
   customerEmail: string;
+  customerPhone?: string;
   total: number;
   status: OrderStatus;
   createdAt: Date;

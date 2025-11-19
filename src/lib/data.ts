@@ -1,24 +1,6 @@
-
 'use server';
 
-import { getDb, isDbConfigured } from './db';
-import {
-    getCategories as getCategoriesFromHardcodedData,
-    createCategory as createCategoryFromHardcodedData,
-    deleteCategory as deleteCategoryFromHardcodedData,
-    getCoupons as getCouponsFromHardcodedData,
-    getCouponById as getCouponByIdFromHardcodedData,
-    getCouponByCode as getCouponByCodeFromHardcodedData,
-    createCoupon as createCouponFromHardcodedData,
-    updateCoupon as updateCouponFromHardcodedData,
-    deleteCoupon as deleteCouponFromHardcodedData,
-    getSalesMetrics as getSalesMetricsFromHardcodedData,
-    createOrder as createOrderFromHardcodedData,
-    updateOrderStatus as updateOrderStatusFromHardcodedData,
-    getOrders as getOrdersFromHardcodedData,
-    getOrderById as getOrderByIdFromHardcodedData,
-    createOrderFromWebhook as createOrderFromWebhookFromHardcodedData,
-} from './hardcoded-data';
+import { getDb } from './db';
 import type { Coupon, SalesMetrics, OrderData, OrderStatus, Order, Category } from './types';
 import { unstable_noStore as noStore } from 'next/cache';
 
@@ -27,7 +9,6 @@ function _mapDbRowToCategory(row: any): Category {
 }
 
 export async function getCategories(): Promise<Category[]> {
-    if (!isDbConfigured) return getCategoriesFromHardcodedData();
     noStore();
     try {
         const db = getDb();
@@ -40,7 +21,6 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 export async function createCategory(name: string, parentId: number | null = null): Promise<Category> {
-    if (!isDbConfigured) return createCategoryFromHardcodedData(name);
     try {
         const db = getDb();
         const result = await db`INSERT INTO categories (name, parent_id) VALUES (${name}, ${parentId}) RETURNING *;`;
@@ -54,9 +34,7 @@ export async function createCategory(name: string, parentId: number | null = nul
     }
 }
 
-
 export async function updateCategory(id: number, name: string): Promise<Category> {
-    if (!isDbConfigured) throw new Error("Database not configured, cannot update."); 
     try {
         const db = getDb();
         const result = await db`UPDATE categories SET name = ${name} WHERE id = ${id} RETURNING *;`;
@@ -71,10 +49,7 @@ export async function updateCategory(id: number, name: string): Promise<Category
     }
 }
 
-
-
 export async function deleteCategory(id: number): Promise<{ success: boolean; message?: string }> {
-    if (!isDbConfigured) return deleteCategoryFromHardcodedData(id);
     try {
         const db = getDb();
         // Check if category has children
@@ -95,7 +70,6 @@ export async function deleteCategory(id: number): Promise<{ success: boolean; me
     }
 }
 
-
 function _mapDbRowToCoupon(row: any): Coupon {
     return {
         id: row.id,
@@ -109,7 +83,6 @@ function _mapDbRowToCoupon(row: any): Coupon {
 }
 
 export async function getCoupons(): Promise<Coupon[]> {
-    if (!isDbConfigured) return getCouponsFromHardcodedData();
     noStore();
     try {
         const db = getDb();
@@ -122,7 +95,6 @@ export async function getCoupons(): Promise<Coupon[]> {
 }
 
 export async function getCouponByCode(code: string): Promise<Coupon | undefined> {
-    if (!isDbConfigured) return getCouponByCodeFromHardcodedData(code);
     noStore();
     try {
         const db = getDb();
@@ -139,7 +111,6 @@ export async function getCouponByCode(code: string): Promise<Coupon | undefined>
 }
 
 export async function createCoupon(coupon: Omit<Coupon, 'id'>): Promise<Coupon> {
-    if (!isDbConfigured) return createCouponFromHardcodedData(coupon);
     const { code, discountType, discountValue, minPurchaseAmount, expiryDate, isActive } = coupon;
     try {
         const db = getDb();
@@ -159,7 +130,6 @@ export async function createCoupon(coupon: Omit<Coupon, 'id'>): Promise<Coupon> 
 }
 
 export async function updateCoupon(id: number, couponData: Partial<Omit<Coupon, 'id'>>): Promise<Coupon> {
-    if (!isDbConfigured) return updateCouponFromHardcodedData(id, couponData);
     const { code, discountType, discountValue, minPurchaseAmount, expiryDate, isActive } = couponData;
     try {
         const db = getDb();
@@ -185,7 +155,6 @@ export async function updateCoupon(id: number, couponData: Partial<Omit<Coupon, 
 }
 
 export async function deleteCoupon(id: number): Promise<void> {
-    if (!isDbConfigured) return deleteCouponFromHardcodedData(id);
     try {
         const db = getDb();
         await db`DELETE FROM coupons WHERE id = ${id}`;
@@ -196,20 +165,19 @@ export async function deleteCoupon(id: number): Promise<void> {
 }
 
 export async function createOrder(orderData: OrderData): Promise<{orderId?: number, error?: string}> {
-    if (!isDbConfigured) return createOrderFromHardcodedData(orderData);
     try {
         const db = getDb();
         for (const item of orderData.items) {
             const productResult = await db`SELECT stock, name FROM products WHERE id = ${item.product.id}`;
             if (productResult.length === 0) return { error: `Producto no encontrado: ${item.product.id}` };
             if (productResult[0].stock < item.quantity) {
-                return { error: `Stock insuficiente para \"${productResult[0].name}\".` };
+                return { error: `Stock insuficiente para \\\"${productResult[0].name}\\\".` };
             }
         }
-        const { customerName, customerEmail, total, items, couponCode, discountAmount, shippingAddress, shippingCity, shippingPostalCode } = orderData;
+        const { customerName, customerEmail, customerPhone, total, items, couponCode, discountAmount, shippingAddress, shippingCity, shippingPostalCode } = orderData;
         const orderResult = await db`
-            INSERT INTO orders (customer_name, customer_email, total, status, items, coupon_code, discount_amount, shipping_address, shipping_city, shipping_postal_code, created_at)
-            VALUES (${customerName}, ${customerEmail}, ${total}, 'pending', ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
+            INSERT INTO orders (customer_name, customer_email, customer_phone, total, status, items, coupon_code, discount_amount, shipping_address, shipping_city, shipping_postal_code, created_at)
+            VALUES (${customerName}, ${customerEmail}, ${customerPhone}, ${total}, 'pending', ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
             RETURNING id;
         `;
         return { orderId: orderResult[0].id };
@@ -220,7 +188,6 @@ export async function createOrder(orderData: OrderData): Promise<{orderId?: numb
 }
 
 export async function deductStockForOrder(orderId: number): Promise<void> {
-    if (!isDbConfigured) return;
     try {
         const db = getDb();
         const orderRows = await db`SELECT items FROM orders WHERE id = ${orderId}`;
@@ -241,7 +208,6 @@ export async function deductStockForOrder(orderId: number): Promise<void> {
 }
 
 export async function updateOrderStatus(orderId: number, status: OrderStatus, paymentId?: string | null): Promise<void> {
-    if (!isDbConfigured) return updateOrderStatusFromHardcodedData(orderId, status, paymentId || undefined);
     try {
         const db = getDb();
         if (paymentId !== undefined) {
@@ -260,6 +226,7 @@ function mapOrderFromDb(row: any): Order {
         id: row.id,
         customerName: row.customer_name,
         customerEmail: row.customer_email,
+        customerPhone: row.customer_phone,
         total: parseFloat(row.total),
         status: row.status as OrderStatus,
         createdAt: new Date(row.created_at),
@@ -274,7 +241,6 @@ function mapOrderFromDb(row: any): Order {
 }
 
 export async function getOrderById(id: number): Promise<Order | undefined> {
-    if (!isDbConfigured) return getOrderByIdFromHardcodedData(id);
     noStore();
     try {
         const db = getDb();
@@ -288,7 +254,6 @@ export async function getOrderById(id: number): Promise<Order | undefined> {
 }
 
 export async function getOrderByPaymentId(paymentId: string): Promise<Order | undefined> {
-    if (!isDbConfigured) return undefined;
     noStore();
     try {
         const db = getDb();
@@ -302,7 +267,6 @@ export async function getOrderByPaymentId(paymentId: string): Promise<Order | un
 }
 
 export async function createOrderFromWebhook(paymentData: any): Promise<{newOrder?: Order, error?: string}> {
-    if (!isDbConfigured) return createOrderFromWebhookFromHardcodedData(paymentData);
     const { payer, additional_info, transaction_amount, external_reference, id: paymentId } = paymentData;
     if (!external_reference || !additional_info?.items || additional_info.items.length === 0) {
         return { error: 'Webhook data is missing fields to create an order.' };
@@ -335,14 +299,13 @@ export async function createOrderFromWebhook(paymentData: any): Promise<{newOrde
 }
 
 export async function getSalesMetrics(): Promise<SalesMetrics> {
-    if (!isDbConfigured) return getSalesMetricsFromHardcodedData();
     noStore();
     try {
         const db = getDb();
         const revenueResult = await db`SELECT SUM(total) as totalRevenue, COUNT(*) as totalSales FROM orders WHERE status IN ('paid', 'delivered')`;
         const { totalrevenue, totalsales } = revenueResult[0];
         const productsResult = await db`
-            SELECT (item->'product'->>'id')::int as "productId", item->'product'->>'name' as name, SUM((item->>'quantity')::int) as count
+            SELECT (item->'product'->>'id')::int as "productId", item->'product'->>'name\' as name, SUM((item->>\'quantity\')::int) as count
             FROM orders, jsonb_array_elements(items) as item
             WHERE status IN ('paid', 'delivered')
             GROUP BY 1, 2 ORDER BY count DESC LIMIT 5;
@@ -359,7 +322,6 @@ export async function getSalesMetrics(): Promise<SalesMetrics> {
 }
 
 export async function getOrders(): Promise<Order[]> {
-    if (!isDbConfigured) return getOrdersFromHardcodedData();
     noStore();
     try {
         const db = getDb();

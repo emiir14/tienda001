@@ -30,11 +30,15 @@ import { Pagination } from './Pagination';
 
 const ITEMS_PER_PAGE = 50;
 
-type SortableKeys = 'code' | 'discountType' | 'discountValue' | 'minPurchaseAmount' | 'expiryDate';
+type SortableKeys = 'code' | 'discountType' | 'discountValue' | 'minPurchaseAmount' | 'expiryDate' | 'isActive';
 
 export function CouponsTab({ coupons, isLoading, onAdd, onEdit, onDelete, onExport }: { coupons: Coupon[], isLoading: boolean, onAdd: () => void, onEdit: (c: Coupon) => void, onDelete: (id: number) => void, onExport: () => void }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKeys, direction: 'asc' | 'desc' } | null>(null);
+
+    const isCouponActive = (coupon: Coupon) => {
+        return coupon.isActive && (!coupon.expiryDate || new Date(coupon.expiryDate) > new Date());
+    }
 
     const sortedCoupons = useMemo(() => {
         let sortableItems = [...coupons];
@@ -42,21 +46,21 @@ export function CouponsTab({ coupons, isLoading, onAdd, onEdit, onDelete, onExpo
             sortableItems.sort((a, b) => {
                 const key = sortConfig.key;
                 
-                const rawA = a[key];
-                const rawB = b[key];
+                let comparableA: string | number | Date | boolean;
+                let comparableB: string | number | Date | boolean;
 
-                let comparableA: string | number | Date;
-                let comparableB: string | number | Date;
-
-                if (key === 'expiryDate') {
-                    comparableA = rawA ? new Date(rawA as string) : new Date('9999-12-31');
-                    comparableB = rawB ? new Date(rawB as string) : new Date('9999-12-31');
+                if (key === 'isActive') {
+                    comparableA = isCouponActive(a);
+                    comparableB = isCouponActive(b);
+                } else if (key === 'expiryDate') {
+                    comparableA = a.expiryDate ? new Date(a.expiryDate) : new Date('9999-12-31');
+                    comparableB = b.expiryDate ? new Date(b.expiryDate) : new Date('9999-12-31');
                 } else if (key === 'minPurchaseAmount' || key === 'discountValue') {
-                    comparableA = (rawA as number) ?? 0;
-                    comparableB = (rawB as number) ?? 0;
+                    comparableA = a[key] ?? 0;
+                    comparableB = b[key] ?? 0;
                 } else { // For 'code' and 'discountType', which are strings
-                    comparableA = (rawA as string) ?? '';
-                    comparableB = (rawB as string) ?? '';
+                    comparableA = a[key] ?? '';
+                    comparableB = b[key] ?? '';
                 }
 
                 if (comparableA < comparableB) {
@@ -93,8 +97,8 @@ export function CouponsTab({ coupons, isLoading, onAdd, onEdit, onDelete, onExpo
         return <ArrowDown className="ml-2 h-4 w-4" />;
     };
 
-    const renderHeaderButton = (key: SortableKeys, label: string) => (
-        <Button variant="ghost" onClick={() => requestSort(key)} className="px-2">
+    const renderHeaderButton = (key: SortableKeys, label: string, className?: string) => (
+        <Button variant="ghost" onClick={() => requestSort(key)} className={`px-2 ${className}`}>
             {label}
             {getSortIcon(key)}
         </Button>
@@ -105,10 +109,6 @@ export function CouponsTab({ coupons, isLoading, onAdd, onEdit, onDelete, onExpo
             setCurrentPage(page);
         }
     };
-
-    const isCouponActive = (coupon: Coupon) => {
-        return coupon.isActive && (!coupon.expiryDate || new Date(coupon.expiryDate) > new Date());
-    }
 
     return (
         <Card className="shadow-lg">
@@ -128,10 +128,10 @@ export function CouponsTab({ coupons, isLoading, onAdd, onEdit, onDelete, onExpo
                                     <TableRow>
                                         <TableHead>{renderHeaderButton('code', 'Código')}</TableHead>
                                         <TableHead>{renderHeaderButton('discountType', 'Tipo')}</TableHead>
-                                        <TableHead className="text-center">{renderHeaderButton('discountValue', 'Valor')}</TableHead>
-                                        <TableHead className="text-center">{renderHeaderButton('minPurchaseAmount', 'Compra Mínima')}</TableHead>
-                                        <TableHead className="text-center">{renderHeaderButton('expiryDate', 'Expiración')}</TableHead>
-                                        <TableHead className="text-center">Estado</TableHead>
+                                        <TableHead>{renderHeaderButton('discountValue', 'Valor', 'justify-center')}</TableHead>
+                                        <TableHead>{renderHeaderButton('minPurchaseAmount', 'Compra Mínima', 'justify-center')}</TableHead>
+                                        <TableHead>{renderHeaderButton('expiryDate', 'Expiración', 'justify-center')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('isActive', 'Estado', 'justify-center')}</TableHead>
                                         <TableHead className="text-right pr-4">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>

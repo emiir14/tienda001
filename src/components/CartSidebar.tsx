@@ -136,8 +136,8 @@ export default function CartSidebar() {
                  <Button asChild className="w-full">
                     <Link href="/cart" onClick={() => setIsSidebarOpen(false)}>Iniciar Compra</Link>
                 </Button>
-                <Button variant="outline" asChild className="w-full">
-                    <Link href="/tienda" onClick={() => setIsSidebarOpen(false)}>Seguir Comprando</Link>
+                <Button variant="outline" className="w-full" onClick={() => setIsSidebarOpen(false)}>
+                    Seguir Comprando
                 </Button>
             </SheetFooter>
           </>

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { addSubscriberAction } from "@/app/actions";
+import { addSubscriberAction } from "@/app/actions/subscriber-actions";
 import { useRef } from "react";
 import Image from 'next/image';
 
@@ -60,7 +60,7 @@ export default function Footer() {
     ];
 
   return (
-    <footer className="bg-secondary/50 border-t">
+    <footer className="bg-secondary/50 border-t mt-8">
       <div className="container py-8 md:py-12 text-secondary-foreground">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="space-y-4 md:col-span-1">
@@ -96,7 +96,7 @@ export default function Footer() {
                 <h4 className="font-semibold text-lg">Newsletter</h4>
                 <p className="text-sm text-muted-foreground">
                     {mailchimpConfigured 
-                        ? "Suscríbete para recibir ofertas y novedades."
+                        ? "Suscríbete para recibir novedades y ofertas."
                         : "La suscripción no está disponible."
                     }
                 </p>

@@ -71,3 +71,22 @@ body {
         radial-gradient(at 79% 53%, hsl(var(--background)) 0px, transparent 50%);
   }
 }
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 12px;
+  border-left: 1px solid hsl(var(--border)); /* Add border to the scrollbar track */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: hsl(var(--card)); /* Use card background for the track */
+  border-radius: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.5); /* Semi-transparent thumb */
+  border-radius: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary)); /* Opaque thumb on hover */
+}
