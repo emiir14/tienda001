@@ -50,7 +50,8 @@ export default async function Home() {
                     </Button>
                 </div>
 
-                <Separator className="w-1/2 mx-auto my-16"/>
+                {/* Reduced margin for the separator */}
+                <Separator className="w-1/2 mx-auto my-8"/>
 
                 {/* Instagram Section */}
                 <section id="instagram">
@@ -71,10 +72,11 @@ export default async function Home() {
                     </div>
                 </section>
 
-                <Separator className="w-1/2 mx-auto my-16"/>
+                {/* Reduced margin for the separator */}
+                <Separator className="w-1/2 mx-auto my-8"/>
 
-                {/* About Us Section */}
-                <section id="about" className="grid md:grid-cols-2 gap-12 items-center py-16">
+                {/* About Us Section - Reduced top and bottom padding */}
+                <section id="about" className="grid md:grid-cols-3 gap-12 items-center py-8">
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl">
                          <iframe
                             src="https://maps.google.com/maps?q=La%20Rioja%20416,%20Catamarca,%20Argentina&t=&z=15&ie=UTF8&iwloc=&output=embed"
@@ -88,7 +90,8 @@ export default async function Home() {
                             className='grayscale hover:grayscale-0 transition-all duration-500'
                         ></iframe>
                     </div>
-                    <div className='space-y-6'>
+                    {/* Text content now spans 2 columns */}
+                    <div className='space-y-6 md:col-span-2'>
                         <h2 className="text-4xl font-headline font-bold">Sobre Nosotros</h2>
                         <p className="text-muted-foreground leading-relaxed text-lg">
                             En Osadía entendemos la joyería como un lenguaje visual que transmite identidad y estilo. Nuestra marca nace de la unión entre diseño contemporáneo y una mirada minimalista, creando piezas que equilibran simplicidad, precisión y una fuerte carga simbólica.
