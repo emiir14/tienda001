@@ -50,21 +50,17 @@ export default async function Home() {
                     </Button>
                 </div>
 
-                {/* Reduced margin for the separator */}
                 <Separator className="w-1/2 mx-auto my-8"/>
 
-                {/* Instagram Section */}
+                {/* Instagram Section - Icon Larger, Text Smaller */}
                 <section id="instagram">
                     <div className="flex items-center justify-center gap-8">
                         <Separator className="flex-1" />
-                        <div className="text-center space-y-4 flex-shrink-0">
-                            <div className="flex justify-center items-center gap-3">
-                                <Instagram className="h-7 w-7 text-muted-foreground" />
-                                <h3 className="text-3xl font-headline text-muted-foreground tracking-wider">osadia.cta</h3>
-                            </div>
-                            <Button asChild variant="outline" size="lg" className="rounded-full px-10 py-6 text-lg tracking-widest">
-                                <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer">
-                                    SEGUINOS
+                        <div className="text-center flex-shrink-0">
+                            <Button asChild variant="ghost" className="group h-auto rounded-full px-8 py-4 text-4xl font-headline text-muted-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors">
+                                <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4">
+                                    <Instagram className="h-20 w-20 text-muted-foreground transition-colors group-hover:text-[#E1306C]" />
+                                    <span>osadia.cta</span>
                                 </Link>
                             </Button>
                         </div>
@@ -72,10 +68,9 @@ export default async function Home() {
                     </div>
                 </section>
 
-                {/* Reduced margin for the separator */}
                 <Separator className="w-1/2 mx-auto my-8"/>
 
-                {/* About Us Section - Reduced top and bottom padding */}
+                {/* About Us Section */}
                 <section id="about" className="grid md:grid-cols-3 gap-12 items-center py-8">
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl">
                          <iframe
@@ -90,7 +85,6 @@ export default async function Home() {
                             className='grayscale hover:grayscale-0 transition-all duration-500'
                         ></iframe>
                     </div>
-                    {/* Text content now spans 2 columns */}
                     <div className='space-y-6 md:col-span-2'>
                         <h2 className="text-4xl font-headline font-bold">Sobre Nosotros</h2>
                         <p className="text-muted-foreground leading-relaxed text-lg">
