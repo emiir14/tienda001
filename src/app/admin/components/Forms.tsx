@@ -91,19 +91,34 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                                 <AccordionTrigger className="px-4 font-semibold">{parent.name}</AccordionTrigger>
                                 <AccordionContent>
                                     <div className="pl-8 pr-4 space-y-3 py-2">
-                                        {parent.children.length > 0 ? parent.children.map(child => (
-                                            <div key={child.id} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`category-${child.id}`}
-                                                    name="categoryIds"
-                                                    value={String(child.id)}
-                                                    defaultChecked={(product?.categoryIds ?? []).includes(child.id)}
-                                                />
-                                                <Label htmlFor={`category-${child.id}`} className="font-normal">{child.name}</Label>
-                                            </div>
-                                        )) : (
-                                            <div className="flex items-center space-x-2 text-muted-foreground">
-                                                 <Checkbox
+                                        {parent.children.length > 0 
+                                        ? (
+                                            <>
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`category-${parent.id}`}
+                                                        name="categoryIds"
+                                                        value={String(parent.id)}
+                                                        defaultChecked={(product?.categoryIds ?? []).includes(parent.id)}
+                                                    />
+                                                    <Label htmlFor={`category-${parent.id}`} className="font-normal italic text-muted-foreground">Asignar a "{parent.name}" como principal</Label>
+                                                </div>
+                                                {parent.children.map(child => (
+                                                    <div key={child.id} className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id={`category-${child.id}`}
+                                                            name="categoryIds"
+                                                            value={String(child.id)}
+                                                            defaultChecked={(product?.categoryIds ?? []).includes(child.id)}
+                                                        />
+                                                        <Label htmlFor={`category-${child.id}`} className="font-normal">{child.name}</Label>
+                                                    </div>
+                                                ))}
+                                            </>
+                                        ) 
+                                        : (
+                                            <div className="flex items-center space-x-2">
+                                                    <Checkbox
                                                     id={`category-${parent.id}`}
                                                     name="categoryIds"
                                                     value={String(parent.id)}
