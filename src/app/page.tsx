@@ -57,9 +57,9 @@ export default async function Home() {
                     <div className="flex items-center justify-center gap-8">
                         <Separator className="flex-1" />
                         <div className="text-center flex-shrink-0">
-                            <Button asChild variant="ghost" className="group h-auto rounded-full px-8 py-4 text-4xl font-headline text-muted-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors">
+                            <Button asChild variant="ghost" className="group h-auto rounded-full px-5 py-1 text-2xl font-headline text-muted-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors">
                                 <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4">
-                                    <Instagram className="h-20 w-20 text-muted-foreground transition-colors group-hover:text-[#E1306C]" />
+                                    <Instagram className="h-28 w-28 text-muted-foreground transition-colors group-hover:text-[#E1306C]" />
                                     <span>osadia.cta</span>
                                 </Link>
                             </Button>
