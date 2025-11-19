@@ -1,50 +1,43 @@
 
-"use client";
-
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "./ui/button";
+import { FaWhatsapp } from "react-icons/fa";
 import Link from "next/link";
-import { usePathname } from 'next/navigation';
-import { FaWhatsapp } from 'react-icons/fa';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
-export default function WhatsAppButton() {
-    const pathname = usePathname();
 
-    // No renderizar el botón en las páginas de administración
-    if (pathname.startsWith('/admin')) {
-        return null;
-    }
-
-    // El número de teléfono ahora se obtiene de una variable de entorno
-    const phoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
-    const message = "¡Hola! Estoy interesado en uno de sus productos.";
-
-    // No renderizar el botón si no hay número de teléfono configurado
-    if (!phoneNumber) {
-        return null;
-    }
-
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+const WhatsAppButton = () => {
+    const defaultMessage = "¡Hola! Estoy interesado en uno de sus productos.";
+    const encodedMessage = encodeURIComponent(defaultMessage);
+    const whatsappUrl = `https://wa.me/5491122334455?text=${encodedMessage}`;
 
     return (
-        <TooltipProvider delayDuration={100}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button
-                        asChild
-                        variant="default"
-                        className="fixed bottom-6 right-6 h-10 w-10 rounded-full shadow-lg z-50 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center"
-                    >
-                        <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                            <FaWhatsapp size={40}/> 
-                            <span className="sr-only">Contactar por WhatsApp</span>
-                        </Link>
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="bg-foreground text-background">
-                    <p>¿Necesitas ayuda?</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+        <div className="hidden md:block">
+            <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            asChild
+                            variant="default"
+                            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center [&_svg]:h-8 [&_svg]:w-8"
+                        >
+                            <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                <FaWhatsapp /> 
+                                <span className="sr-only">Contactar por WhatsApp</span>
+                            </Link>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="bg-foreground text-background">
+                        <p>¿Necesitas ayuda? ¡Contáctanos!</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        </div>
     );
-}
+};
+
+export default WhatsAppButton;
