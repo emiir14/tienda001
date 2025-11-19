@@ -87,7 +87,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                 <ScrollArea className="h-48 w-full rounded-md border">
                     <Accordion type="multiple" className="w-full">
                         {groupedCategories.map(parent => (
-                             <AccordionItem value={parent.id} key={parent.id}>
+                             <AccordionItem value={String(parent.id)} key={parent.id}>
                                 <AccordionTrigger className="px-4 font-semibold">{parent.name}</AccordionTrigger>
                                 <AccordionContent>
                                     <div className="pl-8 pr-4 space-y-3 py-2">
@@ -96,7 +96,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                                                 <Checkbox
                                                     id={`category-${child.id}`}
                                                     name="categoryIds"
-                                                    value={child.id}
+                                                    value={String(child.id)}
                                                     defaultChecked={(product?.categoryIds ?? []).includes(child.id)}
                                                 />
                                                 <Label htmlFor={`category-${child.id}`} className="font-normal">{child.name}</Label>
@@ -106,7 +106,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                                                  <Checkbox
                                                     id={`category-${parent.id}`}
                                                     name="categoryIds"
-                                                    value={parent.id}
+                                                    value={String(parent.id)}
                                                     defaultChecked={(product?.categoryIds ?? []).includes(parent.id)}
                                                 />
                                                 <Label htmlFor={`category-${parent.id}`} className="font-normal">Asignar a categoría principal</Label>
