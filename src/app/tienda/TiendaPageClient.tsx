@@ -226,8 +226,8 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
             </p>
             {offerProducts.length > 0 ? (
                 <div className="flex flex-col items-center gap-6 mt-8">
-                    <div className="flex justify-center">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="flex justify-center w-full">
+                        <div className="grid w-full max-w-5xl grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             {offersToShow.map((product) => <ProductCard key={product.id} product={product} />)}
                         </div>
                     </div>
