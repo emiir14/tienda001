@@ -199,7 +199,14 @@ export function ProductsTab({ products, isLoading, onEdit, onDelete, onAdd, onEx
                                                 />
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground text-center">{product.id}</TableCell>
-                                            <TableCell className="font-medium max-w-xs truncate" title={product.name}>{product.name}</TableCell>
+                                            <TableCell className="font-medium max-w-xs">
+                                                <div className="flex flex-col">
+                                                    <span className="truncate" title={product.name}>{product.name}</span>
+                                                    {product.sku && (
+                                                        <span className="text-xs text-muted-foreground">{product.sku}</span>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="text-center">
                                                 {product.salePrice ? (
                                                     <div className="flex flex-col items-center">

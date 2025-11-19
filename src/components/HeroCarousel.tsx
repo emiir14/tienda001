@@ -41,14 +41,6 @@ export function HeroCarousel() {
         buttonText: "Comprar Ahora",
         buttonLink: "/tienda",
         aiHint: "perfume on sand",
-    },
-    {
-        image: "https://png.pngtree.com/thumb_back/fh260/back_our/20190621/ourmid/pngtree-taobao-perfume-promotes-fresh-blue-banner-image_175994.jpg",
-        title: "Descubre tu Esencia",
-        description: "Nuevas fragancias que capturan la frescura del océano y la calidez del verano.",
-        buttonText: "Explorar Novedades",
-        buttonLink: "/tienda",
-        aiHint: "blue perfume ad",
     }
   ];
 

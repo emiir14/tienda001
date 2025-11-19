@@ -16,8 +16,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { GlobalSearch } from '@/components/GlobalSearch';
 
 const ITEMS_PER_PAGE = 12;
-const OFFERS_INITIAL_COUNT = 3;
-const OFFERS_PER_PAGE = 9;
 
 // Helper function to build search query
 const buildSearchQuery = (params: URLSearchParams) => {
@@ -132,10 +130,10 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const activeMaxPrice = searchParams.get('maxPrice') || '';
 
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
-  const [visibleOfferCount, setVisibleOfferCount] = useState(OFFERS_INITIAL_COUNT);
   const [pendingMinPrice, setPendingMinPrice] = useState<string>(activeMinPrice);
   const [pendingMaxPrice, setPendingMaxPrice] = useState<string>(activeMaxPrice);
   const [accordionValue, setAccordionValue] = useState<string | undefined>();
+  const [showMoreOffers, setShowMoreOffers] = useState(false);
 
   useEffect(() => {
     setAccordionValue(isMobile ? undefined : 'categories');
@@ -208,14 +206,10 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   }, [allProducts, searchQuery, activeCategory, activeMinPrice, activeMaxPrice, allCategories]);
 
   const itemsToShow = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
-  const offersToShow = useMemo(() => offerProducts.slice(0, visibleOfferCount), [offerProducts, visibleOfferCount]);
+  const offersToShow = useMemo(() => offerProducts.slice(0, showMoreOffers ? 12 : 3), [offerProducts, showMoreOffers]);
 
   const handleVerMas = () => {
       setVisibleCount(prevCount => prevCount + ITEMS_PER_PAGE);
-  };
-  
-  const handleVerMasOfertas = () => {
-      setVisibleOfferCount(prevCount => prevCount + OFFERS_PER_PAGE);
   };
 
   return (
@@ -231,16 +225,15 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
                 ¡Aprovecha nuestros descuentos exclusivos por tiempo limitado!
             </p>
             {offerProducts.length > 0 ? (
-                <div className="flex flex-col items-center gap-8 mt-8">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
-                        {offersToShow.map((product) => (
-                            <ProductCard key={product.id} product={product} />
-                        ))}
+                <div className="flex flex-col items-center gap-6 mt-8">
+                    <div className="flex justify-center w-full">
+                        <div className="grid w-full max-w-5xl grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {offersToShow.map((product) => <ProductCard key={product.id} product={product} />)}
+                        </div>
                     </div>
-                    {visibleOfferCount < offerProducts.length && (
-                        <Button onClick={handleVerMasOfertas} size='lg' className='gap-2 px-8'>
-                            Ver más Ofertas
-                            <ChevronDown className='w-5 h-5'/>
+                    {offerProducts.length > 3 && !showMoreOffers && (
+                        <Button onClick={() => setShowMoreOffers(true)} variant="outline" className="gap-2">
+                            Ver más ofertas <ChevronDown className="w-4 h-4" />
                         </Button>
                     )}
                 </div>

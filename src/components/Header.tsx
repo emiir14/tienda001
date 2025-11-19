@@ -57,6 +57,8 @@ export default function Header() {
     { href: '/pages/como-comprar', label: 'Cómo Comprar' },
   ];
 
+  const isTiendaPage = pathname === '/tienda';
+
   return (
     <header className={cn(
         "sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60 transition-all duration-300",
@@ -94,7 +96,7 @@ export default function Header() {
               </Sheet>
           </div>
           {!pathname.startsWith('/admin') && (
-            <div className="hidden md:block w-full max-w-sm">
+            <div className={cn("hidden w-full max-w-sm", isTiendaPage ? "lg:block" : "md:block")}>
               <Suspense fallback={<Skeleton className="h-10 w-full" />}>
                 <GlobalSearch allProducts={products} />
               </Suspense>

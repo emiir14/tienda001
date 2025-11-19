@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -27,6 +28,36 @@ const FormError = ({ message }: { message?: string }) => {
 export function ProductForm({ product, formId, errors, categories }: { product?: Product, formId: string, errors: FieldErrors, categories: Category[] }) {
     const [startDate, setStartDate] = useState<Date | undefined>(product?.offerStartDate ? new Date(product.offerStartDate) : undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(product?.offerEndDate ? new Date(product.offerEndDate) : undefined);
+
+    const groupedCategories = useMemo(() => {
+        const parentCategories = categories.filter(c => !c.parentId);
+        const childCategories = categories.filter(c => c.parentId);
+
+        return parentCategories.map(parent => ({
+            ...parent,
+            children: childCategories.filter(child => child.parentId === parent.id)
+        }));
+    }, [categories]);
+
+    const defaultOpenAccordionItems = useMemo(() => {
+        if (!product?.categoryIds) return [];
+
+        const selectedCategoryIds = new Set(product.categoryIds);
+        const openItems = new Set<string>();
+
+        groupedCategories.forEach(parent => {
+            if (selectedCategoryIds.has(parent.id)) {
+                openItems.add(String(parent.id));
+            }
+            parent.children.forEach(child => {
+                if (selectedCategoryIds.has(child.id)) {
+                    openItems.add(String(parent.id));
+                }
+            });
+        });
+
+        return Array.from(openItems);
+    }, [product?.categoryIds, groupedCategories]);
 
     const HiddenDateInputs = () => (
         <>
@@ -50,7 +81,9 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                     <Label>Inicio de Oferta</Label>
                      <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground", errors.offerStartDate && "border-destructive")}>\n                                    <CalendarIcon className="mr-2 h-4 w-4" />{startDate ? format(startDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}\n                                </Button>
+                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground", errors.offerStartDate && "border-destructive")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />{startDate ? format(startDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
+                                </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus fromDate={new Date()} /></PopoverContent>
                     </Popover>
@@ -60,7 +93,9 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                     <Label>Fin de Oferta</Label>
                      <Popover>
                         <PopoverTrigger asChild>
-                             <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground", errors.offerEndDate && "border-destructive")}>\n                                    <CalendarIcon className="mr-2 h-4 w-4" />{endDate ? format(endDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}\n                                </Button>
+                             <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground", errors.offerEndDate && "border-destructive")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />{endDate ? format(endDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
+                                </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus fromDate={startDate || new Date()} /></PopoverContent>
                     </Popover>
@@ -69,20 +104,54 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
             </div>
             <div>
                 <Label>Categorías *</Label>
-                <ScrollArea className="h-32 w-full rounded-md border p-2">
-                    <div className="space-y-2">
-                        {categories.map(category => (
-                            <div key={category.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={`category-${category.id}`}
-                                    name="categoryIds"
-                                    value={category.id}
-                                    defaultChecked={(product?.categoryIds ?? []).includes(category.id)}
-                                />
-                                <Label htmlFor={`category-${category.id}`}>{category.name}</Label>
-                            </div>
+                <ScrollArea className="h-48 w-full rounded-md border">
+                    <Accordion type="multiple" className="w-full" defaultValue={defaultOpenAccordionItems}>
+                        {groupedCategories.map(parent => (
+                             <AccordionItem value={String(parent.id)} key={parent.id}>
+                                <AccordionTrigger className="px-4 font-semibold">{parent.name}</AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="pl-8 pr-4 space-y-3 py-2">
+                                        {parent.children.length > 0 
+                                        ? (
+                                            <>
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`category-${parent.id}`}
+                                                        name="categoryIds"
+                                                        value={String(parent.id)}
+                                                        defaultChecked={(product?.categoryIds ?? []).includes(parent.id)}
+                                                    />
+                                                    <Label htmlFor={`category-${parent.id}`} className="font-normal italic text-muted-foreground">Asignar a "{parent.name}" como principal</Label>
+                                                </div>
+                                                {parent.children.map(child => (
+                                                    <div key={child.id} className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id={`category-${child.id}`}
+                                                            name="categoryIds"
+                                                            value={String(child.id)}
+                                                            defaultChecked={(product?.categoryIds ?? []).includes(child.id)}
+                                                        />
+                                                        <Label htmlFor={`category-${child.id}`} className="font-normal">{child.name}</Label>
+                                                    </div>
+                                                ))}
+                                            </>
+                                        ) 
+                                        : (
+                                            <div className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                    id={`category-${parent.id}`}
+                                                    name="categoryIds"
+                                                    value={String(parent.id)}
+                                                    defaultChecked={(product?.categoryIds ?? []).includes(parent.id)}
+                                                />
+                                                <Label htmlFor={`category-${parent.id}`} className="font-normal">Asignar a categoría principal</Label>
+                                            </div>
+                                        )}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
                         ))}
-                    </div>
+                    </Accordion>
                 </ScrollArea>
                 <FormError message={errors.categoryIds?.[0]} />
             </div>
