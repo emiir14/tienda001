@@ -10,7 +10,10 @@ import { LayoutClient } from '@/components/LayoutClient'; // Importamos el nuevo
 // El layout principal es un Componente de Servidor.
 // Aquí se define la metadata global..
 export const metadata: Metadata = {
-  title: 'Joya - Elegancia Atemporal',
+  title: {
+    default: 'Osadía Joyas',
+    template: `%s | Osadía Joyas`,
+  },
   description: 'Una simple tienda de e-commerce con recomendaciones de IA.',
 };
 
