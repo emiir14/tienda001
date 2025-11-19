@@ -36,7 +36,6 @@ const whyChooseUsFeatures = [
 export default async function Home() {
     const products: Product[] = await getProducts();
     const featuredProducts = products.filter(p => p.featured).slice(0, 8);
-    const specialOffers = products.filter(p => p.salePrice).slice(0, 5); // 5 productos en oferta
 
     return (
         <div className="space-y-16">
@@ -65,25 +64,6 @@ export default async function Home() {
                         </div>
                     )}
                 </section>
-
-                {specialOffers.length > 0 && (
-                    <>
-                        <Separator className="w-1/2 mx-auto my-8" />
-                        <section id="special-offers" className="space-y-8">
-                            <div className="text-center">
-                                <h2 className="text-4xl font-headline font-bold">Ofertas Especiales</h2>
-                                <p className="mt-2 text-muted-foreground">¡Aprovecha nuestros descuentos exclusivos por tiempo limitado!</p>
-                            </div>
-                            <div className="flex justify-center">
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                  {specialOffers.map((product) => (
-                                      <ProductCard key={product.id} product={product} />
-                                  ))}
-                              </div>
-                            </div>
-                        </section>
-                    </>
-                )}
 
                 {/* Ver Mas Button */}
                 <div className="text-center mt-12">

@@ -133,6 +133,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   const [pendingMinPrice, setPendingMinPrice] = useState<string>(activeMinPrice);
   const [pendingMaxPrice, setPendingMaxPrice] = useState<string>(activeMaxPrice);
   const [accordionValue, setAccordionValue] = useState<string | undefined>();
+  const [showMoreOffers, setShowMoreOffers] = useState(false);
 
   useEffect(() => {
     setAccordionValue(isMobile ? undefined : 'categories');
@@ -205,6 +206,7 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
   }, [allProducts, searchQuery, activeCategory, activeMinPrice, activeMaxPrice, allCategories]);
 
   const itemsToShow = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
+  const offersToShow = useMemo(() => offerProducts.slice(0, showMoreOffers ? 12 : 3), [offerProducts, showMoreOffers]);
 
   const handleVerMas = () => {
       setVisibleCount(prevCount => prevCount + ITEMS_PER_PAGE);
@@ -222,7 +224,22 @@ export function TiendaPageClient({ allProducts, allCategories, offerProducts }: 
             <p className="mt-2 max-w-2xl mx-auto text-lg text-muted-foreground">
                 ¡Aprovecha nuestros descuentos exclusivos por tiempo limitado!
             </p>
-            {offerProducts.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">{offerProducts.slice(0, 3).map((product) => <ProductCard key={product.id} product={product} />)}</div> : <p className="mt-8 text-muted-foreground">No hay ofertas especiales en este momento.</p>}
+            {offerProducts.length > 0 ? (
+                <div className="flex flex-col items-center gap-6 mt-8">
+                    <div className="flex justify-center">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {offersToShow.map((product) => <ProductCard key={product.id} product={product} />)}
+                        </div>
+                    </div>
+                    {offerProducts.length > 3 && !showMoreOffers && (
+                        <Button onClick={() => setShowMoreOffers(true)} variant="outline" className="gap-2">
+                            Ver más ofertas <ChevronDown className="w-4 h-4" />
+                        </Button>
+                    )}
+                </div>
+            ) : (
+                <p className="mt-8 text-muted-foreground">No hay ofertas especiales en este momento.</p>
+            )}
         </section>
         <Separator />
         <section id="products-grid" className="scroll-mt-24">
