@@ -91,10 +91,10 @@ export default async function Home() {
                     <div className='space-y-6'>
                         <h2 className="text-4xl font-headline font-bold">Sobre Nosotros</h2>
                         <p className="text-muted-foreground leading-relaxed text-lg">
-                            En Joya, creemos que cada pieza de joyería es una forma de arte y una expresión personal. Nacimos de la pasión por el diseño y la artesanía, creando joyas que no solo adornan, sino que también inspiran.
+                            En Osadía entendemos la joyería como un lenguaje visual que transmite identidad y estilo. Nuestra marca nace de la unión entre diseño contemporáneo y una mirada minimalista, creando piezas que equilibran simplicidad, precisión y una fuerte carga simbólica.
                         </p>
                         <p className="text-muted-foreground leading-relaxed text-lg">
-                            Utilizamos materiales de la más alta calidad y técnicas tradicionales para dar vida a diseños contemporáneos y atemporales. Cada creación es un tesoro destinado a ser amado por generaciones.
+                            Trabajamos con materiales de alta calidad para lograr joyas versátiles y modernas. Cada pieza está pensada para acompañar distintos momentos y proyectar una identidad clara y elegante. En Osadía, cada diseño inspira y perdura.
                         </p>
                         <div className='flex flex-wrap gap-4 pt-4'>
                              <Button asChild className="shadow-md" size="lg">
