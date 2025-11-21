@@ -22,6 +22,9 @@ export function CartClient() {
   const [isLoadingCoupon, setIsLoadingCoupon] = useState(false);
   const { toast } = useToast();
 
+  const originalSubtotal = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+  const totalDiscount = originalSubtotal - totalPrice;
+
   const handleApplyCoupon = async () => {
       if (!couponCode) return;
       setIsLoadingCoupon(true);
@@ -187,18 +190,22 @@ export function CartClient() {
                 )}
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>${subtotal.toLocaleString('es-AR')}</span>
+                  <span>${originalSubtotal.toLocaleString('es-AR')}</span>
                 </div>
-                 {appliedCoupon && (
-                    <div className="flex justify-between items-center text-primary">
-                        <div className="flex items-center gap-2">
-                            <Ticket className="h-4 w-4"/>
-                            <span>Cupón: {appliedCoupon.code}</span>
-                            <button onClick={removeCoupon} className="text-destructive"><XCircle className="h-4 w-4"/></button>
-                        </div>
-                        <span>-${discount.toLocaleString('es-AR')}</span>
-                    </div>
-                 )}
+                {totalDiscount > 0 && (
+                  <div className="flex justify-between items-center text-primary">
+                      <div className="flex items-center gap-2">
+                          <span>Descuento</span>
+                          {appliedCoupon && (
+                            <div className='flex items-center gap-1 text-xs'>
+                              (<Ticket className="h-3 w-3"/> {appliedCoupon.code}
+                              <button onClick={removeCoupon} className="text-destructive"><XCircle className="h-3 w-3"/></button>)
+                            </div>
+                          )}
+                      </div>
+                      <span>-${totalDiscount.toLocaleString('es-AR')}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Envío</span>
                   <span>A coordinar</span>
@@ -211,7 +218,7 @@ export function CartClient() {
               </CardContent>
               <CardFooter className="flex-col items-stretch">
                 <Button onClick={handleCheckout} size="lg" className="w-full">
-                  Proceder al Pago
+                  Comprar
                 </Button>
                 <Button asChild variant="outline" size="lg" className="w-full mt-2">
                     <Link href="/tienda">
