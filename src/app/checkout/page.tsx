@@ -69,7 +69,7 @@ function CheckoutForm() {
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState('shipping');
 
-  // --- NUEVA LÓGICA DE CÁLCULO ---
+  // --- LÓGICA DE CÁLCULO CORREGIDA ---
   const { 
     originalSubtotal, 
     productDiscount, 
@@ -80,7 +80,16 @@ function CheckoutForm() {
   } = useMemo(() => {
     const originalSubtotal = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
     const productDiscount = originalSubtotal - subtotal;
-    const couponDiscountValue = appliedCoupon ? (subtotal * (appliedCoupon.discount / 100)) : 0;
+    
+    let couponDiscountValue = 0;
+    if (appliedCoupon) {
+      if (appliedCoupon.discountType === 'percentage') {
+        couponDiscountValue = subtotal * (appliedCoupon.discountValue / 100);
+      } else { // 'fixed'
+        couponDiscountValue = appliedCoupon.discountValue;
+      }
+    }
+
     const subtotalAfterCoupons = subtotal - couponDiscountValue;
     const isPayInStore = deliveryMethod === 'pay_in_store';
     const localPaymentDiscountValue = isPayInStore ? subtotalAfterCoupons * 0.20 : 0;
@@ -140,8 +149,6 @@ function CheckoutForm() {
         
         localStorage.setItem('pendingOrderId', String(orderResponse.orderId));
         
-        // Enviamos SÓLO el descuento del cupón a MP.
-        // El descuento de producto ya va incluido en el `salePrice` de cada item.
         const mpResponse = await fetch('/api/create-preference', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -175,7 +182,6 @@ function CheckoutForm() {
     );
   }
 
-  // --- NUEVO RENDERIZADO DEL RESUMEN ---
   const renderOrderSummary = () => {
     const hasProductDiscount = productDiscount > 0;
     
