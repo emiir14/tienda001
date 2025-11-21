@@ -39,7 +39,9 @@ export type Coupon = {
   minPurchaseAmount?: number | null;
 };
 
-export type OrderStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'shipped' | 'delivered' | 'refunded';
+export type DeliveryMethod = 'shipping' | 'pickup' | 'pay_in_store';
+
+export type OrderStatus = 'pending_payment' | 'awaiting_payment_in_store' | 'paid' | 'failed' | 'cancelled' | 'shipped' | 'delivered' | 'refunded';
 
 export type OrderData = {
     customerName: string;
@@ -51,9 +53,12 @@ export type OrderData = {
     couponCode?: string | null;
     discountAmount?: number;
     paymentId?: string | null;
-    shippingAddress: string;
-    shippingCity: string;
-    shippingPostalCode: string;
+    deliveryMethod: DeliveryMethod;
+    pickupName?: string | null;
+    pickupDni?: string | null;
+    shippingAddress?: string | null;
+    shippingCity?: string | null;
+    shippingPostalCode?: string | null;
 }
 
 export type Order = {
@@ -68,9 +73,12 @@ export type Order = {
   couponCode?: string | null;
   discountAmount?: number;
   paymentId?: string | null;
-  shippingAddress: string;
-  shippingCity: string;
-  shippingPostalCode: string;
+  deliveryMethod: DeliveryMethod;
+  pickupName?: string | null;
+  pickupDni?: string | null;
+  shippingAddress?: string | null;
+  shippingCity?: string | null;
+  shippingPostalCode?: string | null;
 };
 
 

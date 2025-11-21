@@ -52,12 +52,10 @@ export async function updateCategory(id: number, name: string): Promise<Category
 export async function deleteCategory(id: number): Promise<{ success: boolean; message?: string }> {
     try {
         const db = getDb();
-        // Check if category has children
         const children = await db`SELECT 1 FROM categories WHERE parent_id = ${id} LIMIT 1`;
         if (children.length > 0) {
             return { success: false, message: 'No se puede eliminar. La categoría tiene subcategorías asociadas.' };
         }
-        // Check if category is assigned to products
         const products = await db`SELECT 1 FROM product_categories WHERE category_id = ${id} LIMIT 1`;
         if (products.length > 0) {
             return { success: false, message: 'No se puede eliminar. La categoría está asignada a uno o más productos.' };
@@ -171,13 +169,27 @@ export async function createOrder(orderData: OrderData): Promise<{orderId?: numb
             const productResult = await db`SELECT stock, name FROM products WHERE id = ${item.product.id}`;
             if (productResult.length === 0) return { error: `Producto no encontrado: ${item.product.id}` };
             if (productResult[0].stock < item.quantity) {
-                return { error: `Stock insuficiente para \\\"${productResult[0].name}\\\".` };
+                return { error: `Stock insuficiente para \"${productResult[0].name}\".` };
             }
         }
-        const { customerName, customerEmail, customerPhone, total, items, couponCode, discountAmount, shippingAddress, shippingCity, shippingPostalCode } = orderData;
+        const { 
+            customerName, customerEmail, customerPhone, total, status, items, 
+            couponCode, discountAmount, deliveryMethod, pickupName, pickupDni,
+            shippingAddress, shippingCity, shippingPostalCode 
+        } = orderData;
+
         const orderResult = await db`
-            INSERT INTO orders (customer_name, customer_email, customer_phone, total, status, items, coupon_code, discount_amount, shipping_address, shipping_city, shipping_postal_code, created_at)
-            VALUES (${customerName}, ${customerEmail}, ${customerPhone}, ${total}, 'pending', ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
+            INSERT INTO orders (
+                customer_name, customer_email, customer_phone, total, status, items, 
+                coupon_code, discount_amount, delivery_method, pickup_name, pickup_dni,
+                shipping_address, shipping_city, shipping_postal_code, created_at
+            )
+            VALUES (
+                ${customerName}, ${customerEmail}, ${customerPhone}, ${total}, ${status}, 
+                ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${deliveryMethod},
+                ${pickupName}, ${pickupDni}, ${shippingAddress}, ${shippingCity}, 
+                ${shippingPostalCode}, ${new Date().toISOString()}
+            )
             RETURNING id;
         `;
         return { orderId: orderResult[0].id };
@@ -234,6 +246,9 @@ function mapOrderFromDb(row: any): Order {
         couponCode: row.coupon_code,
         discountAmount: row.discount_amount ? parseFloat(row.discount_amount) : undefined,
         paymentId: row.payment_id || undefined,
+        deliveryMethod: row.delivery_method,
+        pickupName: row.pickup_name,
+        pickupDni: row.pickup_dni,
         shippingAddress: row.shipping_address,
         shippingCity: row.shipping_city,
         shippingPostalCode: row.shipping_postal_code,
@@ -275,16 +290,17 @@ export async function createOrderFromWebhook(paymentData: any): Promise<{newOrde
         customerName: payer.first_name ? `${payer.first_name} ${payer.last_name}` : 'N/A',
         customerEmail: payer.email,
         total: transaction_amount,
-        status: 'pending',
+        status: 'paid' as OrderStatus, // Assuming payment is confirmed
         items: additional_info.items.map((item: any) => ({ product: { id: parseInt(item.id), name: item.title, price: parseFloat(item.unit_price) }, quantity: parseInt(item.quantity) })),
         shippingAddress: 'N/A', city: 'N/A', postalCode: 'N/A', // Simplified
-        paymentId: String(paymentId)
+        paymentId: String(paymentId),
+        deliveryMethod: 'shipping' as const, // Defaulting to shipping
     };
     try {
         const db = getDb();
         const orderResult = await db`
-            INSERT INTO orders (id, customer_name, customer_email, total, status, items, payment_id, shipping_address, shipping_city, shipping_postal_code, created_at)
-            VALUES (${external_reference}, ${orderData.customerName}, ${orderData.customerEmail}, ${orderData.total}, 'pending', ${JSON.stringify(orderData.items)}::jsonb, ${orderData.paymentId}, ${orderData.shippingAddress}, ${orderData.city}, ${orderData.postalCode}, ${new Date().toISOString()})
+            INSERT INTO orders (id, customer_name, customer_email, total, status, items, payment_id, delivery_method, shipping_address, shipping_city, shipping_postal_code, created_at)
+            VALUES (${external_reference}, ${orderData.customerName}, ${orderData.customerEmail}, ${orderData.total}, ${orderData.status}, ${JSON.stringify(orderData.items)}::jsonb, ${orderData.paymentId}, ${orderData.deliveryMethod}, ${orderData.shippingAddress}, 'N/A', 'N/A', ${new Date().toISOString()})
             ON CONFLICT (id) DO NOTHING RETURNING *;
         `;
         if (orderResult.length === 0) {
@@ -305,7 +321,7 @@ export async function getSalesMetrics(): Promise<SalesMetrics> {
         const revenueResult = await db`SELECT SUM(total) as totalRevenue, COUNT(*) as totalSales FROM orders WHERE status IN ('paid', 'delivered')`;
         const { totalrevenue, totalsales } = revenueResult[0];
         const productsResult = await db`
-            SELECT (item->'product'->>'id')::int as "productId", item->'product'->>'name\' as name, SUM((item->>\'quantity\')::int) as count
+            SELECT (item->'product'->>'id')::int as "productId", item->'product'->>'name' as name, SUM((item->>\'quantity\')::int) as count
             FROM orders, jsonb_array_elements(items) as item
             WHERE status IN ('paid', 'delivered')
             GROUP BY 1, 2 ORDER BY count DESC LIMIT 5;

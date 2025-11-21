@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
@@ -35,14 +35,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Download, ChevronRight, User, Mail, Phone, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown, ListFilter, Search } from 'lucide-react';
+import { Loader2, Download, ChevronRight, User, Mail, Phone, Home as HomeIcon, Wallet, Ticket, ChevronsUpDown, ArrowUp, ArrowDown, ListFilter, Search, Package, Store, HandCoins, Truck } from 'lucide-react';
 import { Pagination } from './Pagination';
 
 const ITEMS_PER_PAGE = 50;
 
-const orderStatuses: OrderStatus[] = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'failed', 'refunded'];
+const orderStatuses: OrderStatus[] = ['pending_payment', 'awaiting_payment_in_store', 'paid', 'shipped', 'delivered', 'cancelled', 'failed', 'refunded'];
+
 const statusLabels: Record<OrderStatus, string> = {
-    pending: 'Pendiente',
+    pending_payment: 'Pago Pendiente',
+    awaiting_payment_in_store: 'Esperando Pago en Local',
     paid: 'Abonado',
     shipped: 'Enviado',
     delivered: 'Entregado',
@@ -58,7 +60,8 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
     const getStatusClasses = (status: Order['status']) => {
         switch (status) {
             case 'delivered': return "bg-green-100 text-green-800 border-green-200";
-            case 'pending': return "bg-yellow-100 text-yellow-800 border-yellow-200";
+            case 'pending_payment':
+            case 'awaiting_payment_in_store': return "bg-yellow-100 text-yellow-800 border-yellow-200";
             case 'failed':
             case 'cancelled': return "bg-red-100 text-red-800 border-red-200";
             case 'paid': return "bg-blue-100 text-blue-800 border-blue-200";
@@ -83,6 +86,14 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
     const cancelStatusChange = () => {
         setPendingStatus(null);
     };
+    
+    const deliveryMethodLabels: Record<Order['deliveryMethod'], { label: string, icon: React.FC<any>}> = {
+      shipping: { label: 'Envío a domicilio', icon: Truck },
+      pickup: { label: 'Retiro en local', icon: Store },
+      pay_in_store: { label: 'Pago en local', icon: HandCoins },
+    };
+
+    const DeliveryMethodDisplay = deliveryMethodLabels[order.deliveryMethod];
 
     return (
         <React.Fragment>
@@ -120,10 +131,7 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                 <TableCell className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</TableCell>
                 <TableCell className="font-semibold cursor-pointer text-center" onClick={() => setIsOpen(!isOpen)}>${order.total.toLocaleString('es-AR')}</TableCell>
                 <TableCell>
-                    <Select
-                        value={order.status}
-                        onValueChange={handleStatusSelect}
-                    >
+                    <Select value={order.status} onValueChange={handleStatusSelect}>
                         <SelectTrigger className={cn("h-8 text-xs font-semibold", getStatusClasses(order.status))}>
                             <SelectValue />
                         </SelectTrigger>
@@ -167,10 +175,28 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                                         <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> <a href={`mailto:${order.customerEmail}`} className="text-primary hover:underline">{order.customerEmail}</a></div>
                                         <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> <span>{order.customerPhone || 'No disponible'}</span></div>
                                     </div>
-                                    <h4 className="font-semibold text-lg">Envío</h4>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex items-start gap-2"><HomeIcon className="h-4 w-4 text-muted-foreground mt-1"/><span>{order.shippingAddress}, {order.shippingCity}, {order.shippingPostalCode}</span></div>
-                                    </div>
+                                    
+                                    <h4 className="font-semibold text-lg flex items-center gap-2">
+                                      {DeliveryMethodDisplay && <DeliveryMethodDisplay.icon className="h-5 w-5" />} 
+                                      Detalles de Entrega
+                                    </h4>
+                                    <p className='text-sm font-bold text-primary'>{DeliveryMethodDisplay.label}</p>
+
+                                    {(order.deliveryMethod === 'pickup' || order.deliveryMethod === 'pay_in_store') && (
+                                        <div className="space-y-2 text-sm border-l-2 pl-3">
+                                          <p className='font-medium'>Retira:</p>
+                                          <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground"/><span>{order.pickupName}</span></div>
+                                          <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground"/><span>DNI: {order.pickupDni}</span></div>
+                                        </div>
+                                    )}
+                                    
+                                    {order.deliveryMethod === 'shipping' && (
+                                        <div className="space-y-2 text-sm border-l-2 pl-3">
+                                          <p className='font-medium'>Dirección de envío:</p>
+                                          <div className="flex items-start gap-2"><HomeIcon className="h-4 w-4 text-muted-foreground mt-1"/><span>{order.shippingAddress}, {order.shippingCity}, {order.shippingPostalCode}</span></div>
+                                        </div>
+                                    )}
+
                                     <h4 className="font-semibold text-lg">Pago</h4>
                                     <div className="space-y-2 text-sm">
                                         <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" /><span>ID de Pago: <span className="font-mono">{order.paymentId || 'N/A'}</span></span></div>
@@ -207,11 +233,14 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                 order.customerPhone || '',
                 order.total.toString(),
                 format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es }),
-                order.shippingAddress,
-                order.shippingCity,
-                order.shippingPostalCode,
+                order.deliveryMethod,
+                order.shippingAddress || '',
+                order.shippingCity || '',
+                order.shippingPostalCode || '',
                 order.paymentId || '',
                 order.couponCode || '',
+                order.pickupName || '',
+                order.pickupDni || '',
                 ...order.items.map(item => item.product.name)
             ];
             return fieldsToSearch.some(field => field.toLowerCase().includes(lowercasedQuery));
@@ -340,7 +369,7 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                                         <TableHead>{renderHeaderButton('customerName', 'Cliente')}</TableHead>
                                         <TableHead>{renderHeaderButton('createdAt', 'Fecha')}</TableHead>
                                         <TableHead className="text-center">{renderHeaderButton('total', 'Total', 'w-full flex justify-center items-center')}</TableHead>
-                                        <TableHead className="w-[180px]">
+                                        <TableHead className="w-[230px]">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" className="px-2 w-full justify-start">
