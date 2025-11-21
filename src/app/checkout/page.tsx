@@ -42,6 +42,9 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
+
+  const originalSubtotal = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+  const totalDiscount = originalSubtotal - totalPrice;
   
   const form = useForm<ShippingFormData>({
     resolver: zodResolver(shippingSchema),
@@ -181,15 +184,17 @@ export default function CheckoutPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <p className="text-muted-foreground">Subtotal</p>
-                <p>${subtotal.toLocaleString('es-AR')}</p>
+                <p>${originalSubtotal.toLocaleString('es-AR')}</p>
               </div>
-              {appliedCoupon && (
+              {totalDiscount > 0 && (
                 <div className="flex justify-between text-primary">
                   <div className="flex items-center gap-2">
-                    <Ticket className="h-4 w-4"/>
-                    <span>Cupón: {appliedCoupon.code}</span>
+                    <span>Descuento</span>
+                    {appliedCoupon && (
+                      <span className='text-xs font-medium'>({appliedCoupon.code})</span>
+                    )}
                   </div>
-                  <span>-${discount.toLocaleString('es-AR')}</span>
+                  <span>-${totalDiscount.toLocaleString('es-AR')}</span>
                 </div>
               )}
               <div className="flex justify-between">
