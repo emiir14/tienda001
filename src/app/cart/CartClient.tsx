@@ -69,7 +69,6 @@ export function CartClient() {
   };
 
   const handleCheckout = () => {
-    // Check for items over stock first
     const itemOverStock = cartItems.find(item => item.quantity > item.product.stock);
     if (itemOverStock) {
       toast({
@@ -77,7 +76,7 @@ export function CartClient() {
         description: `Disculpe las molestias. Para "${itemOverStock.product.name}", la cantidad ingresada supera el stock disponible.`,
         variant: "destructive",
       });
-      return; // Stop the checkout process
+      return;
     }
 
     const invalidItems = cartItems.filter(item => item.quantity <= 0);
@@ -98,16 +97,6 @@ export function CartClient() {
         });
         return;
     }
-
-    const checkoutState = {
-        cartItems: cartItems,
-        appliedCoupon: appliedCoupon,
-        discount: discount,
-        totalPrice: totalPrice,
-        subtotal: subtotal
-    };
-    localStorage.setItem('checkoutState', JSON.stringify(checkoutState));
-    
     router.push('/checkout');
   };
 
@@ -141,7 +130,16 @@ export function CartClient() {
                 </div>
                 <div className="flex-1 ml-3">
                   <Link href={`/products/${product.id}`} className="font-semibold hover:text-primary text-base leading-tight">{product.name}</Link>
-                  <p className="text-sm text-muted-foreground mt-1">${(product.salePrice ?? product.price).toLocaleString('es-AR')}</p>
+                  {/* --- INICIO DE LA MODIFICACIÓN -- */}
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <p className="font-semibold text-primary">${(product.salePrice ?? product.price).toLocaleString('es-AR')}</p>
+                    {product.salePrice && product.salePrice < product.price && (
+                      <p className="text-sm text-muted-foreground line-through">
+                        ${product.price.toLocaleString('es-AR')}
+                      </p>
+                    )}
+                  </div>
+                  {/* --- FIN DE LA MODIFICACIÓN -- */}
                 </div>
                 <div className="flex items-center gap-2 ml-2">
                   <Input

@@ -69,7 +69,6 @@ function CheckoutForm() {
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState('shipping');
 
-  // --- LÓGICA DE CÁLCULO CORREGIDA ---
   const { 
     originalSubtotal, 
     productDiscount, 
@@ -85,7 +84,7 @@ function CheckoutForm() {
     if (appliedCoupon) {
       if (appliedCoupon.discountType === 'percentage') {
         couponDiscountValue = subtotal * (appliedCoupon.discountValue / 100);
-      } else { // 'fixed'
+      } else { 
         couponDiscountValue = appliedCoupon.discountValue;
       }
     }
@@ -97,12 +96,8 @@ function CheckoutForm() {
     const totalDiscount = productDiscount + couponDiscountValue + localPaymentDiscountValue;
 
     return {
-      originalSubtotal,
-      productDiscount,
-      couponDiscount: couponDiscountValue,
-      localPaymentDiscount: localPaymentDiscountValue,
-      finalTotalPrice,
-      totalDiscount
+      originalSubtotal, productDiscount, couponDiscount: couponDiscountValue,
+      localPaymentDiscount: localPaymentDiscountValue, finalTotalPrice, totalDiscount
     };
   }, [cartItems, subtotal, appliedCoupon, deliveryMethod]);
 
@@ -122,12 +117,24 @@ function CheckoutForm() {
     try {
       if (cartCount === 0) throw new Error("El carrito está vacío.");
 
+      // --- INICIO DE LA TRANSFORMACIÓN ---
+      // Mapeamos los CartItems a OrderItems para "congelar" el precio.
+      const orderItems = cartItems.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        image: item.product.images[0] ?? '',
+        quantity: item.quantity,
+        priceAtPurchase: item.product.salePrice ?? item.product.price,
+        originalPrice: (item.product.salePrice && item.product.salePrice < item.product.price) ? item.product.price : null,
+      }));
+      // --- FIN DE LA TRANSFORMACIÓN ---
+
       const orderData = {
         customerName: values.name,
         customerEmail: values.email,
         customerPhone: values.phone,
         total: finalTotalPrice,
-        items: cartItems,
+        items: orderItems, // <-- Se usan los nuevos items con precio congelado
         couponCode: appliedCoupon?.code,
         discountAmount: totalDiscount,
         deliveryMethod: deliveryMethod as DeliveryMethod,
@@ -184,7 +191,6 @@ function CheckoutForm() {
 
   const renderOrderSummary = () => {
     const hasProductDiscount = productDiscount > 0;
-    
     return (
       <div className="lg:col-span-1">
         <div className="sticky top-24">
@@ -283,104 +289,38 @@ function CheckoutForm() {
     <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto py-8">
       <div className="lg:col-span-1">
         <h1 className="text-3xl font-headline font-bold mb-6">Finalizar Compra</h1>
-        <div className="space-y-6">
+        <div className="space-y-6"> 
             <Card>
-              <CardHeader>
-                <CardTitle>1. Elige cómo quieres obtener tu pedido</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>1. Elige cómo quieres obtener tu pedido</CardTitle></CardHeader>
               <CardContent>
                 <RadioGroup value={deliveryMethod} onValueChange={setDeliveryMethod} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Label htmlFor="shipping" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
-                    <RadioGroupItem value="shipping" id="shipping" className="sr-only" />
-                    <Truck className="mb-3 h-6 w-6" />
-                    Envío a Domicilio
-                  </Label>
-                  <Label htmlFor="pickup" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
-                    <RadioGroupItem value="pickup" id="pickup" className="sr-only" />
-                    <Store className="mb-3 h-6 w-6" />
-                    Retiro en Local
-                  </Label>
-                  <Label htmlFor="pay_in_store" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary">
-                    <RadioGroupItem value="pay_in_store" id="pay_in_store" className="sr-only" />
-                    <HandCoins className="mb-3 h-6 w-6" />
-                    <span className="text-center">Pago en Local<br/>(20% OFF)</span>
-                  </Label>
+                  <Label htmlFor="shipping" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="shipping" id="shipping" className="sr-only" /><Truck className="mb-3 h-6 w-6" />Envío a Domicilio</Label>
+                  <Label htmlFor="pickup" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="pickup" id="pickup" className="sr-only" /><Store className="mb-3 h-6 w-6" />Retiro en Local</Label>
+                  <Label htmlFor="pay_in_store" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="pay_in_store" id="pay_in_store" className="sr-only" /><HandCoins className="mb-3 h-6 w-6" /><span className="text-center">Pago en Local<br/>(20% OFF)</span></Label>
                 </RadioGroup>
               </CardContent>
             </Card>
 
-            {showAdBlockerWarning && (
-                <Card className="border-yellow-200 bg-yellow-50 mb-6">
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-2 text-yellow-800">
-                            <AlertTriangle className="h-5 w-5" />
-                            <p className="text-sm">
-                                <strong>Importante:</strong> Detectamos un bloqueador de anuncios activo. 
-                                Por favor desactívalo para este sitio para asegurar que el sistema de pagos funcione correctamente.
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+            {showAdBlockerWarning && ( <Card className="border-yellow-200 bg-yellow-50 mb-6"><CardContent className="p-4"><div className="flex items-center gap-2 text-yellow-800"><AlertTriangle className="h-5 w-5" /><p className="text-sm"><strong>Importante:</strong> Detectamos un bloqueador de anuncios activo. Por favor desactívalo para este sitio para asegurar que el sistema de pagos funcione correctamente.</p></div></CardContent></Card> )}
             
             {isLoading ? (
-                <div className="flex flex-col justify-center items-center h-96 gap-4">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Procesando tu orden...</p>
-                </div>
+                <div className="flex flex-col justify-center items-center h-96 gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary" /><p className="text-muted-foreground">Procesando tu orden...</p></div>
             ) : (
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleCheckoutSubmit)} className="space-y-6">
                 <Card>
                     <CardHeader><CardTitle>2. Completa tus datos de contacto</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <FormField control={form.control} name="name" render={({ field }) => (
-                            <FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl><FormMessage /></FormItem>
-                        )}/>
+                        <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl><FormMessage /></FormItem> )}/>
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="email" render={({ field }) => (
-                                <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="phone" render={({ field }) => (
-                                <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input type="tel" {...field} placeholder="1122334455" /></FormControl><FormMessage /></FormItem>
-                            )}/>
+                            <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl><FormMessage /></FormItem> )}/>
+                            <FormField control={form.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input type="tel" {...field} placeholder="1122334455" /></FormControl><FormMessage /></FormItem> )}/>
                         </div>
                     </CardContent>
                 </Card>
 
-                {deliveryMethod === 'shipping' && (
-                    <Card>
-                        <CardHeader><CardTitle>3. Información de Envío</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <FormField control={form.control} name="address" render={({ field }) => (
-                                <FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} placeholder="Av. Corrientes 1234" /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="city" render={({ field }) => (
-                                    <FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="postalCode" render={({ field }) => (
-                                    <FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} placeholder="1001" /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {(deliveryMethod === 'pickup' || deliveryMethod === 'pay_in_store') && (
-                    <Card>
-                        <CardHeader><CardTitle>3. Información de Retiro</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                             <p className="text-sm text-muted-foreground">Por favor, completa los datos de la persona que va a retirar el pedido. El DNI será solicitado al momento de la entrega.</p>
-                            <FormField control={form.control} name="pickupName" render={({ field }) => (
-                                <FormItem><FormLabel>Nombre y Apellido de quien retira</FormLabel><FormControl><Input {...field} placeholder="El nombre que figura en el DNI" /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="pickupDNI" render={({ field }) => (
-                                <FormItem><FormLabel>DNI de quien retira</FormLabel><FormControl><Input {...field} placeholder="Sin puntos ni espacios" /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                        </CardContent>
-                    </Card>
-                )}
+                {deliveryMethod === 'shipping' && ( <Card><CardHeader><CardTitle>3. Información de Envío</CardTitle></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} placeholder="Av. Corrientes 1234" /></FormControl><FormMessage /></FormItem> )}/><div className="grid grid-cols-2 gap-4"><FormField control={form.control} name="city" render={({ field }) => ( <FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl><FormMessage /></FormItem> )}/><FormField control={form.control} name="postalCode" render={({ field }) => ( <FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} placeholder="1001" /></FormControl><FormMessage /></FormItem> )}/></div></CardContent></Card> )}
+                {(deliveryMethod === 'pickup' || deliveryMethod === 'pay_in_store') && ( <Card><CardHeader><CardTitle>3. Información de Retiro</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">Por favor, completa los datos de la persona que va a retirar el pedido. El DNI será solicitado al momento de la entrega.</p><FormField control={form.control} name="pickupName" render={({ field }) => ( <FormItem><FormLabel>Nombre y Apellido de quien retira</FormLabel><FormControl><Input {...field} placeholder="El nombre que figura en el DNI" /></FormControl><FormMessage /></FormItem> )}/><FormField control={form.control} name="pickupDNI" render={({ field }) => ( <FormItem><FormLabel>DNI de quien retira</FormLabel><FormControl><Input {...field} placeholder="Sin puntos ni espacios" /></FormControl><FormMessage /></FormItem> )}/></CardContent></Card> )}
 
                 <Button type="submit" size="lg" className="w-full" disabled={isLoading}>{getButtonText()}</Button>
                 </form>
@@ -400,4 +340,3 @@ export default function CheckoutPage() {
         </Suspense>
     )
 }
-

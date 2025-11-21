@@ -1,4 +1,15 @@
 
+// --- DEFINICIÓN DE NUEVA ESTRUCTURA --- //
+
+export type OrderItem = {
+  productId: number;
+  name: string;
+  image: string; // Guardamos solo la URL de la imagen principal
+  quantity: number;
+  priceAtPurchase: number; // El precio que el cliente pagó por unidad (puede ser el de oferta)
+  originalPrice: number | null; // El precio original si había una oferta, para el tachado
+};
+
 export type Category = {
   id: number;
   name: string;
@@ -43,13 +54,16 @@ export type DeliveryMethod = 'shipping' | 'pickup' | 'pay_in_store';
 
 export type OrderStatus = 'pending_payment' | 'awaiting_payment_in_store' | 'paid' | 'failed' | 'cancelled' | 'shipped' | 'delivered' | 'refunded';
 
+// --- ACTUALIZACIÓN DE TIPOS DE ORDEN ---
+// Ahora usan OrderItem[] en lugar de CartItem[]
+
 export type OrderData = {
     customerName: string;
     customerEmail: string;
     customerPhone?: string;
     total: number;
     status: OrderStatus;
-    items: CartItem[];
+    items: OrderItem[]; // <-- ACTUALIZADO
     couponCode?: string | null;
     discountAmount?: number;
     paymentId?: string | null;
@@ -69,7 +83,7 @@ export type Order = {
   total: number;
   status: OrderStatus;
   createdAt: Date;
-  items: CartItem[];
+  items: OrderItem[]; // <-- ACTUALIZADO
   couponCode?: string | null;
   discountAmount?: number;
   paymentId?: string | null;
