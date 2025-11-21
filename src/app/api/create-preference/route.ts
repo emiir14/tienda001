@@ -28,8 +28,14 @@ export async function POST(req: NextRequest) {
             description: item.product.description?.substring(0, 100) || ''
         }));
         
+        // --- CORRECCIÓN: Se elimina el tipo explícito para evitar el error de importación ---
+        const payment_methods = {
+            installments: 6 // Limita el número máximo de cuotas a 6
+        };
+        
         const preferenceData: any = {
             items: preferenceItems,
+            payment_methods: payment_methods, // Se añade la configuración de cuotas
             external_reference: String(orderId),
             back_urls: {
                 success: `${baseUrl}/checkout/success?orderId=${orderId}`,
