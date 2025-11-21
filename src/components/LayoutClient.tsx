@@ -8,9 +8,12 @@ import CartSidebar from "@/components/CartSidebar";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { Toaster } from "@/components/ui/toaster";
+import { usePathname } from "next/navigation";
 
 export function LayoutClient({ children }: { children: React.ReactNode }) {
     const { isSidebarOpen } = useCart();
+    const pathname = usePathname();
+    const isAdminPage = pathname.startsWith('/admin');
 
     return (
         // Usamos un Fragmento de React (<>) para tener múltiples elementos raíz
@@ -32,7 +35,7 @@ export function LayoutClient({ children }: { children: React.ReactNode }) {
             <ScrollToTopButton />
             
             {/* La lógica condicional para el botón de WhatsApp se mantiene */}
-            {!isSidebarOpen && <WhatsAppButton />}
+            {!isSidebarOpen && !isAdminPage && <WhatsAppButton />}
         </>
     );
 }
