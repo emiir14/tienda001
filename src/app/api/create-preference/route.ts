@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
-import { getOrderById, updateOrderStatus, deductStockForOrder } from '@/lib/data';
 
 const client = new MercadoPagoConfig({ 
     accessToken: process.env.MP_ACCESS_TOKEN!,
@@ -10,47 +9,44 @@ const client = new MercadoPagoConfig({
 
 export async function POST(req: NextRequest) {
     try {
-        console.log('---------------------------------------------------');
-        console.log('Received request to /api/create-preference');
-
         const body = await req.json();
-        console.log('Request Body:', JSON.stringify(body, null, 2));
-
         const { items, orderId, discountAmount, couponCode } = body;
 
         if (!items || !Array.isArray(items) || items.length === 0 || !orderId) {
-            console.error('Validation Error: Missing required data (items, orderId)');
             return NextResponse.json({ error: 'Missing required data' }, { status: 400 });
         }
+
+        // --- LA SOLUCIÓN --- //
+        // Construir la URL base a partir de la petición entrante
+        const requestUrl = new URL(req.url);
+        const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+        // ------------------ //
 
         const preferenceItems = items.map(item => ({
             id: item.product.id.toString(),
             title: item.product.name,
             quantity: item.quantity,
             unit_price: Number(item.product.salePrice ?? item.product.price),
-            currency_id: 'ARS', // <--- Dato crucial que probablemente faltaba
+            currency_id: 'ARS',
             description: item.product.description?.substring(0, 100) || ''
         }));
         
-        console.log('Mapped Preference Items:', JSON.stringify(preferenceItems, null, 2));
-
         const preferenceData: any = {
             items: preferenceItems,
             external_reference: String(orderId),
             back_urls: {
-                success: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payment-notification`,
-                failure: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/failure?orderId=${orderId}`,
-                pending: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payment-notification`,
+                success: `${baseUrl}/api/payment-notification`,
+                failure: `${baseUrl}/checkout/failure?orderId=${orderId}`,
+                pending: `${baseUrl}/api/payment-notification`,
             },
             auto_return: 'approved',
-            notification_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payment-notification?source=ipn&orderId=${orderId}`,
+            notification_url: `${baseUrl}/api/payment-notification?source=ipn&orderId=${orderId}`,
             metadata: {
                 orderId: orderId,
                 couponCode: couponCode,
             },
         };
         
-        // Aplicar descuento si existe
         if (discountAmount && discountAmount > 0) {
             preferenceData.items.push({
                 id: 'DISCOUNT',
@@ -61,22 +57,16 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        console.log('Final Preference Payload:', JSON.stringify(preferenceData, null, 2));
-
         const preference = new Preference(client);
         const result = await preference.create({ body: preferenceData });
-
-        console.log('Mercado Pago API Response:', result);
 
         return NextResponse.json({ init_point: result.init_point });
 
     } catch (error: any) {
-        console.error('***************************************************');
         console.error('Error creating Mercado Pago preference:', error);
         if (error.cause) {
              console.error('Error Cause:', error.cause);
         }
-        console.error('***************************************************');
         return NextResponse.json({ error: error.message || 'Failed to create preference' }, { status: 500 });
     }
 }
