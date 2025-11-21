@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import type { Product, Coupon, Category } from '@/lib/types';
+import { ImageUploader } from './ImageUploader'; // Import the new component
 
 type FieldErrors = Record<string, string[] | undefined>;
 
@@ -150,8 +151,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                                     </div>
                                 </AccordionContent>
                             </AccordionItem>
-                        ))}
-                    </Accordion>
+                        ))রোপ
                 </ScrollArea>
                 <FormError message={errors.categoryIds?.[0]} />
             </div>
@@ -168,12 +168,8 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                 </div>
             </div>
             <div className='space-y-2'>
-                <Label>Imágenes del Producto (hasta 5) *</Label>
-                <Input id="image1" name="image1" type="url" defaultValue={product?.images?.[0]} placeholder="URL de la Imagen Principal (requerido)" className={cn(errors.images && "border-destructive")} />
-                <Input id="image2" name="image2" type="url" defaultValue={product?.images?.[1]} placeholder="URL de la Imagen 2 (opcional)" />
-                <Input id="image3" name="image3" type="url" defaultValue={product?.images?.[2]} placeholder="URL de la Imagen 3 (opcional)" />
-                <Input id="image4" name="image4" type="url" defaultValue={product?.images?.[3]} placeholder="URL de la Imagen 4 (opcional)" />
-                <Input id="image5" name="image5" type="url" defaultValue={product?.images?.[4]} placeholder="URL de la Imagen 5 (opcional)" />
+                <Label>Imágenes del Producto *</Label>
+                <ImageUploader initialImages={product?.images ?? []} />
                 <FormError message={errors.images?.[0]} />
             </div>
             <div><Label htmlFor="aiHint">AI Hint</Label><Input id="aiHint" name="aiHint" defaultValue={product?.aiHint} /></div>

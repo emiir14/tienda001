@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import DOMPurify from 'isomorphic-dompurify';
+import { del } from '@vercel/blob';
 import { createProduct, updateProduct, deleteProduct, getProductById } from '@/lib/data/products';
 import { getCategories } from '@/lib/data';
 
@@ -32,7 +33,16 @@ const productSchema = z.object({
     offerEndDate: z.string().optional().nullable().transform(val => val ? new Date(val) : null),
     stock: z.coerce.number({ required_error: "El stock es requerido."}).int("El stock debe ser un número entero.").min(0, "El stock no puede ser negativo."),
     categoryIds: z.array(z.coerce.number()).min(1, "Se requiere al menos una categoría."),
-    images: z.array(z.string().url("La URL de la imagen no es válida.")).min(1, "Se requiere al menos una imagen."),
+    images: z.preprocess((val) => {
+        if (typeof val === 'string') {
+            try {
+                return JSON.parse(val);
+            } catch (e) {
+                return [];
+            }
+        }
+        return val;
+    }, z.array(z.string().url("URL de imagen inválida.")).min(1, "Se requiere al menos una imagen.")),
     aiHint: z.string().optional(),
 });
 
@@ -46,18 +56,11 @@ export async function addProductAction(formData: FormData) {
     if (sanitizedData.offerStartDate === '') sanitizedData.offerStartDate = null;
     if (sanitizedData.offerEndDate === '') sanitizedData.offerEndDate = null;
     
-    const images = [];
-    for (let i = 1; i <= 5; i++) {
-        if (sanitizedData[`image${i}`]) {
-            images.push(sanitizedData[`image${i}`]);
-        }
-    }
     const categoryIds = formData.getAll('categoryIds').map(id => Number(id));
 
     const validatedFields = createProductSchema.safeParse({
       ...sanitizedData,
       featured: sanitizedData.featured === 'on',
-      images,
       categoryIds,
     });
 
@@ -102,23 +105,15 @@ export async function updateProductAction(id: number, formData: FormData) {
     if (sanitizedData.offerStartDate === '') sanitizedData.offerStartDate = null;
     if (sanitizedData.offerEndDate === '') sanitizedData.offerEndDate = null;
 
-    const images = [];
-    for (let i = 1; i <= 5; i++) {
-        if (sanitizedData[`image${i}`]) {
-            images.push(sanitizedData[`image${i}`]);
-        }
-    }
-    
     const categoryIds = formData.getAll(`${id}_categoryIds`).length > 0 
         ? formData.getAll(`${id}_categoryIds`).map(catId => Number(catId))
         : formData.getAll('categoryIds').map(catId => Number(catId));
 
     const validatedFields = productSchema.safeParse({
-        ...existingProduct, // Start with existing data
-        ...sanitizedData,   // Override with form data
+        ...existingProduct, 
+        ...sanitizedData,   
         id,
-        featured: sanitizedData.featured === 'on', // Explicitly handle checkbox
-        images,
+        featured: sanitizedData.featured === 'on',
         categoryIds,
     });
 
@@ -130,6 +125,14 @@ export async function updateProductAction(id: number, formData: FormData) {
     }
     
     const { ...productData } = validatedFields.data;
+
+    // Delete images that were removed
+    const existingImages = existingProduct.images || [];
+    const newImages = productData.images || [];
+    const imagesToDelete = existingImages.filter(url => !newImages.includes(url));
+    if (imagesToDelete.length > 0) {
+        await del(imagesToDelete);
+    }
 
     try {
         await updateProduct(id, productData as any);
@@ -146,6 +149,11 @@ export async function updateProductAction(id: number, formData: FormData) {
 
 export async function deleteProductAction(id: number) {
     try {
+        const product = await getProductById(id);
+        if (product && product.images && product.images.length > 0) {
+            await del(product.images);
+        }
+
         await deleteProduct(id);
         revalidatePath('/admin');
         revalidatePath("/tienda");
@@ -156,6 +164,7 @@ export async function deleteProductAction(id: number) {
     }
 }
 
+// The import function remains unchanged as it has its own logic for handling image URLs from CSV/JSON.
 export async function importProductsAction(data: string, format: 'csv' | 'json') {
     const allCategories = await getCategories();
     const categoryMap = new Map(allCategories.map(c => [c.name.toLowerCase(), c.id]));
