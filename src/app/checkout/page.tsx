@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -14,12 +13,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCart } from "@/hooks/use-cart";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { Loader2, ShoppingCart, CreditCard, AlertTriangle, Truck, Store, HandCoins } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -70,12 +69,35 @@ function CheckoutForm() {
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState('shipping');
 
-  const originalSubtotal = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
-  const productAndCouponDiscount = originalSubtotal - subtotal;
+  // --- NUEVA LÓGICA DE CÁLCULO ---
+  const { 
+    originalSubtotal, 
+    productDiscount, 
+    couponDiscount, 
+    localPaymentDiscount, 
+    finalTotalPrice, 
+    totalDiscount 
+  } = useMemo(() => {
+    const originalSubtotal = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+    const productDiscount = originalSubtotal - subtotal;
+    const couponDiscountValue = appliedCoupon ? (subtotal * (appliedCoupon.discount / 100)) : 0;
+    const subtotalAfterCoupons = subtotal - couponDiscountValue;
+    const isPayInStore = deliveryMethod === 'pay_in_store';
+    const localPaymentDiscountValue = isPayInStore ? subtotalAfterCoupons * 0.20 : 0;
+    const finalTotalPrice = subtotalAfterCoupons - localPaymentDiscountValue;
+    const totalDiscount = productDiscount + couponDiscountValue + localPaymentDiscountValue;
+
+    return {
+      originalSubtotal,
+      productDiscount,
+      couponDiscount: couponDiscountValue,
+      localPaymentDiscount: localPaymentDiscountValue,
+      finalTotalPrice,
+      totalDiscount
+    };
+  }, [cartItems, subtotal, appliedCoupon, deliveryMethod]);
+
   const isPayInStore = deliveryMethod === 'pay_in_store';
-  const localPaymentDiscount = isPayInStore ? subtotal * 0.20 : 0;
-  const finalTotalPrice = subtotal - localPaymentDiscount;
-  const totalDiscount = productAndCouponDiscount + localPaymentDiscount;
   
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
@@ -117,11 +139,13 @@ function CheckoutForm() {
         if (orderResponse.error || !orderResponse.orderId) throw new Error(orderResponse.error || "No se pudo crear la orden.");
         
         localStorage.setItem('pendingOrderId', String(orderResponse.orderId));
-
+        
+        // Enviamos SÓLO el descuento del cupón a MP.
+        // El descuento de producto ya va incluido en el `salePrice` de cada item.
         const mpResponse = await fetch('/api/create-preference', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: cartItems, orderId: orderResponse.orderId, discountAmount: productAndCouponDiscount, couponCode: appliedCoupon?.code }),
+          body: JSON.stringify({ items: cartItems, orderId: orderResponse.orderId, discountAmount: couponDiscount, couponCode: appliedCoupon?.code }),
         });
 
         if (!mpResponse.ok) {
@@ -151,68 +175,97 @@ function CheckoutForm() {
     );
   }
 
-  const renderOrderSummary = () => (
-    <div className="lg:col-span-1">
-      <div className="sticky top-24">
-        <h2 className="text-3xl font-headline font-bold mb-6">Resumen de tu compra</h2>
-        <Card className="shadow-lg">
-          <CardContent className="p-6 space-y-4">
-            {cartItems.map(item => (
-              <div key={item.product.id} className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="relative w-16 h-16 rounded-md overflow-hidden border">
-                    <Image 
-                      src={item.product.images[0] ?? "https://placehold.co/100x100.png"} 
-                      alt={item.product.name} 
-                      fill 
-                      className="object-cover" 
-                    />
+  // --- NUEVO RENDERIZADO DEL RESUMEN ---
+  const renderOrderSummary = () => {
+    const hasProductDiscount = productDiscount > 0;
+    
+    return (
+      <div className="lg:col-span-1">
+        <div className="sticky top-24">
+          <h2 className="text-3xl font-headline font-bold mb-6">Resumen de tu compra</h2>
+          <Card className="shadow-lg">
+            <CardContent className="p-6 space-y-4">
+              {cartItems.map(item => {
+                const hasSale = item.product.salePrice && item.product.salePrice < item.product.price;
+                const itemTotal = (item.product.salePrice ?? item.product.price) * item.quantity;
+                const originalItemTotal = item.product.price * item.quantity;
+
+                return (
+                  <div key={item.product.id} className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-16 h-16 rounded-md overflow-hidden border">
+                        <Image 
+                          src={item.product.images[0] ?? "https://placehold.co/100x100.png"} 
+                          alt={item.product.name} 
+                          fill 
+                          className="object-cover" 
+                        />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{item.product.name}</p>
+                        <p className="text-sm text-muted-foreground">Cantidad: {item.quantity}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <p className="font-medium">
+                        ${itemTotal.toLocaleString('es-AR')}
+                      </p>
+                      {hasSale && (
+                        <p className="text-sm text-muted-foreground line-through">
+                          ${originalItemTotal.toLocaleString('es-AR')}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold">{item.product.name}</p>
-                    <p className="text-sm text-muted-foreground">Cantidad: {item.quantity}</p>
-                  </div>
-                </div>
-                <p className="font-medium text-right">
-                  ${((item.product.salePrice ?? item.product.price) * item.quantity).toLocaleString('es-AR')}
-                </p>
-              </div>
-            ))}
-            <Separator className="my-4"/>
-            <div className="space-y-2">
-              <div className="flex justify-between"><p className="text-muted-foreground">Subtotal</p><p>${originalSubtotal.toLocaleString('es-AR')}</p></div>
-              {productAndCouponDiscount > 0 && (
-                <div className="flex justify-between text-primary">
-                  <div className="flex items-center gap-2">
-                    <span>Descuento</span>
-                    {appliedCoupon && (
-                      <span className='text-xs font-medium'>({appliedCoupon.code})</span>
-                    )}
-                  </div>
-                  <span>-${productAndCouponDiscount.toLocaleString('es-AR')}</span>
-                </div>
-              )}
-              {isPayInStore && (
-                <div className="flex justify-between text-primary font-medium">
-                    <span>Descuento pago en local (20%)</span>
-                    <span>-${localPaymentDiscount.toLocaleString('es-AR')}</span>
-                </div>
-              )}
-              <div className="flex justify-between"><p className="text-muted-foreground">Envío</p><p>{deliveryMethod === 'shipping' ? 'A coordinar' : 'No aplica'}</p></div>
+                );
+              })}
               <Separator className="my-4"/>
-              <div className="flex justify-between font-bold text-xl"><p>Total</p><p>${finalTotalPrice.toLocaleString('es-AR')}</p></div>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                    <p className="text-muted-foreground">Subtotal</p>
+                    <p className={hasProductDiscount ? "line-through text-muted-foreground" : ""}>
+                        ${originalSubtotal.toLocaleString('es-AR')}
+                    </p>
+                </div>
+                {hasProductDiscount && (
+                    <div className="flex justify-between">
+                        <p className="text-muted-foreground">Subtotal c/ Dtos.</p>
+                        <p>${subtotal.toLocaleString('es-AR')}</p>
+                    </div>
+                )}
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-primary">
+                    <div className="flex items-center gap-2">
+                      <span>Descuento Cupón</span>
+                      {appliedCoupon && (
+                        <span className='text-xs font-medium'>({appliedCoupon.code})</span>
+                      )}
+                    </div>
+                    <span>-${couponDiscount.toLocaleString('es-AR')}</span>
+                  </div>
+                )}
+                {isPayInStore && (
+                  <div className="flex justify-between text-primary font-medium">
+                      <span>Dto. pago en local (20%)</span>
+                      <span>-${localPaymentDiscount.toLocaleString('es-AR')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between"><p className="text-muted-foreground">Envío</p><p>{deliveryMethod === 'shipping' ? 'A coordinar' : 'No aplica'}</p></div>
+                <Separator className="my-4"/>
+                <div className="flex justify-between font-bold text-xl"><p>Total</p><p>${finalTotalPrice.toLocaleString('es-AR')}</p></div>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="mt-4 p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CreditCard className="h-4 w-4" />
+              <span>Pagos seguros procesados por Mercado Pago</span>
             </div>
-          </CardContent>
-        </Card>
-        <div className="mt-4 p-4 bg-muted rounded-lg">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CreditCard className="h-4 w-4" />
-            <span>Pagos seguros procesados por Mercado Pago</span>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const getButtonText = () => {
       if (isLoading) return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Procesando...</>;
@@ -341,3 +394,4 @@ export default function CheckoutPage() {
         </Suspense>
     )
 }
+
