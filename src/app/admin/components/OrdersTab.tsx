@@ -114,7 +114,7 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                 </AlertDialogContent>
             </AlertDialog>
 
-            <TableRow className="hover:bg-muted/50" data-state={isOpen ? 'open' : 'closed'}>
+            <TableRow className="hover:bg-muted/50 data-[state=open]:bg-muted/50" data-state={isOpen ? 'open' : 'closed'}>
                 <TableCell className="font-mono text-sm cursor-pointer" onClick={() => setIsOpen(!isOpen)}>#{order.id}</TableCell>
                 <TableCell className="font-medium cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{order.customerName}</TableCell>
                 <TableCell className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</TableCell>
