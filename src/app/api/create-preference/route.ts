@@ -16,11 +16,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required data' }, { status: 400 });
         }
 
-        // --- LA SOLUCIÓN --- //
-        // Construir la URL base a partir de la petición entrante
         const requestUrl = new URL(req.url);
         const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-        // ------------------ //
 
         const preferenceItems = items.map(item => ({
             id: item.product.id.toString(),
@@ -35,12 +32,12 @@ export async function POST(req: NextRequest) {
             items: preferenceItems,
             external_reference: String(orderId),
             back_urls: {
-                success: `${baseUrl}/api/payment-notification`,
+                success: `${baseUrl}/checkout/success?orderId=${orderId}`,
                 failure: `${baseUrl}/checkout/failure?orderId=${orderId}`,
-                pending: `${baseUrl}/api/payment-notification`,
+                pending: `${baseUrl}/checkout/success?orderId=${orderId}&status=pending`,
             },
             auto_return: 'approved',
-            notification_url: `${baseUrl}/api/payment-notification?source=ipn&orderId=${orderId}`,
+            notification_url: `${baseUrl}/api/mercadopago-webhook`,
             metadata: {
                 orderId: orderId,
                 couponCode: couponCode,

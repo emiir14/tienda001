@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { updateOrderStatusFromWebhook, deductStockFromWebhook } from '@/lib/webhook-db';
+import type { OrderStatus } from '@/lib/types';
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
 
@@ -15,7 +16,6 @@ export async function POST(request: NextRequest) {
         console.log(`[WEBHOOK] Received payment notification for ID: ${paymentId}.`);
 
         try {
-            // CORRECT WAY: Fetch the payment directly using its ID
             console.log(`[WEBHOOK] Fetching payment details for ID: ${paymentId}`);
             const payment = await new Payment(client).get({ id: paymentId });
             console.log('[WEBHOOK] Payment details fetched successfully.');
@@ -49,8 +49,17 @@ export async function POST(request: NextRequest) {
 
             } else {
                 console.log(`[WEBHOOK] Payment for order ${orderId} is not approved. Status is: ${payment.status}.`);
-                // Map other Mercado Pago statuses to your app's statuses
-                const newStatus = (payment.status === 'pending' || payment.status === 'in_process') ? 'pending' : 'failed';
+                
+                // --- LA CORRECCIÓN CLAVE --- //
+                // Mapear los estados de MP a nuestros estados internos válidos.
+                let newStatus: OrderStatus;
+                if (payment.status === 'in_process' || payment.status === 'pending') {
+                    newStatus = 'pending_payment';
+                } else {
+                    newStatus = 'failed'; // Covers 'rejected', 'cancelled', etc.
+                }
+                // --------------------------- //
+
                 await updateOrderStatusFromWebhook(Number(orderId), newStatus, paymentId);
                 console.log(`[WEBHOOK] Order ${orderId} status updated to ${newStatus}.`);
                 return NextResponse.json({ success: true, message: `Status updated to ${newStatus}` });
@@ -66,7 +75,6 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    // This console.log now uses double quotes to prevent syntax errors
     console.log("[WEBHOOK] Notification is not of type 'payment'. Ignoring.");
     return NextResponse.json({ success: true, message: 'Notification acknowledged' });
 }
