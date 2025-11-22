@@ -42,7 +42,7 @@ const productSchema = z.object({
             }
         }
         return val;
-    }, z.array(z.string().url("URL de imagen inválida.")).min(1, "Se requiere al menos una imagen.")),
+    }, z.array(z.string().url("URL de imagen inválida.")).min(1, "Se requiere al menos una imagen.").max(4, "No se pueden subir más de 4 imágenes por producto.")),
     aiHint: z.string().optional(),
 });
 
@@ -126,13 +126,8 @@ export async function updateProductAction(id: number, formData: FormData) {
     
     const { ...productData } = validatedFields.data;
 
-    // Delete images that were removed
-    const existingImages = existingProduct.images || [];
-    const newImages = productData.images || [];
-    const imagesToDelete = existingImages.filter(url => !newImages.includes(url));
-    if (imagesToDelete.length > 0) {
-        await del(imagesToDelete);
-    }
+    // This part is now handled by the specific deletion actions
+    // to prevent accidental deletion on validation failure.
 
     try {
         await updateProduct(id, productData as any);
@@ -146,6 +141,45 @@ export async function updateProductAction(id: number, formData: FormData) {
     }
 }
 
+export async function deleteOrphanedImageAction(imageUrl: string) {
+    if (!imageUrl || !imageUrl.startsWith(process.env.BLOB_URL!)) return { error: "URL de imagen inválida." };
+    try {
+        await del(imageUrl);
+        return { message: "Imagen eliminada." };
+    } catch (e: any) {
+        if (e.message.includes('blob not found')) {
+             return { message: "La imagen ya había sido eliminada." };
+        }
+        return { error: e.message || "No se pudo eliminar la imagen." };
+    }
+}
+
+export async function deleteProductImageAction(productId: number, imageUrl: string) {
+    if (!imageUrl || !productId) return { error: "Faltan datos para eliminar la imagen." };
+
+    try {
+        const product = await getProductById(productId);
+        if (!product) return { error: "Producto no encontrado." };
+
+        const updatedImages = product.images.filter(img => img !== imageUrl);
+
+        // Always attempt to delete from blob storage
+        await del(imageUrl);
+
+        // If the image was actually part of the product, update the DB
+        if (product.images.includes(imageUrl)) {
+            await updateProduct(productId, { ...product, images: updatedImages });
+        }
+
+        revalidatePath("/admin");
+        revalidatePath(`/products/${productId}`);
+        revalidatePath("/tienda");
+
+        return { message: "Imagen eliminada exitosamente." };
+    } catch (e: any) {
+         return { error: e.message || "No se pudo eliminar la imagen." };
+    }
+}
 
 export async function deleteProductAction(id: number) {
     try {
@@ -164,7 +198,7 @@ export async function deleteProductAction(id: number) {
     }
 }
 
-// The import function remains unchanged as it has its own logic for handling image URLs from CSV/JSON.
+// The import function remains unchanged.
 export async function importProductsAction(data: string, format: 'csv' | 'json') {
     const allCategories = await getCategories();
     const categoryMap = new Map(allCategories.map(c => [c.name.toLowerCase(), c.id]));

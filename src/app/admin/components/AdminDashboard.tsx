@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, LogOut, Loader2, Mail, Database, HardDrive } from 'lucide-react';
-import { addProductAction, updateProductAction, deleteProductAction } from '@/app/actions/product-actions';
+import { addProductAction, updateProductAction, deleteProductAction, deleteOrphanedImageAction, deleteProductImageAction } from '@/app/actions/product-actions';
 import { addCouponAction, updateCouponAction, deleteCouponAction } from '@/app/actions/coupon-actions';
 import { updateOrderStatusAction } from '@/app/actions/order-actions';
 import { useToast } from '@/hooks/use-toast';
@@ -52,6 +52,7 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
     const [editingCoupon, setEditingCoupon] = useState<Coupon | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formErrors, setFormErrors] = useState<FieldErrors>({});
+    const [imageUrls, setImageUrls] = useState<string[]>([]);
     const { toast } = useToast();
     const formId = "dialog-form";
     const mailchimpConfigured = process.env.NEXT_PUBLIC_MAILCHIMP_CONFIGURED === 'true';
@@ -85,6 +86,7 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
     const handleOpenProductDialog = (product?: Product) => {
         setFormErrors({});
         setEditingProduct(product);
+        setImageUrls(product?.images || []);
         setDialogType('product');
     };
 
@@ -103,6 +105,7 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
         setEditingProduct(undefined);
         setEditingCoupon(undefined);
         setFormErrors({});
+        setImageUrls([]);
     };
     
     const handleFormSubmit = async () => {
@@ -136,6 +139,30 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
         }
 
         setIsSubmitting(false);
+    };
+
+    const handleImageRemove = async (urlToRemove: string) => {
+        // Optimistically update UI
+        setImageUrls(prev => prev.filter(url => url !== urlToRemove));
+
+        let result;
+        // If we are editing a product that already exists, the image might be in the DB
+        if (editingProduct && editingProduct.images.includes(urlToRemove)) {
+            result = await deleteProductImageAction(editingProduct.id, urlToRemove);
+        } else {
+            // If it's a new product or a newly uploaded image, it's an "orphan"
+            result = await deleteOrphanedImageAction(urlToRemove);
+        }
+
+        if (result?.error) {
+            toast({ title: 'Error al Eliminar Imagen', description: result.error, variant: 'destructive' });
+            // Revert UI if the deletion failed
+            setImageUrls(prev => [...prev, urlToRemove]);
+        } else {
+            toast({ title: 'Imagen Eliminada', description: result.message });
+            // Optionally, refresh data if an existing product was modified
+            if(editingProduct) fetchData();
+        }
     };
 
     const handleDeleteProduct = async (id: number) => {
@@ -257,7 +284,7 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
                 <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh] flex flex-col">
                     <DialogHeader><DialogTitle>{dialogType === 'product' ? (editingProduct ? 'Editar Producto' : 'Añadir Nuevo Producto') : (editingCoupon ? 'Editar Cupón' : 'Crear Nuevo Cupón')}</DialogTitle></DialogHeader>
                     <div className="overflow-y-auto pr-4 -mr-4">
-                        {dialogType === 'product' && <ProductForm product={editingProduct} formId={formId} errors={formErrors} categories={categories} />}
+                        {dialogType === 'product' && <ProductForm product={editingProduct} formId={formId} errors={formErrors} categories={categories} imageUrls={imageUrls} onImageUrlsChange={setImageUrls} onImageRemove={handleImageRemove} />}
                         {dialogType === 'coupon' && <CouponForm coupon={editingCoupon} formId={formId} errors={formErrors} />}
                     </div>
                      <DialogFooter>

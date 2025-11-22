@@ -2,11 +2,11 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { PlusIcon, XIcon } from 'lucide-react';
+import { PlusIcon, XIcon, ImageOff } from 'lucide-react';
 
 interface SortableImageProps {
   url: string;
@@ -50,17 +50,22 @@ function SortableImage({ url, isMain, onRemove }: SortableImageProps) {
 }
 
 interface ImageUploaderProps {
-  initialImages?: string[];
+  imageUrls: string[];
+  onImageUrlsChange: (urls: string[]) => void;
+  onImageRemove: (url: string) => void;
+  maxImages?: number;
 }
 
-export function ImageUploader({ initialImages = [] }: ImageUploaderProps) {
-  const [imageUrls, setImageUrls] = useState<string[]>(initialImages);
+export function ImageUploader({ 
+  imageUrls,
+  onImageUrlsChange,
+  onImageRemove,
+  maxImages = 4,
+}: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setImageUrls(initialImages);
-  }, [initialImages]);
+  const imageCount = imageUrls.length;
+  const canUploadMore = imageCount < maxImages;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -72,12 +77,13 @@ export function ImageUploader({ initialImages = [] }: ImageUploaderProps) {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || !canUploadMore) return;
 
     setUploading(true);
-    const currentUrls = [...imageUrls];
+    const newUrls = [...imageUrls];
+    const filesToUpload = Array.from(files).slice(0, maxImages - imageCount);
 
-    for (const file of Array.from(files)) {
+    for (const file of filesToUpload) {
       try {
         const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
           method: 'POST',
@@ -86,59 +92,53 @@ export function ImageUploader({ initialImages = [] }: ImageUploaderProps) {
 
         if (!response.ok) throw new Error('Upload failed');
         const newBlob = await response.json();
-        currentUrls.push(newBlob.url);
+        newUrls.push(newBlob.url);
       } catch (error) {
         console.error('Error uploading file:', error);
       }
     }
 
-    setImageUrls(currentUrls);
+    onImageUrlsChange(newUrls);
     setUploading(false);
-    // Reset file input to allow re-uploading the same file
+    
     if(fileInputRef.current) {
         fileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveImage = (urlToRemove: string) => {
-    setImageUrls((prevUrls) => prevUrls.filter((url) => url !== urlToRemove));
-  };
-
   const onDragEnd = (event: any) => {
     const { active, over } = event;
     if (active.id !== over.id) {
-      setImageUrls((items) => {
-        const oldIndex = items.indexOf(active.id);
-        const newIndex = items.indexOf(over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
+        const oldIndex = imageUrls.indexOf(active.id as string);
+        const newIndex = imageUrls.indexOf(over.id as string);
+        onImageUrlsChange(arrayMove(imageUrls, oldIndex, newIndex));
     }
   };
 
   return (
-    <div className="space-y-4">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={imageUrls} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-            {imageUrls.map((url, index) => (
-              <SortableImage 
-                key={url} 
-                url={url} 
-                isMain={index === 0} 
-                onRemove={handleRemoveImage} 
-              />
-            ))}
-            
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleFileChange}
-              disabled={uploading}
-              ref={fileInputRef}
-              className="hidden"
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={imageUrls} strategy={rectSortingStrategy}>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+          {imageUrls.map((url, index) => (
+            <SortableImage 
+              key={url} 
+              url={url} 
+              isMain={index === 0} 
+              onRemove={onImageRemove} 
             />
+          ))}
+          
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleFileChange}
+            disabled={uploading || !canUploadMore}
+            ref={fileInputRef}
+            className="hidden"
+          />
 
+          {canUploadMore && (
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -151,12 +151,17 @@ export function ImageUploader({ initialImages = [] }: ImageUploaderProps) {
                 <PlusIcon className="h-12 w-12 text-gray-400" />
               )}
             </button>
+          )}
 
-          </div>
-        </SortableContext>
-      </DndContext>
+          {!canUploadMore && (
+             <div className="flex flex-col items-center justify-center w-full aspect-square border-2 border-dashed border-gray-200 bg-gray-50 rounded-lg text-center p-2">
+                <ImageOff className="h-10 w-10 text-gray-400" />
+                <p className="text-xs text-gray-500 mt-2">Límite de 4 imágenes alcanzado.</p>
+            </div>
+          )}
 
-      <input type="hidden" name="images" value={JSON.stringify(imageUrls)} />
-    </div>
+        </div>
+      </SortableContext>
+    </DndContext>
   );
 }

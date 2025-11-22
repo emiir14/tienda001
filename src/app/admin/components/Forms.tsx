@@ -26,7 +26,23 @@ const FormError = ({ message }: { message?: string }) => {
     return <p className="text-sm font-medium text-destructive mt-1">{message}</p>;
 };
 
-export function ProductForm({ product, formId, errors, categories }: { product?: Product, formId: string, errors: FieldErrors, categories: Category[] }) {
+export function ProductForm({ 
+    product,
+    formId,
+    errors,
+    categories,
+    imageUrls,
+    onImageUrlsChange,
+    onImageRemove,
+}: { 
+    product?: Product,
+    formId: string,
+    errors: FieldErrors,
+    categories: Category[],
+    imageUrls: string[],
+    onImageUrlsChange: (urls: string[]) => void;
+    onImageRemove: (url: string) => void;
+}) {
     const [startDate, setStartDate] = useState<Date | undefined>(product?.offerStartDate ? new Date(product.offerStartDate) : undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(product?.offerEndDate ? new Date(product.offerEndDate) : undefined);
 
@@ -60,16 +76,17 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
         return Array.from(openItems);
     }, [product?.categoryIds, groupedCategories]);
 
-    const HiddenDateInputs = () => (
+    const HiddenInputs = () => (
         <>
             <input type="hidden" name="offerStartDate" value={startDate?.toISOString() ?? ''} />
             <input type="hidden" name="offerEndDate" value={endDate?.toISOString() ?? ''} />
+            <input type="hidden" name="images" value={JSON.stringify(imageUrls)} />
         </>
     );
 
     return (
         <form id={formId} className="space-y-4">
-            <HiddenDateInputs />
+            <HiddenInputs />
             <div><Label htmlFor="name">Nombre *</Label><Input id="name" name="name" defaultValue={product?.name} className={cn("border-2", errors.name && "border-destructive")} /><FormError message={errors.name?.[0]} /></div>
             <div><Label htmlFor="shortDescription">Descripción Corta</Label><Input id="shortDescription" name="shortDescription" defaultValue={product?.shortDescription} placeholder="Un resumen breve para la tarjeta de producto." className={cn("border-2", errors.shortDescription && "border-destructive")} /><FormError message={errors.shortDescription?.[0]} /></div>
             <div><Label htmlFor="description">Descripción Completa *</Label><Textarea id="description" name="description" defaultValue={product?.description} className={cn("border-2", errors.description && "border-destructive")} /><FormError message={errors.description?.[0]} /></div>
@@ -154,8 +171,12 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                 </div>
             </div>
             <div className='space-y-2'>
-                <Label>Imágenes del Producto *</Label>
-                <ImageUploader initialImages={product?.images ?? []} />
+                <Label>Imágenes del Producto (Max: 4) *</Label>
+                <ImageUploader 
+                    imageUrls={imageUrls} 
+                    onImageUrlsChange={onImageUrlsChange}
+                    onImageRemove={onImageRemove}
+                />
                 <FormError message={errors.images?.[0]} />
             </div>
             <p className="text-sm text-muted-foreground pt-2">Los campos con * son obligatorios.</p>
