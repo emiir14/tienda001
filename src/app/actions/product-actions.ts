@@ -142,7 +142,7 @@ export async function updateProductAction(id: number, formData: FormData) {
 }
 
 export async function deleteOrphanedImageAction(imageUrl: string) {
-    if (!imageUrl || !imageUrl.startsWith(process.env.BLOB_URL!)) return { error: "URL de imagen inválida." };
+    if (!imageUrl) return { error: "URL de imagen inválida." };
     try {
         await del(imageUrl);
         return { message: "Imagen eliminada." };
