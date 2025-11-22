@@ -4,6 +4,11 @@ import type { Product, Coupon, Order, SalesMetrics, OrderData, OrderStatus, Cate
 
 // --- DATOS EN MEMORIA (REEMPLAZAR CON BASE DE DATOS REAL) ---
 
+
+
+
+
+
 let localCategories: Category[] = [
     { id: 1, name: "Perfumes" },{ id: 2, name: "Cuidado de Piel" },{ id: 3, name: "Joyas" },{ id: 4, name: "Accesorios" },{ id: 5, name: "Por Marca", parentId: 1 },{ id: 6, name: "Perfumes Nicho", parentId: 1 },{ id: 7, name: "Perfumes Árabes", parentId: 1 },{ id: 8, name: "Por Género", parentId: 1 },{ id: 101, name: "Lancôme", parentId: 5 },{ id: 102, name: "L'Occitane", parentId: 5 },{ id: 103, name: "Dior", parentId: 5 },{ id: 104, name: "Chanel", parentId: 5 },{ id: 105, name: "Gucci", parentId: 5 },{ id: 106, name: "Tom Ford", parentId: 5 },{ id: 107, name: "Creed", parentId: 5 },{ id: 108, name: "Jo Malone", parentId: 5 },{ id: 201, name: "Hombre", parentId: 8 },{ id: 202, name: "Mujer", parentId: 8 },{ id: 203, name: "Unisex", parentId: 8 },{ id: 301, name: "Rostro", parentId: 2 },{ id: 302, name: "Cuerpo", parentId: 2 },{ id: 303, name: "Protectores Solares", parentId: 2 },{ id: 401, name: "Anillos", parentId: 3 },{ id: 402, name: "Collares", parentId: 3 },{ id: 403, name: "Pulseras", parentId: 3 },{ id: 404, name: "Aros", parentId: 3 },
 ];
@@ -18,6 +23,7 @@ let localProducts: Product[] = [
 let localCoupons: Coupon[] = [{ id: 1, code: 'WINTER15', discountType: 'percentage', discountValue: 15, expiryDate: new Date('2024-09-30'), isActive: true }];
 let localOrders: Order[] = [];
 let nextOrderId = 1;
+let nextProductId = 5;
 
 // --- FUNCIÓN CORREGIDA PARA SEGURIDAD DE TIPOS ---
 function _calculateSalePrice(product: Partial<Product>): number | null {
@@ -86,3 +92,38 @@ export async function getOrders(): Promise<Order[]> {
     }
     return JSON.parse(JSON.stringify(localOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())));
 }
+ // --- NUEVAS FUNCIONES PARA MANIPULAR PRODUCTOS ---
+
+export async function createProduct(productData: Omit<Product, 'id' | 'salePrice'>): Promise<Product> {
+    const newProduct: Product = {
+        id: nextProductId++,
+        ...productData,
+        salePrice: null 
+    };
+    newProduct.salePrice = _calculateSalePrice(newProduct);
+    localProducts.push(newProduct);
+    return JSON.parse(JSON.stringify(newProduct));
+}
+
+export async function updateProduct(id: number, productData: Partial<Omit<Product, 'id' | 'salePrice'>>): Promise<Product> {
+    const productIndex = localProducts.findIndex(p => p.id === id);
+    if (productIndex === -1) {
+        throw new Error('Producto no encontrado para actualizar');
+    }
+    const updatedProduct = {
+        ...localProducts[productIndex],
+        ...productData
+    };
+    updatedProduct.salePrice = _calculateSalePrice(updatedProduct);
+    localProducts[productIndex] = updatedProduct;
+    return JSON.parse(JSON.stringify(updatedProduct));
+}
+
+export async function deleteProduct(id: number): Promise<void> {
+    const productIndex = localProducts.findIndex(p => p.id === id);
+    if (productIndex !== -1) {
+        localProducts.splice(productIndex, 1);
+    }
+}
+    
+

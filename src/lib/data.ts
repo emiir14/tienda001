@@ -53,6 +53,28 @@ export async function createCoupon(coupon: Omit<Coupon, 'id'>): Promise<Coupon> 
 export async function updateCoupon(id: number, couponData: Partial<Omit<Coupon, 'id'>>): Promise<Coupon> { const { code, discountType, discountValue, minPurchaseAmount, expiryDate, isActive } = couponData; try { const db = getDb(); const result = await db`UPDATE coupons SET code = COALESCE(${code?.toUpperCase()}, code), discount_type = COALESCE(${discountType}, discount_type), discount_value = COALESCE(${discountValue}, discount_value), min_purchase_amount = COALESCE(${minPurchaseAmount}, min_purchase_amount), expiry_date = ${expiryDate?.toISOString() || null}, is_active = COALESCE(${isActive}, is_active) WHERE id = ${id} RETURNING *;`; return _mapDbRowToCoupon(result[0]); } catch (error: any) { if (error.message.includes('duplicate key value')) { throw new Error(`El código de cupón '${couponData.code}' ya existe.`); } console.error('Database Error:', error); throw new Error('Failed to update coupon.'); } }
 export async function deleteCoupon(id: number): Promise<void> { try { const db = getDb(); await db`DELETE FROM coupons WHERE id = ${id}`; } catch (error) { console.error('Database Error:', error); throw new Error('Failed to delete coupon.'); } }
 
+export async function updateCategory(id: number, name: string): Promise<Category> {
+    try {
+        const db = getDb();
+        const result = await db`
+            UPDATE categories 
+            SET name = ${name} 
+            WHERE id = ${id} 
+            RETURNING *;
+        `;
+        if (result.length === 0) {
+            throw new Error('Category not found.');
+        }
+        return _mapDbRowToCategory(result[0]);
+    } catch (error: any) {
+        if (error.message.includes('duplicate key value')) {
+            throw new Error(`La categoría '${name}' ya existe.`);
+        }
+        console.error('Database Error:', error);
+        throw new Error('Failed to update category.');
+    }
+}
+
 // --- LÓGICA DE ÓRDENES CORREGIDA ---
 
 export async function createOrder(orderData: OrderData): Promise<{orderId?: number, error?: string}> {
