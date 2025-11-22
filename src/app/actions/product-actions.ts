@@ -87,34 +87,26 @@ export async function addProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(id: number, formData: FormData) {
-    const existingProduct = await getProductById(id);
-    if (!existingProduct) {
+    const rawData = Object.fromEntries(formData.entries());
+
+    const productExists = await getProductById(id);
+    if (!productExists) {
         return { error: "Producto no encontrado." };
     }
 
-    const rawData = Object.fromEntries(formData.entries());
-    const processedData: Record<string, any> = {};
-    for (const [key, value] of Object.entries(rawData)) {
-        const cleanKey = key.startsWith(`${id}_`) ? key.substring(String(id).length + 1) : key;
-        processedData[cleanKey] = value;
-    }
-    
-    const sanitizedData = sanitizeData(processedData);
+    const sanitizedData = sanitizeData(rawData);
 
     if (sanitizedData.discountPercentage === '') sanitizedData.discountPercentage = null;
     if (sanitizedData.offerStartDate === '') sanitizedData.offerStartDate = null;
     if (sanitizedData.offerEndDate === '') sanitizedData.offerEndDate = null;
 
-    const categoryIds = formData.getAll(`${id}_categoryIds`).length > 0 
-        ? formData.getAll(`${id}_categoryIds`).map(catId => Number(catId))
-        : formData.getAll('categoryIds').map(catId => Number(catId));
+    const categoryIds = formData.getAll('categoryIds').map(id => Number(id));
 
     const validatedFields = productSchema.safeParse({
-        ...existingProduct, 
-        ...sanitizedData,   
-        id,
-        featured: sanitizedData.featured === 'on',
-        categoryIds,
+      ...sanitizedData,
+      id,
+      featured: sanitizedData.featured === 'on',
+      categoryIds,
     });
 
     if (!validatedFields.success) {
@@ -124,10 +116,7 @@ export async function updateProductAction(id: number, formData: FormData) {
         };
     }
     
-    const { ...productData } = validatedFields.data;
-
-    // This part is now handled by the specific deletion actions
-    // to prevent accidental deletion on validation failure.
+    const productData = validatedFields.data;
 
     try {
         await updateProduct(id, productData as any);
@@ -145,7 +134,7 @@ export async function deleteOrphanedImageAction(imageUrl: string) {
     if (!imageUrl) return { error: "URL de imagen inválida." };
     try {
         await del(imageUrl);
-        return { message: "Imagen eliminada." };
+        return { message: "La imagen no guardada ha sido eliminada." };
     } catch (e: any) {
         if (e.message.includes('blob not found')) {
              return { message: "La imagen ya había sido eliminada." };
@@ -163,10 +152,12 @@ export async function deleteProductImageAction(productId: number, imageUrl: stri
 
         const updatedImages = product.images.filter(img => img !== imageUrl);
 
-        // Always attempt to delete from blob storage
+        if (updatedImages.length === 0) {
+            return { error: "No se puede eliminar la última imagen de un producto. Añade otra imagen antes de eliminar la actual." };
+        }
+
         await del(imageUrl);
 
-        // If the image was actually part of the product, update the DB
         if (product.images.includes(imageUrl)) {
             await updateProduct(productId, { ...product, images: updatedImages });
         }
@@ -175,7 +166,7 @@ export async function deleteProductImageAction(productId: number, imageUrl: stri
         revalidatePath(`/products/${productId}`);
         revalidatePath("/tienda");
 
-        return { message: "Imagen eliminada exitosamente." };
+        return { message: "La imagen ha sido eliminada del producto." };
     } catch (e: any) {
          return { error: e.message || "No se pudo eliminar la imagen." };
     }

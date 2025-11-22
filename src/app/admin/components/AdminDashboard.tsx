@@ -142,26 +142,33 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
     };
 
     const handleImageRemove = async (urlToRemove: string) => {
-        // Optimistically update UI
-        setImageUrls(prev => prev.filter(url => url !== urlToRemove));
+        if (imageUrls.length <= 1) {
+            toast({
+                title: 'Acción no permitida',
+                description: 'Un producto debe tener al menos una imagen.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        const newImageUrls = imageUrls.filter(url => url !== urlToRemove);
+        setImageUrls(newImageUrls);
 
         let result;
-        // If we are editing a product that already exists, the image might be in the DB
         if (editingProduct && editingProduct.images.includes(urlToRemove)) {
             result = await deleteProductImageAction(editingProduct.id, urlToRemove);
         } else {
-            // If it's a new product or a newly uploaded image, it's an "orphan"
             result = await deleteOrphanedImageAction(urlToRemove);
         }
 
         if (result?.error) {
             toast({ title: 'Error al Eliminar Imagen', description: result.error, variant: 'destructive' });
-            // Revert UI if the deletion failed
-            setImageUrls(prev => [...prev, urlToRemove]);
+            setImageUrls(currentUrls => [...currentUrls, urlToRemove]); // Revert on error
         } else {
-            toast({ title: 'Imagen Eliminada', description: result.message });
-            // Optionally, refresh data if an existing product was modified
-            if(editingProduct) fetchData();
+            toast({ title: 'Éxito', description: result.message });
+            if (editingProduct) {
+                fetchData();
+            }
         }
     };
 
@@ -235,7 +242,7 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
         });
         const csvContent = [headers.join(','), ...rows].join('\n');
         downloadCSV(csvContent, 'orders.csv');
-        toast({ title: 'Éxito', description: 'Datos de órdenes exportados a CSV.' });
+        toast({ title: 'Éxito', description: 'Datos de órdenes exportados. CSV.' });
     }
 
     return (
