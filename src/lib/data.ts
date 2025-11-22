@@ -1,8 +1,45 @@
 'use server';
 
 import { getDb } from './db';
-import type { Coupon, SalesMetrics, OrderData, OrderStatus, Order, Category, OrderItem } from './types';
+import type { Product, Coupon, SalesMetrics, OrderData, OrderStatus, Order, Category, OrderItem } from './types';
 import { unstable_noStore as noStore } from 'next/cache';
+
+// --- FUNCIONES DE PRODUCTO ---
+
+// Función de mapeo actualizada para construir un objeto Product válido.
+function _mapDbRowToProduct(row: any, categoryIds: number[]): Product {
+    return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        price: parseFloat(row.price),
+        salePrice: row.sale_price ? parseFloat(row.sale_price) : null,
+        images: row.images || [],
+        stock: row.stock,
+        featured: row.is_featured, // CORREGIDO: de isFeatured a featured
+        categoryIds: categoryIds, // AÑADIDO: Propiedad requerida
+        createdAt: new Date(row.created_at)
+    };
+}
+
+// getProductById ahora también busca las categorías del producto.
+export async function getProductById(id: number): Promise<Product | undefined> {
+    noStore();
+    try {
+        const db = getDb();
+        const productRows = await db`SELECT * FROM products WHERE id = ${id}`;
+        if (productRows.length === 0) return undefined;
+
+        // Busca los IDs de las categorías asociadas al producto.
+        const categoryRows = await db`SELECT category_id FROM product_categories WHERE product_id = ${id}`;
+        const categoryIds = categoryRows.map((r: any) => r.category_id);
+
+        return _mapDbRowToProduct(productRows[0], categoryIds);
+    } catch (error) {
+        console.error('Database Error:', error);
+        throw new Error('Failed to fetch product.');
+    }
+}
 
 // --- FUNCIONES DE CATEGORÍA Y CUPONES (SIN CAMBIOS) ---
 function _mapDbRowToCategory(row: any): Category { return { id: row.id, name: row.name, parentId: row.parent_id }; }
