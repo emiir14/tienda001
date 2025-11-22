@@ -151,7 +151,8 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                                     </div>
                                 </AccordionContent>
                             </AccordionItem>
-                        ))রোপ
+                        ))}
+                    </Accordion>
                 </ScrollArea>
                 <FormError message={errors.categoryIds?.[0]} />
             </div>
