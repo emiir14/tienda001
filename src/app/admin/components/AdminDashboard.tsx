@@ -266,6 +266,14 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={dialogType === 'import'} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Importar Productos desde CSV</DialogTitle></DialogHeader>
+                    <p>Funcionalidad no implementada todavía.</p>
+                    <DialogFooter><DialogClose asChild><Button>Cerrar</Button></DialogClose></DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
