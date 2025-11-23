@@ -22,8 +22,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Loader2, Ticket, ArrowLeft, ShoppingCart, CreditCard, AlertTriangle, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { createOrder } from "@/lib/data";
+import { useShippingStore } from "@/store/shipping-store";
+import { ShippingCalculator } from "@/components/ShippingCalculator";
 
 const shippingSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
@@ -37,16 +39,30 @@ const shippingSchema = z.object({
 type ShippingFormData = z.infer<typeof shippingSchema>;
 
 export default function CheckoutPage() {
-  const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount } = useCart();
+  const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount, shippingCost } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
+  const { postalCode: shippingPostalCode, setPostalCode } = useShippingStore();
   
   const form = useForm<ShippingFormData>({
     resolver: zodResolver(shippingSchema),
-    defaultValues: { name: "", email: "", phone: "", address: "", city: "", postalCode: "" },
+    defaultValues: { name: "", email: "", phone: "", address: "", city: "", postalCode: shippingPostalCode || "" },
   });
+
+  useEffect(() => {
+    if (shippingPostalCode) {
+      form.setValue('postalCode', shippingPostalCode);
+    }
+  }, [shippingPostalCode, form]);
+
+  const postalCodeValue = form.watch("postalCode");
+  useEffect(() => {
+    if (postalCodeValue && postalCodeValue.length >= 4) {
+      setPostalCode(postalCodeValue);
+    }
+  }, [postalCodeValue, setPostalCode]);
 
   useEffect(() => {
     const checkAdBlocker = async () => {
@@ -68,6 +84,10 @@ export default function CheckoutPage() {
       if (!cartItems || cartItems.length === 0) {
         throw new Error("El carrito está vacío");
       }
+
+      if (shippingCost === null || shippingCost === undefined) {
+        throw new Error("Por favor, calcula el costo de envío antes de continuar.");
+      }
       
       const orderDataForDb = {
         customerName: values.name,
@@ -79,6 +99,7 @@ export default function CheckoutPage() {
         shippingAddress: values.address,
         shippingCity: values.city,
         shippingPostalCode: values.postalCode,
+        shippingCost: shippingCost,
         couponCode: appliedCoupon?.code,
         discountAmount: discount,
       };
@@ -98,6 +119,7 @@ export default function CheckoutPage() {
           email: values.email, 
         },
         orderId: orderResponse.orderId,
+        shippingCost: shippingCost,
         discountAmount: discount,
         couponCode: appliedCoupon?.code
       };
@@ -181,7 +203,7 @@ export default function CheckoutPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <p className="text-muted-foreground">Subtotal</p>
-                <p>${subtotal.toLocaleString('es-AR')}</p>
+                <p>{formatCurrency(subtotal)}</p>
               </div>
               {appliedCoupon && (
                 <div className="flex justify-between text-primary">
@@ -189,17 +211,17 @@ export default function CheckoutPage() {
                     <Ticket className="h-4 w-4"/>
                     <span>Cupón: {appliedCoupon.code}</span>
                   </div>
-                  <span>-${discount.toLocaleString('es-AR')}</span>
+                  <span>-{formatCurrency(discount)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <p className="text-muted-foreground">Envío</p>
-                <p>A coordinar</p>
+                <p>{shippingCost !== null ? formatCurrency(shippingCost) : "Calcula tu envío"}</p>
               </div>
               <Separator className="my-4"/>
               <div className="flex justify-between font-bold text-xl">
                 <p>Total</p>
-                <p>${totalPrice.toLocaleString('es-AR')}</p>
+                <p>{formatCurrency(totalPrice)}</p>
               </div>
             </div>
           </CardContent>
@@ -216,8 +238,8 @@ export default function CheckoutPage() {
   );
 
   return (
-    <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto py-8">
-      <div className="lg:col-span-1">
+    <div className="grid lg:grid-cols-3 gap-12 max-w-7xl mx-auto py-8">
+      <div className="lg:col-span-2">
         <h1 className="text-3xl font-headline font-bold mb-6">Finalizar Compra</h1>
 
         {showAdBlockerWarning && (
@@ -245,26 +267,18 @@ export default function CheckoutPage() {
             <form onSubmit={form.handleSubmit(handleShippingSubmit)} className="space-y-8">
               <Card>
                 <CardHeader>
-                  <CardTitle>Información de Envío y Contacto</CardTitle>
-                  <CardDescription>Completa tus datos para el envío y la confirmación del pedido.</CardDescription>
+                  <CardTitle>Información de Contacto y Envío</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre Completo</FormLabel>
-                      <FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}/>
+                <CardContent className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="email" render={({ field }) => (
+                     <FormField control={form.control} name="name" render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl>
+                        <FormLabel>Nombre Completo</FormLabel>
+                        <FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl>
                         <FormMessage />
                         </FormItem>
                     )}/>
-                    <FormField control={form.control} name="phone" render={({ field }) => (
+                     <FormField control={form.control} name="phone" render={({ field }) => (
                         <FormItem>
                         <FormLabel>Teléfono</FormLabel>
                         <FormControl><Input type="tel" {...field} placeholder="1122334455" /></FormControl>
@@ -272,43 +286,54 @@ export default function CheckoutPage() {
                         </FormItem>
                     )}/>
                   </div>
-                  <FormField control={form.control} name="address" render={({ field }) => (
+                  <FormField control={form.control} name="email" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Dirección</FormLabel>
-                      <FormControl><Input {...field} placeholder="Av. Corrientes 1234" /></FormControl>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}/>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="city" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ciudad</FormLabel>
-                        <FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
-                    <FormField control={form.control} name="postalCode" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Código Postal</FormLabel>
-                        <FormControl><Input {...field} placeholder="1001" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
+                  <div>
+                    <h3 className="font-medium mb-4">Dirección de Envío</h3>
+                     <div className="space-y-4">
+                        <FormField control={form.control} name="address" render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Dirección</FormLabel>
+                            <FormControl><Input {...field} placeholder="Av. Corrientes 1234 5A" /></FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}/>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="city" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Ciudad</FormLabel>
+                                <FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}/>
+                            <FormField control={form.control} name="postalCode" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Código Postal</FormLabel>
+                                <FormControl><Input {...field} placeholder="C1043AAS" /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}/>
+                        </div>
+                     </div>
                   </div>
+                  <ShippingCalculator />
                 </CardContent>
-                <CardFooter>
-                  <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      "Continuar y Pagar con Mercado Pago"
-                    )}
-                  </Button>
-                </CardFooter>
               </Card>
+                <Button type="submit" size="lg" className="w-full" disabled={isLoading || shippingCost === null}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    "Continuar y Pagar con Mercado Pago"
+                  )}
+                </Button>
             </form>
           </Form>
         )}

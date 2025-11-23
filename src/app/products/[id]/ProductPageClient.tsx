@@ -2,7 +2,6 @@
 "use client";
 
 import Image from 'next/image';
-import { AddToCartButton } from '@/components/AddToCartButton';
 import type { Product } from '@/lib/types';
 import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +9,8 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { LiveVisitorCounter } from './LiveVisitorCounter';
 import { Separator } from '@/components/ui/separator';
 import { ProductCard } from '@/components/ProductCard';
+import { AddToCartButton } from '@/components/AddToCartButton';
+import { ShippingCalculator } from '@/components/ShippingCalculator';
 
 export function ProductPageClient({ product, relatedProducts }: { product: Product, relatedProducts: Product[] }) {
   return (
@@ -18,32 +19,52 @@ export function ProductPageClient({ product, relatedProducts }: { product: Produ
         <div className="w-full">
             <Carousel className="w-full">
                 <CarouselContent>
-                    {product.images.map((img, index) => (
-                         <CarouselItem key={index}>
+                    {product.images && product.images.length > 0 ? (
+                        product.images.map((img, index) => (
+                             <CarouselItem key={index}>
+                                <Card className='overflow-hidden'>
+                                    <CardContent className="p-0 flex aspect-square items-center justify-center">
+                                         <Image
+                                            src={img}
+                                            alt={`${product.name} - image ${index + 1}`}
+                                            width={600}
+                                            height={600}
+                                            className="object-cover w-full h-full"
+                                            priority={index === 0}
+                                            data-ai-hint={product.aiHint}
+                                            sizes="(max-width: 768px) 100vw, 50vw"
+                                        />
+                                    </CardContent>
+                                </Card>
+                            </CarouselItem>
+                        ))
+                    ) : (
+                        <CarouselItem>
                             <Card className='overflow-hidden'>
-                                <CardContent className="p-0 flex aspect-square items-center justify-center">
-                                     <Image
-                                        src={img}
-                                        alt={`${product.name} - image ${index + 1}`}
+                                <CardContent className="p-0 flex aspect-square items-center justify-center bg-muted">
+                                    <Image
+                                        src="https://placehold.co/600x600/EFEFEF/333333?text=Sin+Imagen"
+                                        alt="Imagen no disponible"
                                         width={600}
                                         height={600}
                                         className="object-cover w-full h-full"
-                                        priority={index === 0}
-                                        data-ai-hint={product.aiHint}
-                                        sizes="(max-width: 768px) 100vw, 50vw"
                                     />
                                 </CardContent>
                             </Card>
                         </CarouselItem>
-                    ))}
+                    )}
                 </CarouselContent>
-                <CarouselPrevious className='left-2' />
-                <CarouselNext className='right-2'/>
+                {product.images && product.images.length > 1 && (
+                    <>
+                        <CarouselPrevious className='left-2' />
+                        <CarouselNext className='right-2'/>
+                    </>
+                )}
             </Carousel>
         </div>
-        <div className="flex flex-col justify-center">
+        <div className="flex flex-col">
           <h1 className="text-4xl lg:text-5xl font-bold font-headline">{product.name}</h1>
-          <p className="mt-4 text-muted-foreground text-lg">{product.description}</p>
+          <p className="mt-4 text-muted-foreground text-lg">{product.shortDescription}</p>
           {product.salePrice ? (
             <div className="flex items-baseline gap-4 mt-6">
               <p className="text-4xl font-bold text-primary">${product.salePrice.toLocaleString('es-AR')}</p>
@@ -52,21 +73,23 @@ export function ProductPageClient({ product, relatedProducts }: { product: Produ
           ) : (
             <p className="mt-6 text-4xl font-bold text-primary">${product.price.toLocaleString('es-AR')}</p>
           )}
-          <div className="mt-8 space-y-4">
+          <Separator className="my-8"/>
+          <div className="space-y-6">
             {product.stock > 0 ? (
               <>
                 <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                   <CheckCircle2 className="h-5 w-5" />
                   <p className="font-semibold">En Stock</p>
                 </div>
-                <AddToCartButton product={product} />
+                <div className="w-full max-w-sm">
+                  <AddToCartButton product={product} />
+                </div>
                 {product.stock <= 5 && (
                   <div className="flex items-center gap-2 text-amber-600">
                       <AlertTriangle className="h-5 w-5" />
                       <p className="text-sm font-semibold">¡Quedan pocas unidades!</p>
                   </div>
                 )}
-                 <LiveVisitorCounter />
               </>
             ) : (
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -75,6 +98,10 @@ export function ProductPageClient({ product, relatedProducts }: { product: Produ
               </div>
             )}
           </div>
+          <ShippingCalculator />
+           <div className='mt-6'>
+             <LiveVisitorCounter />
+           </div>
         </div>
       </div>
       
