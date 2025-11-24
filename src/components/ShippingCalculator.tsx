@@ -54,11 +54,15 @@ export function ShippingCalculator() {
       setError(errorMessage);
     }
   };
+  
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+        handleCalculate();
+    }
+  }
 
   const renderResult = () => {
-    if (status === 'loading') {
-      return null; // The button's loading state is enough
-    }
+    if (status === 'loading') return null;
     if (status === 'error' && error) {
       return (
         <div className="mt-2 text-sm flex items-center gap-2 text-destructive">
@@ -79,24 +83,24 @@ export function ShippingCalculator() {
   };
 
   return (
-    <div className="mt-6 p-4 border rounded-lg bg-secondary/30">
-        <label htmlFor="shipping-postal-code" className="flex items-center gap-2 text-sm font-semibold mb-2">
-            <Truck className="h-5 w-5"/>
-            Calcula tu envío
-        </label>
+    <div className="mt-4 p-3 border rounded-lg bg-secondary/30">
+        <div className="flex items-center gap-2 text-sm font-semibold mb-2">
+            <Truck className="h-5 w-5 text-muted-foreground"/>
+            <span className='text-muted-foreground'>Calcula tu envío</span>
+        </div>
       <div className="flex items-center gap-2">
         <Input
           id="shipping-postal-code"
           type="text"
           value={inputCode}
           onChange={(e) => setInputCode(e.target.value)}
+          onKeyDown={handleKeyPress}
           placeholder="Tu código postal"
-          className="max-w-[180px] bg-background"
+          className="bg-background flex-grow"
           aria-label="Código postal para envío"
         />
-        <Button onClick={handleCalculate} disabled={status === 'loading'} variant="outline">
-          {status === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Calcular
+        <Button onClick={handleCalculate} disabled={status === 'loading'} variant="outline" className='bg-background shrink-0'>
+          {status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Calcular'}
         </Button>
       </div>
       {renderResult()}

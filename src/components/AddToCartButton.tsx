@@ -6,8 +6,8 @@ import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
-import { Input } from './ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { QuantitySelector } from './QuantitySelector';
 
 export function AddToCartButton({ product }: { product: Product }) {
   const { addToCart, cartItems } = useCart();
@@ -30,18 +30,15 @@ export function AddToCartButton({ product }: { product: Product }) {
   };
 
   return (
-    <div className="flex items-center gap-4">
-        <Input 
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            min="1"
-            max={500} // Límite arbitrario para no revelar stock
-            className="w-20 text-center"
-        />
-        <Button onClick={handleAddToCart} size="lg" className="flex-1">
-            <ShoppingCart className="mr-2" /> Añadir al carrito
-        </Button>
+    <div className="flex flex-col sm:flex-row items-stretch gap-4">
+      <QuantitySelector 
+        quantity={quantity} 
+        setQuantity={setQuantity} 
+        maxQuantity={product.stock} 
+      />
+      <Button onClick={handleAddToCart} size="lg" className="flex-grow">
+          <ShoppingCart className="mr-2 h-5 w-5" /> Añadir al carrito
+      </Button>
     </div>
   );
 }
