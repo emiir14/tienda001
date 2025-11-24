@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     Table,
     TableBody,
@@ -11,16 +10,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, FileUp, FileDown, PlusCircle, Trash2, Pencil, Search } from "lucide-react";
+import { FileUp, FileDown, PlusCircle, Trash2, Pencil, Search, ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { Product, Category } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 
 
 export function ProductsTab({ 
@@ -42,92 +34,120 @@ export function ProductsTab({
     onImport: () => void;
     categories: Category[];
 }) {
+    const [inputValue, setInputValue] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: keyof Product | 'id' | 'category'; direction: 'ascending' | 'descending' } | null>({ key: 'id', direction: 'ascending' });
+    type SortableKeys = 'id' | 'name' | 'price' | 'discountPercentage' | 'stock' | 'category';
+    const [sortConfig, setSortConfig] = useState<{ key: SortableKeys, direction: 'asc' | 'desc' }>({ key: 'id', direction: 'asc' });
 
-    const sortedProducts = [...products].sort((a, b) => {
-        if (!sortConfig) return 0;
+    const sortedProducts = useMemo(() => {
+        let sortableItems = [...products];
+        if (sortConfig) {
+            sortableItems.sort((a, b) => {
+                const key = sortConfig.key;
+                let aValue: any = a[key as keyof Product];
+                let bValue: any = b[key as keyof Product];
 
-        let aValue: any = a[sortConfig.key as keyof Product];
-        let bValue: any = b[sortConfig.key as keyof Product];
+                if (key === 'category') {
+                    aValue = categories.find(c => c.id === a.categoryIds[0])?.name || '';
+                    bValue = categories.find(c => c.id === b.categoryIds[0])?.name || '';
+                }
 
-        if (sortConfig.key === 'category') {
-            const categoryA = categories.find(c => c.id === a.categoryIds[0])?.name || '';
-            const categoryB = categories.find(c => c.id === b.categoryIds[0])?.name || '';
-            aValue = categoryA;
-            bValue = categoryB;
+                if (aValue === null || aValue === undefined) aValue = -Infinity;
+                if (bValue === null || bValue === undefined) bValue = -Infinity;
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
         }
+        return sortableItems;
+    }, [products, sortConfig, categories]);
 
-        if (aValue < bValue) {
-            return sortConfig.direction === 'ascending' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-            return sortConfig.direction === 'ascending' ? 1 : -1;
-        }
-        return 0;
-    });
+    const filteredProducts = useMemo(() => {
+        const lowercasedQuery = searchTerm.toLowerCase();
+        if (!lowercasedQuery) return sortedProducts;
 
-    const requestSort = (key: keyof Product | 'id' | 'category') => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
+        return sortedProducts.filter(product => {
+             const categoryNames = product.categoryIds.map(id => categories.find(c => c.id === id)?.name || '').join(' ');
+             const fieldsToSearch = [
+                product.id.toString(),
+                product.name,
+                product.sku || '',
+                categoryNames
+             ];
+             return fieldsToSearch.some(field => field.toLowerCase().includes(lowercasedQuery));
+        });
+    }, [sortedProducts, searchTerm, categories]);
+
+    const requestSort = (key: SortableKeys) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
         }
         setSortConfig({ key, direction });
     };
 
-    const getSortIndicator = (key: keyof Product | 'id' | 'category') => {
+    const getSortIcon = (key: SortableKeys) => {
         if (!sortConfig || sortConfig.key !== key) {
-            return null;
+            return <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground/70" />;
         }
-        return sortConfig.direction === 'ascending' ? ' 🔼' : ' 🔽';
+        return sortConfig.direction === 'asc' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
     };
 
-    const filteredProducts = sortedProducts.filter(product =>
-        (product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.id.toString().includes(searchTerm))
+    const renderHeaderButton = (key: SortableKeys, label: string, className: string = "") => (
+        <Button variant="ghost" onClick={() => requestSort(key)} className={cn("px-2 h-8", className)}>
+            {label}{getSortIcon(key)}
+        </Button>
     );
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setSearchTerm(inputValue.trim());
+    };
     
     const getCategoryNames = (categoryIds: number[]) => {
         return categoryIds.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).map(name => <Badge key={name} variant="outline" className="mr-1 mb-1">{name}</Badge>);
     }
 
-
     return (
         <div className="space-y-4">
-            <div className="space-y-2">
-                <h2 className="text-2xl font-bold font-headline">Gestionar Productos</h2>
-                <p className="text-muted-foreground">Añade, edita o elimina productos de tu catálogo.</p>
-            </div>
-            <div className="flex flex-col md:flex-row gap-2 justify-between items-center">
-                <div className="flex w-full md:w-auto gap-2">
-                    <Input
-                        placeholder="Buscar por nombre, SKU, categoría..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:w-[300px] lg:w-[400px]"
-                    />
-                     <Button variant="outline" size="icon"><Search className="h-4 w-4"/></Button>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                 <div>
+                    <h2 className="text-2xl font-bold font-headline">Gestionar Productos</h2>
+                    <p className="text-muted-foreground">Añade, edita o elimina productos de tu catálogo.</p>
                 </div>
-                <div className="flex gap-2 self-end md:self-auto">
+                <div className="flex gap-2 self-start md:self-auto">
                     <Button variant="outline" onClick={onImport}><FileUp className="mr-2 h-4 w-4" />Importar</Button>
                     <Button variant="outline" onClick={onExport}><FileDown className="mr-2 h-4 w-4" />Exportar</Button>
                     <Button onClick={onAdd}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
                 </div>
             </div>
 
+            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Buscar por nombre, SKU, categoría..."
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        className="pl-10 w-full md:w-[300px] lg:w-[400px]"
+                    />
+                </div>
+                <Button type="submit">Buscar</Button>
+            </form>
+
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="hidden w-[80px] sm:table-cell">Imagen</TableHead>
-                            <TableHead className="w-[60px] cursor-pointer" onClick={() => requestSort('id')}>ID{getSortIndicator('id')}</TableHead>
-                            <TableHead className="cursor-pointer" onClick={() => requestSort('name')}>Nombre{getSortIndicator('name')}</TableHead>
-                            <TableHead className="hidden lg:table-cell cursor-pointer" onClick={() => requestSort('price')}>Precio{getSortIndicator('price')}</TableHead>
-                             <TableHead className="hidden md:table-cell w-[100px] cursor-pointer" onClick={() => requestSort('discountPercentage')}>Descuento{getSortIndicator('discountPercentage')}</TableHead>
-                            <TableHead className="hidden md:table-cell w-[80px] cursor-pointer" onClick={() => requestSort('stock')}>Stock{getSortIndicator('stock')}</TableHead>
-                            <TableHead className="hidden lg:table-cell cursor-pointer" onClick={() => requestSort('category')}>Categorías{getSortIndicator('category')}</TableHead>
-                            <TableHead className="w-[100px]">Acciones</TableHead>
+                            <TableHead className="w-[110px]">{renderHeaderButton('id', 'ID')}</TableHead>
+                            <TableHead>{renderHeaderButton('name', 'Nombre')}</TableHead>
+                            <TableHead className="hidden lg:table-cell">{renderHeaderButton('price', 'Precio')}</TableHead>
+                            <TableHead className="hidden md:table-cell">{renderHeaderButton('discountPercentage', 'Descuento')}</TableHead>
+                            <TableHead className="hidden md:table-cell">{renderHeaderButton('stock', 'Stock')}</TableHead>
+                            <TableHead className="hidden lg:table-cell">Categorías</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -147,14 +167,14 @@ export function ProductsTab({
                                             width="64"
                                         />
                                     </TableCell>
-                                    <TableCell className="font-medium text-xs">{product.id}</TableCell>
+                                    <TableCell className="font-mono text-xs">#{product.id}</TableCell>
                                     <TableCell className="font-medium">{product.name}</TableCell>
                                     <TableCell className="hidden lg:table-cell">{formatCurrency(product.price)}</TableCell>
-                                    <TableCell className="hidden md:table-cell">{product.discountPercentage ? `${product.discountPercentage}%` : '-'}</TableCell>
-                                    <TableCell className="hidden md:table-cell">{product.stock}</TableCell>
+                                    <TableCell className="hidden md:table-cell text-center">{product.discountPercentage ? `${product.discountPercentage}%` : '-'}</TableCell>
+                                    <TableCell className="hidden md:table-cell text-center">{product.stock}</TableCell>
                                     <TableCell className="hidden lg:table-cell">{getCategoryNames(product.categoryIds)}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
+                                    <TableCell className="text-right">
+                                        <div className="flex items-center gap-2 justify-end">
                                             <Button variant="outline" size="icon" onClick={() => onEdit(product)}><Pencil className="h-4 w-4"/></Button>
                                             <Button variant="destructive" size="icon" onClick={() => onDelete(product.id)}><Trash2 className="h-4 w-4"/></Button>
                                         </div>

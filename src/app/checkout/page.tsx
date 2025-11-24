@@ -67,7 +67,7 @@ type CheckoutFormData = z.infer<typeof checkoutSchema>;
 
 function CheckoutForm() {
   const { cartItems, subtotal, appliedCoupon, cartCount, clearCart } = useCart();
-  const { shippingCost, postalCode: shippingPostalCode, setPostalCode, clearShipping } = useShippingStore();
+  const { shippingCost, postalCode: shippingPostalCode, setPostalCode, reset } = useShippingStore();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -119,9 +119,10 @@ function CheckoutForm() {
   useEffect(() => {
     form.setValue('deliveryMethod', deliveryMethod);
      if (deliveryMethod !== 'shipping') {
-      clearShipping();
+      reset();
+      form.setValue('postalCode', '');
     }
-  }, [deliveryMethod, form, clearShipping]);
+  }, [deliveryMethod, form, reset]);
 
   useEffect(() => {
     if (shippingPostalCode) {
@@ -131,10 +132,10 @@ function CheckoutForm() {
 
   const postalCodeValue = form.watch("postalCode");
   useEffect(() => {
-    if (postalCodeValue && postalCodeValue.length >= 4) {
+    if (deliveryMethod === 'shipping' && postalCodeValue && postalCodeValue.length >= 4) {
       setPostalCode(postalCodeValue);
     }
-  }, [postalCodeValue, setPostalCode]);
+  }, [postalCodeValue, setPostalCode, deliveryMethod]);
 
   useEffect(() => {
     const checkAdBlocker = async () => {
