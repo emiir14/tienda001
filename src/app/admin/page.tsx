@@ -21,7 +21,7 @@ function LoginButton() {
     );
 }
 
-export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
+export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const initialState = { success: false, error: null };
   const [state, dispatch] = useFormState(authenticateAdmin, initialState);
@@ -80,7 +80,7 @@ export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
             <Loader2 className="h-16 w-16 animate-spin text-primary" />
         </div>
       }>
-        <AdminDashboard onLogout={handleLogout} dbConnected={dbConnected} />
+        <AdminDashboard onLogout={handleLogout} />
       </Suspense>
   );
 }
