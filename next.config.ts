@@ -96,6 +96,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'azrwblchlzygjcjo.public.blob.vercel-storage.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   env: {
@@ -118,7 +124,7 @@ const nextConfig: NextConfig = {
             value: 'GET, POST, PUT, DELETE, OPTIONS'
           },
           {
-            key: 'Access-Control-Allow-Headers',
+            key: 'access-control-allow-headers',
             value: 'Content-Type, Authorization'
           },
         ]
