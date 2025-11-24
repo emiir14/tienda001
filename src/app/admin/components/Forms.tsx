@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import type { Product, Coupon, Category } from '@/lib/types';
+import { ImageUploader } from './ImageUploader';
 
 type FieldErrors = Record<string, string[] | undefined>;
 
@@ -25,7 +26,23 @@ const FormError = ({ message }: { message?: string }) => {
     return <p className="text-sm font-medium text-destructive mt-1">{message}</p>;
 };
 
-export function ProductForm({ product, formId, errors, categories }: { product?: Product, formId: string, errors: FieldErrors, categories: Category[] }) {
+export function ProductForm({
+    product,
+    formId,
+    errors,
+    categories,
+    imageUrls,
+    onImageUrlsChange,
+    onImageRemove,
+}: {
+    product?: Product,
+    formId: string,
+    errors: FieldErrors,
+    categories: Category[],
+    imageUrls: string[],
+    onImageUrlsChange: (urls: string[]) => void;
+    onImageRemove: (url: string) => void;
+}) {
     const [startDate, setStartDate] = useState<Date | undefined>(product?.offerStartDate ? new Date(product.offerStartDate) : undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(product?.offerEndDate ? new Date(product.offerEndDate) : undefined);
     const [isStartDatePickerOpen, setStartDatePickerOpen] = useState(false);
@@ -55,15 +72,15 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
     const defaultOpenAccordionItems = useMemo(() => {
         if (!product?.categoryIds) return [];
 
-        const selectedCategoryIds = new Set(product.categoryIds);
+        const selectedCategoryIdsSet = new Set(product.categoryIds);
         const openItems = new Set<string>();
 
         groupedCategories.forEach(parent => {
-            if (selectedCategoryIds.has(parent.id)) {
+            if (selectedCategoryIdsSet.has(parent.id)) {
                 openItems.add(String(parent.id));
             }
             parent.children.forEach(child => {
-                if (selectedCategoryIds.has(child.id)) {
+                if (selectedCategoryIdsSet.has(child.id)) {
                     openItems.add(String(parent.id));
                 }
             });
@@ -79,38 +96,39 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
             {selectedCategoryIds.map(id => (
                 <input key={`cat_hidden_${id}`} type="hidden" name="categoryIds" value={String(id)} />
             ))}
+            <input type="hidden" name="images" value={JSON.stringify(imageUrls)} />
         </>
     );
 
     return (
         <form id={formId} className="space-y-4">
              <HiddenInputs />
-            <div><Label htmlFor="name">Nombre *</Label><Input id="name" name="name" defaultValue={product?.name} className={cn(errors.name && "border-destructive")} /><FormError message={errors.name?.[0]} /></div>
-            <div><Label htmlFor="shortDescription">Descripción Corta</Label><Input id="shortDescription" name="shortDescription" defaultValue={product?.shortDescription} placeholder="Un resumen breve para la tarjeta de producto." className={cn(errors.shortDescription && "border-destructive")}/><FormError message={errors.shortDescription?.[0]} /></div>
-            <div><Label htmlFor="description">Descripción Completa *</Label><Textarea id="description" name="description" defaultValue={product?.description} className={cn(errors.description && "border-destructive")} /><FormError message={errors.description?.[0]} /></div>
+            <div><Label htmlFor="name">Nombre *</Label><Input id="name" name="name" defaultValue={product?.name} className={cn("border-2", errors.name && "border-destructive")} /><FormError message={errors.name?.[0]} /></div>
+            <div><Label htmlFor="shortDescription">Descripción Corta</Label><Input id="shortDescription" name="shortDescription" defaultValue={product?.shortDescription} placeholder="Un resumen breve para la tarjeta de producto." className={cn("border-2", errors.shortDescription && "border-destructive")}/><FormError message={errors.shortDescription?.[0]} /></div>
+            <div><Label htmlFor="description">Descripción Completa *</Label><Textarea id="description" name="description" defaultValue={product?.description} className={cn("border-2", errors.description && "border-destructive")} /><FormError message={errors.description?.[0]} /></div>
             <div className="grid grid-cols-2 gap-4">
-                <div><Label htmlFor="price">Precio *</Label><Input id="price" name="price" type="number" step="0.01" min="0" defaultValue={product?.price} className={cn(errors.price && "border-destructive")}/><FormError message={errors.price?.[0]} /></div>
-                <div><Label htmlFor="discountPercentage">Descuento (%)</Label><Input id="discountPercentage" name="discountPercentage" type="number" step="1" min="0" max="100" defaultValue={product?.discountPercentage ?? ''} placeholder="Ej: 15" className={cn(errors.discountPercentage && "border-destructive")} /><FormError message={errors.discountPercentage?.[0]} /></div>
+                <div><Label htmlFor="price">Precio *</Label><Input id="price" name="price" type="number" step="0.01" min="0" defaultValue={product?.price} className={cn("border-2", errors.price && "border-destructive")} /><FormError message={errors.price?.[0]} /></div>
+                <div><Label htmlFor="discountPercentage">Descuento (%)</Label><Input id="discountPercentage" name="discountPercentage" type="number" step="1" min="0" max="100" defaultValue={product?.discountPercentage ?? ''} placeholder="Ej: 15" className={cn("border-2", errors.discountPercentage && "border-destructive")} /><FormError message={errors.discountPercentage?.[0]} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <Label>Inicio de Oferta</Label>
                      <Popover open={isStartDatePickerOpen} onOpenChange={setStartDatePickerOpen}>
                         <PopoverTrigger asChild>
-                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground", errors.offerStartDate && "border-destructive")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />{startDate ? format(startDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
-                                </Button>
+                            <Button variant={"outline"} className={cn("border-2 w-full justify-start text-left font-normal", !startDate && "text-muted-foreground", errors.offerStartDate && "border-destructive")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />{startDate ? format(startDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
+                            </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                            <Calendar 
-                                mode="single" 
-                                selected={startDate} 
+                            <Calendar
+                                mode="single"
+                                selected={startDate}
                                 onSelect={(date) => {
                                     setStartDate(date);
                                     setStartDatePickerOpen(false);
-                                }} 
-                                initialFocus 
-                                fromDate={new Date()} 
+                                }}
+                                initialFocus
+                                fromDate={new Date()}
                             />
                         </PopoverContent>
                     </Popover>
@@ -120,20 +138,20 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                     <Label>Fin de Oferta</Label>
                      <Popover open={isEndDatePickerOpen} onOpenChange={setEndDatePickerOpen}>
                         <PopoverTrigger asChild>
-                             <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground", errors.offerEndDate && "border-destructive")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />{endDate ? format(endDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
-                                </Button>
+                            <Button variant={"outline"} className={cn("border-2 w-full justify-start text-left font-normal", !endDate && "text-muted-foreground", errors.offerEndDate && "border-destructive")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />{endDate ? format(endDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
+                            </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                            <Calendar 
-                                mode="single" 
-                                selected={endDate} 
+                            <Calendar
+                                mode="single"
+                                selected={endDate}
                                 onSelect={(date) => {
                                     setEndDate(date);
                                     setEndDatePickerOpen(false);
-                                }} 
-                                initialFocus 
-                                fromDate={startDate || new Date()} 
+                                }}
+                                initialFocus
+                                fromDate={startDate || new Date()}
                             />
                         </PopoverContent>
                     </Popover>
@@ -142,14 +160,14 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
             </div>
             <div>
                 <Label>Categorías *</Label>
-                <ScrollArea className="h-48 w-full rounded-md border">
+                <ScrollArea className="h-48 w-full rounded-md border-2">
                     <Accordion type="multiple" className="w-full" defaultValue={defaultOpenAccordionItems}>
                         {groupedCategories.map(parent => (
-                             <AccordionItem value={String(parent.id)} key={parent.id}>
+                            <AccordionItem value={String(parent.id)} key={parent.id}>
                                 <AccordionTrigger className="px-4 font-semibold">{parent.name}</AccordionTrigger>
                                 <AccordionContent>
                                     <div className="pl-8 pr-4 space-y-3 py-2">
-                                        {parent.children.length > 0 
+                                        {parent.children.length > 0
                                         ? (
                                             <>
                                                 <div className="flex items-center space-x-2">
@@ -171,7 +189,7 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
                                                     </div>
                                                 ))}
                                             </>
-                                        ) 
+                                        )
                                         : (
                                             <div className="flex items-center space-x-2">
                                                 <Checkbox
@@ -193,35 +211,33 @@ export function ProductForm({ product, formId, errors, categories }: { product?:
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="stock">Stock *</Label>
-                    <Input id="stock" name="stock" type="number" min="0" step="1" defaultValue={product?.stock} className={cn(errors.stock && "border-destructive")} />
+                    <Input id="stock" name="stock" type="number" min="0" step="1" defaultValue={product?.stock} className={cn("border-2", errors.stock && "border-destructive")} />
                     <FormError message={errors.stock?.[0]} />
                 </div>
                 <div>
                     <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
-                    <Input id="sku" name="sku" defaultValue={product?.sku} placeholder="Ej: REM-NEG-S" className={cn(errors.sku && "border-destructive")} />
+                    <Input id="sku" name="sku" defaultValue={product?.sku} placeholder="Ej: REM-NEG-S" className={cn("border-2", errors.sku && "border-destructive")} />
                     <FormError message={errors.sku?.[0]} />
                 </div>
             </div>
             <div className='space-y-2'>
-                <Label>Imágenes del Producto (hasta 5) *</Label>
-                <Input id="image1" name="image1" type="url" defaultValue={product?.images?.[0]} placeholder="URL de la Imagen Principal (requerido)" className={cn(errors.images && "border-destructive")} />
-                <Input id="image2" name="image2" type="url" defaultValue={product?.images?.[1]} placeholder="URL de la Imagen 2 (opcional)" />
-                <Input id="image3" name="image3" type="url" defaultValue={product?.images?.[2]} placeholder="URL de la Imagen 3 (opcional)" />
-                <Input id="image4" name="image4" type="url" defaultValue={product?.images?.[3]} placeholder="URL de la Imagen 4 (opcional)" />
-                <Input id="image5" name="image5" type="url" defaultValue={product?.images?.[4]} placeholder="URL de la Imagen 5 (opcional)" />
+                <Label>Imágenes del Producto (Max: 4) *</Label>
+                <ImageUploader
+                    imageUrls={imageUrls}
+                    onImageUrlsChange={onImageUrlsChange}
+                    onImageRemove={onImageRemove}
+                />
                 <FormError message={errors.images?.[0]} />
             </div>
-            <div><Label htmlFor="aiHint">AI Hint</Label><Input id="aiHint" name="aiHint" defaultValue={product?.aiHint} /></div>
             <p className="text-sm text-muted-foreground pt-2">Los campos con * son obligatorios.</p>
         </form>
     );
 }
 
-
 export function CouponForm({ coupon, formId, errors }: { coupon?: Coupon, formId: string, errors: FieldErrors }) {
     const [expiryDate, setExpiryDate] = useState<Date | undefined>(coupon?.expiryDate ? new Date(coupon.expiryDate) : undefined);
     const [isExpiryDatePickerOpen, setExpiryDatePickerOpen] = useState(false);
-    
+
     const HiddenDateInputs = () => (
         <input type="hidden" name="expiryDate" value={expiryDate?.toISOString() ?? ''} />
     );
@@ -229,12 +245,12 @@ export function CouponForm({ coupon, formId, errors }: { coupon?: Coupon, formId
     return (
         <form id={formId} className="space-y-4">
             <HiddenDateInputs />
-            <div><Label htmlFor="code">Código del Cupón *</Label><Input id="code" name="code" defaultValue={coupon?.code} placeholder="VERANO20" className={cn(errors.code && "border-destructive")} /><FormError message={errors.code?.[0]} /></div>
+            <div><Label htmlFor="code">Código del Cupón *</Label><Input id="code" name="code" defaultValue={coupon?.code} placeholder="VERANO20" className={cn("border-2", errors.code && "border-destructive")} /><FormError message={errors.code?.[0]} /></div>
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="discountType">Tipo de Descuento *</Label>
                     <Select name="discountType" defaultValue={coupon?.discountType ?? 'percentage'}>
-                        <SelectTrigger className={cn(errors.discountType && "border-destructive")}><SelectValue placeholder="Seleccionar tipo..." /></SelectTrigger>
+                        <SelectTrigger className={cn("border-2", errors.discountType && "border-destructive")}><SelectValue placeholder="Seleccionar tipo..." /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="percentage">Porcentaje (%)</SelectItem>
                             <SelectItem value="fixed">Monto Fijo ($)</SelectItem>
@@ -244,46 +260,37 @@ export function CouponForm({ coupon, formId, errors }: { coupon?: Coupon, formId
                 </div>
                 <div>
                     <Label htmlFor="discountValue">Valor *</Label>
-                    <Input id="discountValue" name="discountValue" type="number" step="0.01" min="0" defaultValue={coupon?.discountValue} placeholder="Ej: 20" className={cn(errors.discountValue && "border-destructive")} />
+                    <Input id="discountValue" name="discountValue" type="number" step="0.01" min="0" defaultValue={coupon?.discountValue} placeholder="Ej: 20" className={cn("border-2", errors.discountValue && "border-destructive")} />
                      <FormError message={errors.discountValue?.[0]} />
                 </div>
             </div>
             <div>
                 <Label htmlFor="minPurchaseAmount">Compra Mínima (Opcional)</Label>
-                <Input 
-                    id="minPurchaseAmount" 
-                    name="minPurchaseAmount" 
-                    type="number" 
-                    step="0.01" 
-                    min="0" 
-                    defaultValue={coupon?.minPurchaseAmount ?? ''} 
-                    placeholder="Ej: 5000"
-                    className={cn(errors.minPurchaseAmount && "border-destructive")} 
-                />
+                <Input id="minPurchaseAmount" name="minPurchaseAmount" type="number" step="0.01" min="0" defaultValue={coupon?.minPurchaseAmount ?? ''} placeholder="Ej: 5000" className={cn("border-2", errors.minPurchaseAmount && "border-destructive")} />
                 <FormError message={errors.minPurchaseAmount?.[0]} />
             </div>
              <div>
                 <Label>Fecha de Expiración <span className="text-xs text-muted-foreground">(Vacío = Sin Expiración)</span></Label>
                 <Popover open={isExpiryDatePickerOpen} onOpenChange={setExpiryDatePickerOpen}>
                     <PopoverTrigger asChild>
-                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !expiryDate && "text-muted-foreground", errors.expiryDate && "border-destructive")}>
+                        <Button variant={"outline"} className={cn("border-2 w-full justify-start text-left font-normal", !expiryDate && "text-muted-foreground", errors.expiryDate && "border-destructive")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />{expiryDate ? format(expiryDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
-                        <Calendar 
-                            mode="single" 
-                            selected={expiryDate} 
+                        <Calendar
+                            mode="single"
+                            selected={expiryDate}
                             onSelect={(date) => {
                                 setExpiryDate(date);
                                 setExpiryDatePickerOpen(false);
-                            }} 
-                            initialFocus 
+                            }}
+                            initialFocus
                             fromDate={new Date()}
                         />
                     </PopoverContent>
                 </Popover>
-                 <FormError message={errors.expiryDate?.[0]} />
+                <FormError message={errors.expiryDate?.[0]} />
             </div>
             <div className="flex items-center space-x-2">
                 <Switch id="isActive" name="isActive" defaultChecked={coupon?.isActive ?? true} />

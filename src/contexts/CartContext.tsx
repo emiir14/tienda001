@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { CartItem, Product, Coupon } from '@/lib/types';
@@ -7,6 +8,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useShippingStore } from '@/store/shipping-store'; // Import the shipping store
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -21,6 +23,7 @@ interface CartContextType {
   applyCoupon: (coupon: Coupon) => void;
   removeCoupon: () => void;
   discount: number;
+  shippingCost: number | null;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
   isCouponApplicable: boolean;
@@ -36,6 +39,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toast, dismiss } = useToast();
   const pathname = usePathname();
+
+  // Get shipping cost from the Zustand store
+  const { shippingCost } = useShippingStore();
   
   const stableSetIsSidebarOpen = useCallback(setIsSidebarOpen, []);
 
@@ -242,10 +248,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return 0;
   }, [appliedCoupon, subtotal, isCouponApplicable]);
 
-  const totalPrice = useMemo(() => subtotal - discount, [subtotal, discount]);
+  const totalPrice = useMemo(() => {
+    const baseTotal = subtotal - discount;
+    const finalTotal = baseTotal + (shippingCost || 0);
+    return finalTotal > 0 ? finalTotal : 0;
+  }, [subtotal, discount, shippingCost]);
 
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, subtotal, totalPrice, appliedCoupon, applyCoupon, removeCoupon, discount, isSidebarOpen, setIsSidebarOpen: stableSetIsSidebarOpen, isCouponApplicable }}>
+    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, subtotal, totalPrice, appliedCoupon, applyCoupon, removeCoupon, discount, shippingCost, isSidebarOpen, setIsSidebarOpen: stableSetIsSidebarOpen, isCouponApplicable }}>
       {children}
     </CartContext.Provider>
   );

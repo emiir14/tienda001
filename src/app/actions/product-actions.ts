@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import DOMPurify from 'isomorphic-dompurify';
+import { del } from '@vercel/blob';
 import { createProduct, updateProduct, deleteProduct, getProductById } from '@/lib/data/products';
 import { getCategories } from '@/lib/data';
 
@@ -32,7 +33,16 @@ const productSchema = z.object({
     offerEndDate: z.string().optional().nullable().transform(val => val ? new Date(val) : null),
     stock: z.coerce.number({ required_error: "El stock es requerido."}).int("El stock debe ser un número entero.").min(0, "El stock no puede ser negativo."),
     categoryIds: z.array(z.coerce.number()).min(1, "Se requiere al menos una categoría."),
-    images: z.array(z.string().url("La URL de la imagen no es válida.")).min(1, "Se requiere al menos una imagen."),
+    images: z.preprocess((val) => {
+        if (typeof val === 'string') {
+            try {
+                return JSON.parse(val);
+            } catch (e) {
+                return [];
+            }
+        }
+        return val;
+    }, z.array(z.string().url("URL de imagen inválida.")).min(1, "Se requiere al menos una imagen.").max(4, "No se pueden subir más de 4 imágenes por producto.")),
     aiHint: z.string().optional(),
 });
 
@@ -46,18 +56,11 @@ export async function addProductAction(formData: FormData) {
     if (sanitizedData.offerStartDate === '') sanitizedData.offerStartDate = null;
     if (sanitizedData.offerEndDate === '') sanitizedData.offerEndDate = null;
     
-    const images = [];
-    for (let i = 1; i <= 5; i++) {
-        if (sanitizedData[`image${i}`]) {
-            images.push(sanitizedData[`image${i}`]);
-        }
-    }
     const categoryIds = formData.getAll('categoryIds').map(id => Number(id));
 
     const validatedFields = createProductSchema.safeParse({
       ...sanitizedData,
       featured: sanitizedData.featured === 'on',
-      images,
       categoryIds,
     });
 
@@ -84,42 +87,26 @@ export async function addProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(id: number, formData: FormData) {
-    const existingProduct = await getProductById(id);
-    if (!existingProduct) {
+    const rawData = Object.fromEntries(formData.entries());
+
+    const productExists = await getProductById(id);
+    if (!productExists) {
         return { error: "Producto no encontrado." };
     }
 
-    const rawData = Object.fromEntries(formData.entries());
-    const processedData: Record<string, any> = {};
-    for (const [key, value] of Object.entries(rawData)) {
-        const cleanKey = key.startsWith(`${id}_`) ? key.substring(String(id).length + 1) : key;
-        processedData[cleanKey] = value;
-    }
-    
-    const sanitizedData = sanitizeData(processedData);
+    const sanitizedData = sanitizeData(rawData);
 
     if (sanitizedData.discountPercentage === '') sanitizedData.discountPercentage = null;
     if (sanitizedData.offerStartDate === '') sanitizedData.offerStartDate = null;
     if (sanitizedData.offerEndDate === '') sanitizedData.offerEndDate = null;
 
-    const images = [];
-    for (let i = 1; i <= 5; i++) {
-        if (sanitizedData[`image${i}`]) {
-            images.push(sanitizedData[`image${i}`]);
-        }
-    }
-    
-    const categoryIds = formData.getAll(`${id}_categoryIds`).length > 0 
-        ? formData.getAll(`${id}_categoryIds`).map(catId => Number(catId))
-        : formData.getAll('categoryIds').map(catId => Number(catId));
+    const categoryIds = formData.getAll('categoryIds').map(id => Number(id));
 
     const validatedFields = productSchema.safeParse({
-        ...existingProduct, // Start with existing data
-        ...sanitizedData,   // Override with form data
-        id,
-        featured: sanitizedData.featured === 'on', // Explicitly handle checkbox
-        images,
-        categoryIds,
+      ...sanitizedData,
+      id,
+      featured: sanitizedData.featured === 'on',
+      categoryIds,
     });
 
     if (!validatedFields.success) {
@@ -129,7 +116,7 @@ export async function updateProductAction(id: number, formData: FormData) {
         };
     }
     
-    const { ...productData } = validatedFields.data;
+    const productData = validatedFields.data;
 
     try {
         await updateProduct(id, productData as any);
@@ -143,9 +130,55 @@ export async function updateProductAction(id: number, formData: FormData) {
     }
 }
 
+export async function deleteOrphanedImageAction(imageUrl: string) {
+    if (!imageUrl) return { error: "URL de imagen inválida." };
+    try {
+        await del(imageUrl);
+        return { message: "La imagen no guardada ha sido eliminada." };
+    } catch (e: any) {
+        if (e.message.includes('blob not found')) {
+             return { message: "La imagen ya había sido eliminada." };
+        }
+        return { error: e.message || "No se pudo eliminar la imagen." };
+    }
+}
+
+export async function deleteProductImageAction(productId: number, imageUrl: string) {
+    if (!imageUrl || !productId) return { error: "Faltan datos para eliminar la imagen." };
+
+    try {
+        const product = await getProductById(productId);
+        if (!product) return { error: "Producto no encontrado." };
+
+        const updatedImages = product.images.filter(img => img !== imageUrl);
+
+        if (updatedImages.length === 0) {
+            return { error: "No se puede eliminar la última imagen de un producto. Añade otra imagen antes de eliminar la actual." };
+        }
+
+        await del(imageUrl);
+
+        if (product.images.includes(imageUrl)) {
+            await updateProduct(productId, { ...product, images: updatedImages });
+        }
+
+        revalidatePath("/admin");
+        revalidatePath(`/products/${productId}`);
+        revalidatePath("/tienda");
+
+        return { message: "La imagen ha sido eliminada del producto." };
+    } catch (e: any) {
+         return { error: e.message || "No se pudo eliminar la imagen." };
+    }
+}
 
 export async function deleteProductAction(id: number) {
     try {
+        const product = await getProductById(id);
+        if (product && product.images && product.images.length > 0) {
+            await del(product.images);
+        }
+
         await deleteProduct(id);
         revalidatePath('/admin');
         revalidatePath("/tienda");
@@ -156,6 +189,7 @@ export async function deleteProductAction(id: number) {
     }
 }
 
+// The import function remains unchanged.
 export async function importProductsAction(data: string, format: 'csv' | 'json') {
     const allCategories = await getCategories();
     const categoryMap = new Map(allCategories.map(c => [c.name.toLowerCase(), c.id]));

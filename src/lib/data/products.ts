@@ -48,13 +48,28 @@ function _calculateSalePrice(product: Omit<Product, 'salePrice' | 'id'>): number
 }
 
 function _mapDbRowToProduct(row: any): Product {
+    // Safely parse the images field, which might be a JSON string or an array
+    let parsedImages: string[] = [];
+    if (row.images) {
+        if (typeof row.images === 'string') {
+            try {
+                parsedImages = JSON.parse(row.images);
+            } catch (e) {
+                // Fallback for non-JSON string, assuming it might be a single URL
+                parsedImages = [row.images];
+            }
+        } else {
+            parsedImages = row.images;
+        }
+    }
+
     const product: Product = {
         id: row.id,
         name: row.name,
         description: row.description,
         shortDescription: row.short_description,
         price: parseFloat(row.price),
-        images: row.images,
+        images: parsedImages, // Use the parsed images
         categoryIds: row.category_ids || [],
         stock: row.stock,
         sku: row.sku,

@@ -122,7 +122,7 @@ export function CartClient() {
               <Card key={product.id} className="flex items-center p-3">
                 <div className="relative w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
                     <Image
-                      src={product.images[0] ?? "https://placehold.co/80x80.png"}
+                      src={product.images && product.images.length > 0 ? product.images[0] : "https://placehold.co/80x80/EFEFEF/333333?text=Sin+Imagen"}
                       alt={product.name}
                       fill
                       className="object-cover"
