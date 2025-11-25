@@ -6,5 +6,5 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(price: number): string {
-    return `$${price}`;
+    return `$${price.toFixed(2)}`;
 }

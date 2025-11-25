@@ -40,7 +40,7 @@ function downloadCSV(csvContent: string, fileName: string) {
     }
 }
 
-export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
+export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void, dbConnected: boolean }) {
     const [products, setProducts] = useState<Product[]>([]);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -262,6 +262,11 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </div>
             </div>
             <div className='flex flex-wrap items-center justify-center gap-x-4 gap-y-2'>
+                {dbConnected ? (
+                    <Badge className='bg-green-100 text-green-800 border-green-300 hover:bg-green-100'><Database className="mr-2 h-4 w-4"/>Data Source: Database</Badge>
+                ) : (
+                    <Badge className='bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100'><HardDrive className="mr-2 h-4 w-4"/>Data Source: Local Fallback</Badge>
+                )}
                 {mailchimpConfigured ? (
                     <Badge className='bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-100'><Mail className="mr-2 h-4 w-4"/>Mailchimp: Connected</Badge>
                 ) : (
