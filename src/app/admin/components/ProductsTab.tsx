@@ -106,13 +106,13 @@ export function ProductsTab({
     };
     
     const getCategoryNames = (categoryIds: number[]) => {
-        return categoryIds.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).map(name => <Badge key={name} variant="outline" className="mr-1 mb-1">{name}</Badge>);
+        return categoryIds.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).map(name => <Badge key={name} variant="outline" className="mr-1 mb-1 bg-muted">{name}</Badge>);
     }
 
     return (
         <div className="space-y-4">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                 <div>
+                 <div className="ml-4">
                     <h2 className="text-2xl font-bold font-headline">Gestionar Productos</h2>
                     <p className="text-muted-foreground">Añade, edita o elimina productos de tu catálogo.</p>
                 </div>
@@ -124,13 +124,13 @@ export function ProductsTab({
             </div>
 
             <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-                <div className="relative w-full">
+                <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
                         placeholder="Buscar por nombre, SKU, categoría..."
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
-                        className="pl-10 w-full md:w-[300px] lg:w-[400px]"
+                        className="pl-10 w-[300px]"
                     />
                 </div>
                 <Button type="submit">Buscar</Button>
@@ -141,11 +141,11 @@ export function ProductsTab({
                     <TableHeader>
                         <TableRow>
                             <TableHead className="hidden w-[80px] sm:table-cell">Imagen</TableHead>
-                            <TableHead className="w-[110px]">{renderHeaderButton('id', 'ID')}</TableHead>
+                            <TableHead className="w-[110px] text-center">{renderHeaderButton('id', 'ID')}</TableHead>
                             <TableHead>{renderHeaderButton('name', 'Nombre')}</TableHead>
-                            <TableHead className="hidden lg:table-cell">{renderHeaderButton('price', 'Precio')}</TableHead>
-                            <TableHead className="hidden md:table-cell">{renderHeaderButton('discountPercentage', 'Descuento')}</TableHead>
-                            <TableHead className="hidden md:table-cell">{renderHeaderButton('stock', 'Stock')}</TableHead>
+                            <TableHead className="hidden lg:table-cell text-center">{renderHeaderButton('price', 'Precio')}</TableHead>
+                            <TableHead className="hidden md:table-cell text-center">{renderHeaderButton('discountPercentage', 'Descuento')}</TableHead>
+                            <TableHead className="hidden md:table-cell text-center">{renderHeaderButton('stock', 'Stock')}</TableHead>
                             <TableHead className="hidden lg:table-cell">Categorías</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
@@ -156,31 +156,52 @@ export function ProductsTab({
                                 <TableCell colSpan={8} className="text-center h-24">Cargando productos...</TableCell>
                             </TableRow>
                         ) : filteredProducts.length > 0 ? (
-                            filteredProducts.map(product => (
-                                <TableRow key={product.id}>
-                                    <TableCell className="hidden sm:table-cell">
-                                        <img
-                                            alt={product.name}
-                                            className="aspect-square rounded-md object-cover"
-                                            height="64"
-                                            src={product.images[0] || '/placeholder.svg'}
-                                            width="64"
-                                        />
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">#{product.id}</TableCell>
-                                    <TableCell className="font-medium">{product.name}</TableCell>
-                                    <TableCell className="hidden lg:table-cell">{formatCurrency(product.price)}</TableCell>
-                                    <TableCell className="hidden md:table-cell text-center">{product.discountPercentage ? `${product.discountPercentage}%` : '-'}</TableCell>
-                                    <TableCell className="hidden md:table-cell text-center">{product.stock}</TableCell>
-                                    <TableCell className="hidden lg:table-cell">{getCategoryNames(product.categoryIds)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex items-center gap-2 justify-end">
-                                            <Button variant="outline" size="icon" onClick={() => onEdit(product)}><Pencil className="h-4 w-4"/></Button>
-                                            <Button variant="destructive" size="icon" onClick={() => onDelete(product.id)}><Trash2 className="h-4 w-4"/></Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
+                            filteredProducts.map(product => {
+                                const hasDiscount = product.discountPercentage && product.discountPercentage > 0;
+                                const discountedPrice = hasDiscount ? product.price * (1 - product.discountPercentage! / 100) : product.price;
+
+                                return (
+                                    <TableRow key={product.id}>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <img
+                                                alt={product.name}
+                                                className="aspect-square rounded-md object-cover"
+                                                height="64"
+                                                src={product.images[0] || '/placeholder.svg'}
+                                                width="64"
+                                            />
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs text-center">#{product.id}</TableCell>
+                                        <TableCell className="font-medium">{product.name}</TableCell>
+                                        <TableCell className="hidden lg:table-cell text-center">
+                                            {hasDiscount ? (
+                                                <div>
+                                                    <span className="line-through text-muted-foreground">{formatCurrency(product.price)}</span>
+                                                    <br />
+                                                    <span className="text-red-500 font-bold">{formatCurrency(discountedPrice)}</span>
+                                                </div>
+                                            ) : (
+                                                formatCurrency(product.price)
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell text-center">
+                                            {hasDiscount ? (
+                                                <Badge variant="destructive">{`-${product.discountPercentage}%`}</Badge>
+                                            ) : (
+                                                '-'
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell text-center">{product.stock}</TableCell>
+                                        <TableCell className="hidden lg:table-cell">{getCategoryNames(product.categoryIds)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <Button variant="outline" size="icon" onClick={() => onEdit(product)}><Pencil className="h-4 w-4" /></Button>
+                                                <Button variant="destructive" size="icon" onClick={() => onDelete(product.id)}><Trash2 className="h-4 w-4" /></Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={8} className="text-center h-24">No se encontraron productos.</TableCell>
