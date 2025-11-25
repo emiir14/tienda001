@@ -1,4 +1,3 @@
-'use client';
 
 import { NextResponse } from 'next/server';
 import { getOrderById, getProductById } from '@/lib/data'; // Importamos getProductById
