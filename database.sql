@@ -1,5 +1,10 @@
 -- This script is designed for a PostgreSQL database.
 
+ALTER TABLE orders
+ADD COLUMN delivery_method VARCHAR(50),
+ADD COLUMN pickup_name VARCHAR(255),
+ADD COLUMN pickup_dni VARCHAR(20);
+
 -- Drop existing tables in reverse order of dependency to avoid foreign key constraints.
 DROP TABLE IF EXISTS product_categories;
 DROP TABLE IF EXISTS orders;

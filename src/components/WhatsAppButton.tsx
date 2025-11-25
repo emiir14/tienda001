@@ -13,7 +13,8 @@ import {
 const WhatsAppButton = () => {
     const defaultMessage = "¡Hola! Estoy interesado en uno de sus productos.";
     const encodedMessage = encodeURIComponent(defaultMessage);
-    const whatsappUrl = `https://wa.me/5491122334455?text=${encodedMessage}`;
+    const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "5491122334455";
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
 
     return (
         <div className="hidden md:block">

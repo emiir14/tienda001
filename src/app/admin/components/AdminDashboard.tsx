@@ -233,7 +233,11 @@ export function AdminDashboard({ onLogout, dbConnected }: { onLogout: () => void
     const exportOrdersToCSV = () => {
         const headers = ['ID de Orden', 'Fecha', 'Cliente', 'Email', 'Total', 'Estado', 'Cupón', 'Descuento', 'ID de Pago', 'Dirección de Envío', 'Productos'];
         const rows = orders.map(o => {
-            const productList = o.items.map(item => `${item.quantity}x ${item.product.name}`).join('; ');
+            const productList = o.items.map(item => {
+                const product = products.find(p => p.id === item.productId);
+                const productName = product ? product.name.replace(/"/g, '""') : 'Producto Desconocido';
+                return `${item.quantity}x ${productName}`;
+            }).join('; ');
             return [
                 o.id, format(new Date(o.createdAt), 'yyyy-MM-dd HH:mm'), `"${o.customerName}"`, o.customerEmail, o.total, o.status,
                 o.couponCode || '', o.discountAmount || 0, o.paymentId || '', `"${o.shippingAddress}, ${o.shippingCity}, ${o.shippingPostalCode}"`,

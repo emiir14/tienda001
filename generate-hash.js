@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const saltRounds = 12; // Un valor más seguro
-const myPassword = 'tehasheopapu123$'; // <-- CAMBIA ESTO
+const myPassword = 'osadiaJoyas12$'; // <-- CAMBIA ESTO
 
 bcrypt.hash(myPassword, saltRounds).then(hash => {
     console.log("Tu hash de contraseña es:");

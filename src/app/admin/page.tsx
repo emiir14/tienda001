@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useState, useEffect, Suspense, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { authenticateAdmin } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,10 +21,10 @@ function LoginButton() {
     );
 }
 
-export default function AdminPage() {
+export default function AdminPage({ dbConnected }: { dbConnected: boolean }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const initialState = { success: false, error: null };
-  const [state, dispatch] = useFormState(authenticateAdmin, initialState);
+  const [state, dispatch] = useActionState(authenticateAdmin, initialState);
 
   useEffect(() => {
     const sessionToken = localStorage.getItem('admin_session');
@@ -80,7 +80,7 @@ export default function AdminPage() {
             <Loader2 className="h-16 w-16 animate-spin text-primary" />
         </div>
       }>
-        <AdminDashboard onLogout={handleLogout} />
+        <AdminDashboard onLogout={handleLogout} dbConnected={dbConnected} />
       </Suspense>
   );
 }
