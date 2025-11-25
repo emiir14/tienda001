@@ -31,9 +31,9 @@ import { useShippingStore } from "@/store/shipping-store";
 
 
 const checkoutSchema = z.object({
-  name: z.string().min(2, "El nombre completo es requerido."),
-  email: z.string().email("El email ingresado no es válido."),
-  phone: z.string().min(10, "El teléfono debe tener al menos 10 dígitos."),
+  name: z.string().trim().min(2, "El nombre completo es requerido."),
+  email: z.string().trim().email("El email ingresado no es válido."),
+  phone: z.string().trim().min(10, "El teléfono debe tener al menos 10 dígitos."),
   address: z.string().optional(),
   city: z.string().optional(),
   postalCode: z.string().optional(),
@@ -43,25 +43,28 @@ const checkoutSchema = z.object({
 })
 .superRefine((data, ctx) => {
     if (data.deliveryMethod === 'shipping') {
-        if (!data.address || data.address.length < 5) {
+        if (!data.address || data.address.trim().length < 5) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['address'], message: 'La dirección es requerida.' });
         }
-        if (!data.city || data.city.length < 2) {
+        if (!data.city || data.city.trim().length < 2) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['city'], message: 'La ciudad es requerida.' });
         }
-        if (!data.postalCode || data.postalCode.length < 4) {
+        if (!data.postalCode || data.postalCode.trim().length < 4) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['postalCode'], message: 'El código postal es requerido.' });
         }
     }
     if (data.deliveryMethod === 'pickup' || data.deliveryMethod === 'pay_in_store') {
-        if (!data.pickupName || data.pickupName.length < 3) {
+        if (!data.pickupName || data.pickupName.trim().length < 3) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['pickupName'], message: 'El nombre y apellido de quien retira son requeridos.' });
         }
-        if (!data.pickupDNI || !/^\\d{7,8}$/.test(data.pickupDNI)) {
+        // Expresión regular corregida y se eliminan espacios con trim()
+        const trimmedDNI = data.pickupDNI ? data.pickupDNI.trim() : '';
+        if (!/^\d{7,8}$/.test(trimmedDNI)) {
              ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['pickupDNI'], message: 'El DNI debe tener entre 7 y 8 dígitos numéricos.' });
         }
     }
 });
+
 
 type CheckoutFormData = z.infer<typeof checkoutSchema>;
 
