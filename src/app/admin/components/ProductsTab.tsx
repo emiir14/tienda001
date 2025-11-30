@@ -157,8 +157,7 @@ export function ProductsTab({
                             </TableRow>
                         ) : filteredProducts.length > 0 ? (
                             filteredProducts.map(product => {
-                                const hasDiscount = product.discountPercentage && product.discountPercentage > 0;
-                                const discountedPrice = hasDiscount ? product.price * (1 - product.discountPercentage! / 100) : product.price;
+                                const hasActiveDiscount = product.salePrice != null && product.salePrice < product.price;
 
                                 return (
                                     <TableRow key={product.id}>
@@ -174,18 +173,18 @@ export function ProductsTab({
                                         <TableCell className="font-mono text-xs text-center">#{product.id}</TableCell>
                                         <TableCell className="font-medium">{product.name}</TableCell>
                                         <TableCell className="hidden lg:table-cell text-center">
-                                            {hasDiscount ? (
+                                            {hasActiveDiscount ? (
                                                 <div>
                                                     <span className="line-through text-muted-foreground">{formatCurrency(product.price)}</span>
                                                     <br />
-                                                    <span className="text-red-500 font-bold">{formatCurrency(discountedPrice)}</span>
+                                                    <span className="text-red-500 font-bold">{formatCurrency(product.salePrice!)}</span>
                                                 </div>
                                             ) : (
                                                 formatCurrency(product.price)
                                             )}
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell text-center">
-                                            {hasDiscount ? (
+                                            {hasActiveDiscount && product.discountPercentage ? (
                                                 <Badge variant="destructive">{`-${product.discountPercentage}%`}</Badge>
                                             ) : (
                                                 '-'
