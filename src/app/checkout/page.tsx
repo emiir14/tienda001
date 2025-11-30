@@ -24,7 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { createOrder } from "@/lib/data";
-import { DeliveryMethod } from "@/lib/types";
+import { DeliveryMethod, PaymentType } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ShippingCalculator } from "@/components/ShippingCalculator";
 import { useShippingStore } from "@/store/shipping-store";
@@ -40,6 +40,7 @@ const checkoutSchema = z.object({
   pickupName: z.string().optional(),
   pickupDNI: z.string().optional(),
   deliveryMethod: z.string(),
+  paymentType: z.string(),
 })
 .superRefine((data, ctx) => {
     if (data.deliveryMethod === 'shipping') {
@@ -76,6 +77,7 @@ function CheckoutForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('shipping');
+  const [paymentType, setPaymentType] = useState<PaymentType>("Pago Online");
 
   const {
     originalSubtotal,
@@ -116,7 +118,7 @@ function CheckoutForm() {
 
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
-    defaultValues: { name: "", email: "", phone: "", address: "", city: "", postalCode: shippingPostalCode || "", pickupName: "", pickupDNI: "", deliveryMethod: 'shipping' },
+    defaultValues: { name: "", email: "", phone: "", address: "", city: "", postalCode: shippingPostalCode || "", pickupName: "", pickupDNI: "", deliveryMethod: 'shipping', paymentType: 'Pago Online' },
   });
   
   useEffect(() => {
@@ -179,6 +181,7 @@ function CheckoutForm() {
         couponCode: appliedCoupon?.code,
         discountAmount: totalDiscount,
         deliveryMethod: deliveryMethod,
+        paymentType: values.paymentType as PaymentType,
         shippingAddress: values.address,
         shippingCity: values.city,
         shippingPostalCode: values.postalCode,
@@ -187,7 +190,7 @@ function CheckoutForm() {
         pickupDni: values.pickupDNI,
       };
 
-      if (isPayInStore) {
+      if (values.paymentType === "Pago en Local") {
         const orderResponse = await createOrder({ ...orderData, status: 'awaiting_payment_in_store' });
         if (orderResponse.error || !orderResponse.orderId) throw new Error(orderResponse.error || "No se pudo generar el pedido.");
         clearCart();
@@ -338,7 +341,7 @@ function CheckoutForm() {
 
   const getButtonText = () => {
       if (isLoading) return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Procesando...</>;
-      if (isPayInStore) return "Generar Pedido";
+      if (paymentType === 'Pago en Local') return "Generar Pedido";
       return "Continuar y Pagar con Mercado Pago";
   }
 
@@ -366,7 +369,51 @@ function CheckoutForm() {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleCheckoutSubmit)} className="space-y-6">
                 <Card>
-                    <CardHeader><CardTitle>2. Completa tus datos de contacto</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>2. Elige tu método de pago</CardTitle></CardHeader>
+                    <CardContent>
+                        <FormField
+                        control={form.control}
+                        name="paymentType"
+                        render={({ field }) => (
+                            <RadioGroup
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                                setPaymentType(value as PaymentType);
+                            }}
+                            defaultValue={field.value}
+                            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                            >
+                            <Label
+                                htmlFor="online-payment"
+                                className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
+                            >
+                                <RadioGroupItem
+                                value="Pago Online"
+                                id="online-payment"
+                                className="sr-only"
+                                />
+                                <CreditCard className="mb-3 h-6 w-6" />
+                                Pago Online
+                            </Label>
+                            <Label
+                                htmlFor="in-store-payment"
+                                className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
+                            >
+                                <RadioGroupItem
+                                value="Pago en Local"
+                                id="in-store-payment"
+                                className="sr-only"
+                                />
+                                <HandCoins className="mb-3 h-6 w-6" />
+                                Pago en Local
+                            </Label>
+                            </RadioGroup>
+                        )}
+                        />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle>3. Completa tus datos de contacto</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl><FormMessage /></FormItem> )}/>
                         <div className="grid grid-cols-2 gap-4">
@@ -376,8 +423,8 @@ function CheckoutForm() {
                     </CardContent>
                 </Card>
 
-                {deliveryMethod === 'shipping' && ( <Card><CardHeader><CardTitle>3. Información de Envío</CardTitle></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} placeholder="Av. Corrientes 1234" /></FormControl><FormMessage /></FormItem> )}/><div className="grid grid-cols-2 gap-4"><FormField control={form.control} name="city" render={({ field }) => ( <FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl><FormMessage /></FormItem> )}/><FormField control={form.control} name="postalCode" render={({ field }) => ( <FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} placeholder="1001" /></FormControl><FormMessage /></FormItem> )}/></div><ShippingCalculator /></CardContent></Card> )}
-                {(deliveryMethod === 'pickup' || deliveryMethod === 'pay_in_store') && ( <Card><CardHeader><CardTitle>3. Información de Retiro</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">Por favor, completa los datos de la persona que va a retirar el pedido. El DNI será solicitado al momento de la entrega.</p><FormField control={form.control} name="pickupName" render={({ field }) => ( <FormItem><FormLabel>Nombre y Apellido de quien retira</FormLabel><FormControl><Input {...field} placeholder="El nombre que figura en el DNI" /></FormControl><FormMessage /></FormItem> )}/><FormField control={form.control} name="pickupDNI" render={({ field }) => ( <FormItem><FormLabel>DNI de quien retira</FormLabel><FormControl><Input {...field} placeholder="Sin puntos ni espacios" /></FormControl><FormMessage /></FormItem> )}/></CardContent></Card> )}
+                {deliveryMethod === 'shipping' && ( <Card><CardHeader><CardTitle>4. Información de Envío</CardTitle></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} placeholder="Av. Corrientes 1234" /></FormControl><FormMessage /></FormItem> )}/><div className="grid grid-cols-2 gap-4"><FormField control={form.control} name="city" render={({ field }) => ( <FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl><FormMessage /></FormItem> )}/><FormField control={form.control} name="postalCode" render={({ field }) => ( <FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} placeholder="1001" /></FormControl><FormMessage /></FormItem> )}/></div><ShippingCalculator /></CardContent></Card> )}
+                {(deliveryMethod === 'pickup' || deliveryMethod === 'pay_in_store') && ( <Card><CardHeader><CardTitle>4. Información de Retiro</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">Por favor, completa los datos de la persona que va a retirar el pedido. El DNI será solicitado al momento de la entrega.</p><FormField control={form.control} name="pickupName" render={({ field }) => ( <FormItem><FormLabel>Nombre y Apellido de quien retira</FormLabel><FormControl><Input {...field} placeholder="El nombre que figura en el DNI" /></FormControl><FormMessage /></FormItem> )}/><FormField control={form.control} name="pickupDNI" render={({ field }) => ( <FormItem><FormLabel>DNI de quien retira</FormLabel><FormControl><Input {...field} placeholder="Sin puntos ni espacios" /></FormControl><FormMessage /></FormItem> )}/></CardContent></Card> )}
 
                 <Button type="submit" size="lg" className="w-full" disabled={isLoading || (deliveryMethod === 'shipping' && shippingCost === null)}>{getButtonText()}</Button>
                 </form>

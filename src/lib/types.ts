@@ -52,6 +52,8 @@ export type Coupon = {
 
 export type DeliveryMethod = 'shipping' | 'pickup' | 'pay_in_store';
 
+export type PaymentType = 'Pago Online' | 'Pago en Local';
+
 export type OrderStatus = 'pending_payment' | 'awaiting_payment_in_store' | 'paid' | 'failed' | 'cancelled' | 'shipped' | 'delivered' | 'refunded';
 
 // --- ACTUALIZACIÓN DE TIPOS DE ORDEN ---
@@ -68,6 +70,7 @@ export type OrderData = {
     discountAmount?: number;
     paymentId?: string | null;
     deliveryMethod: DeliveryMethod;
+    paymentType: PaymentType;
     pickupName?: string | null;
     pickupDni?: string | null;
     shippingAddress?: string | null;
@@ -88,6 +91,7 @@ export type Order = {
   discountAmount?: number;
   paymentId?: string | null;
   deliveryMethod: DeliveryMethod;
+  paymentType: PaymentType;
   pickupName?: string | null;
   pickupDni?: string | null;
   shippingAddress?: string | null;

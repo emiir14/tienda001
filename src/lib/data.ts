@@ -1,7 +1,7 @@
 'use server';
 
 import { getDb } from './db';
-import type { Product, Coupon, SalesMetrics, OrderData, OrderStatus, Order, Category, OrderItem } from './types';
+import type { Product, Coupon, SalesMetrics, OrderData, OrderStatus, Order, Category, OrderItem, PaymentType } from './types';
 import { unstable_noStore as noStore } from 'next/cache';
 
 // --- FUNCIONES DE PRODUCTO ---
@@ -89,11 +89,11 @@ export async function createOrder(orderData: OrderData): Promise<{orderId?: numb
             }
         }
 
-        const { customerName, customerEmail, customerPhone, total, status, items, couponCode, discountAmount, deliveryMethod, pickupName, pickupDni, shippingAddress, shippingCity, shippingPostalCode } = orderData;
+        const { customerName, customerEmail, customerPhone, total, status, items, couponCode, discountAmount, deliveryMethod, paymentType, pickupName, pickupDni, shippingAddress, shippingCity, shippingPostalCode } = orderData;
 
         const orderResult = await db`
-            INSERT INTO orders (customer_name, customer_email, customer_phone, total, status, items, coupon_code, discount_amount, delivery_method, pickup_name, pickup_dni, shipping_address, shipping_city, shipping_postal_code, created_at)
-            VALUES (${customerName}, ${customerEmail}, ${customerPhone}, ${total}, ${status}, ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${deliveryMethod}, ${pickupName}, ${pickupDni}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
+            INSERT INTO orders (customer_name, customer_email, customer_phone, total, status, items, coupon_code, discount_amount, delivery_method, payment_type, pickup_name, pickup_dni, shipping_address, shipping_city, shipping_postal_code, created_at)
+            VALUES (${customerName}, ${customerEmail}, ${customerPhone}, ${total}, ${status}, ${JSON.stringify(items)}::jsonb, ${couponCode}, ${discountAmount}, ${deliveryMethod}, ${paymentType}, ${pickupName}, ${pickupDni}, ${shippingAddress}, ${shippingCity}, ${shippingPostalCode}, ${new Date().toISOString()})
             RETURNING id;
         `;
         return { orderId: orderResult[0].id };
@@ -141,7 +141,7 @@ function mapOrderFromDb(row: any): Order {
         customerPhone: row.customer_phone, total: parseFloat(row.total), status: row.status as OrderStatus,
         createdAt: new Date(row.created_at), items: row.items, couponCode: row.coupon_code,
         discountAmount: row.discount_amount ? parseFloat(row.discount_amount) : undefined,
-        paymentId: row.payment_id || undefined, deliveryMethod: row.delivery_method, pickupName: row.pickup_name,
+        paymentId: row.payment_id || undefined, deliveryMethod: row.delivery_method, paymentType: row.payment_type, pickupName: row.pickup_name,
         pickupDni: row.pickup_dni, shippingAddress: row.shipping_address, shippingCity: row.shipping_city,
         shippingPostalCode: row.shipping_postal_code,
     };
@@ -169,15 +169,15 @@ export async function createOrderFromWebhook(paymentData: any): Promise<{newOrde
     const orderData = {
         customerName: payer.first_name ? `${payer.first_name} ${payer.last_name || ''}`.trim() : 'N/A',
         customerEmail: payer.email, total: transaction_amount, status: 'paid' as OrderStatus,
-        items: items, paymentId: String(paymentId), deliveryMethod: 'shipping' as const,
+        items: items, paymentId: String(paymentId), deliveryMethod: 'shipping' as const, paymentType: 'Pago Online' as PaymentType,
         shippingAddress: 'N/A', shippingCity: 'N/A', shippingPostalCode: 'N/A', 
     };
 
     try {
         const db = getDb();
         const orderResult = await db`
-            INSERT INTO orders (id, customer_name, customer_email, total, status, items, payment_id, delivery_method, shipping_address, shipping_city, shipping_postal_code, created_at)
-            VALUES (${external_reference}, ${orderData.customerName}, ${orderData.customerEmail}, ${orderData.total}, ${orderData.status}, ${JSON.stringify(orderData.items)}::jsonb, ${orderData.paymentId}, ${orderData.deliveryMethod}, ${orderData.shippingAddress}, ${orderData.shippingCity}, ${orderData.shippingPostalCode}, ${new Date().toISOString()})
+            INSERT INTO orders (id, customer_name, customer_email, total, status, items, payment_id, delivery_method, payment_type, shipping_address, shipping_city, shipping_postal_code, created_at)
+            VALUES (${external_reference}, ${orderData.customerName}, ${orderData.customerEmail}, ${orderData.total}, ${orderData.status}, ${JSON.stringify(orderData.items)}::jsonb, ${orderData.paymentId}, ${orderData.deliveryMethod}, ${orderData.paymentType}, ${orderData.shippingAddress}, ${orderData.shippingCity}, ${orderData.shippingPostalCode}, ${new Date().toISOString()})
             ON CONFLICT (id) DO NOTHING RETURNING *;
         `;
         if (orderResult.length === 0) {

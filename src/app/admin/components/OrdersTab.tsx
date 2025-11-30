@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import type { Order, OrderStatus, OrderItem } from '@/lib/types'; // Import OrderItem
+import type { Order, OrderStatus, OrderItem, PaymentType } from '@/lib/types'; // Import OrderItem
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -146,7 +146,9 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                                     <div className="space-y-2 text-sm">
                                         <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" /><span>ID de Pago: <span className="font-mono">{order.paymentId || 'N/A'}</span></span></div>
                                         {order.couponCode && <div className="flex items-center gap-2"><Ticket className="h-4 w-4 text-muted-foreground" /><span>Cupón: <span className="font-semibold">{order.couponCode}</span> (-${order.discountAmount?.toLocaleString('es-AR')})</span></div>}
-                                    </div>
+										<div className="flex items-center gap-2"><p>Tipo de Pago: {order.paymentType}</p></div>
+
+									</div>
                                 </div>
                             </div>
                         </div>
