@@ -38,7 +38,7 @@ export async function updateOrderStatusAction(orderId: number, newStatus: OrderS
             return { error: 'Una orden con envío no puede ser cambiada a \"Esperando Pago en Local\".' };
         }
 
-        // Regla 2: Prevenir que una orden de pago local (pickup) sea marcada manualmente como pagada.
+        // Regla 2: Prevenir que una orden de pago local (pickup) sea marcada manually como pagada.
         if (deliveryMethod === 'pickup' && newStatus === 'paid') {
             return { error: 'Una orden de retiro en local debe ser marcada como \"Entregado\", no como \"Pagado\".' };
         }
@@ -48,9 +48,9 @@ export async function updateOrderStatusAction(orderId: number, newStatus: OrderS
         // Ahora, el descuento de stock solo ocurre si TODAS las condiciones se cumplen:
         // 1. El estado anterior es 'awaiting_payment_in_store'.
         // 2. El nuevo estado es 'delivered'.
-        // 3. El método de la orden es 'pickup' (retiro en local).
-        if (currentStatus === 'awaiting_payment_in_store' && newStatus === 'delivered' && deliveryMethod === 'pickup') {
-            console.log(`Order ${orderId} (local pickup) is being delivered. Deducting stock.`);
+        // 3. El método de la orden es 'pickup' o 'pay_in_store'.
+        if (currentStatus === 'awaiting_payment_in_store' && newStatus === 'delivered' && (deliveryMethod === 'pickup' || deliveryMethod === 'pay_in_store')) {
+            console.log(`Order ${orderId} (local pickup or pay in store) is being delivered. Deducting stock.`);
             await deductStockForOrder(orderId);
         }
 

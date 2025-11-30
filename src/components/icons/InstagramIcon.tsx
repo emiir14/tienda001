@@ -1,23 +1,21 @@
 
 import React from 'react';
 
-interface InstagramIconProps extends React.SVGProps<SVGSVGElement> {
-  size?: number;
-}
+// The size prop is removed to allow for flexible sizing via className.
+interface InstagramIconProps extends React.SVGProps<SVGSVGElement> {}
 
-export const InstagramIcon: React.FC<InstagramIconProps> = ({ size = 28, className, ...props }) => {
+export const InstagramIcon: React.FC<InstagramIconProps> = ({ className, ...props }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
+      // The width and height attributes are removed. Size will be controlled by Tailwind classes.
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className}
+      className={className} // Example: className="w-8 h-8 text-blue-500"
       {...props}
     >
       <rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect>

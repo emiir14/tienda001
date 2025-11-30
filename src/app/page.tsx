@@ -84,7 +84,7 @@ export default async function Home() {
                         <div className="text-center flex-shrink-0">
                             <Button asChild variant="ghost" className="group h-auto rounded-full px-5 py-1 text-2xl font-headline text-muted-foreground tracking-wider hover:bg-accent hover:text-accent-foreground transition-colors">
                                 <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4">
-                                    <InstagramIcon size={112} className="text-muted-foreground transition-colors group-hover:text-[#E1306C]" />
+                                    <InstagramIcon className="w-32 h-32 text-muted-foreground transition-colors group-hover:text-[#E1306C]" />
                                     <span>osadia.cta</span>
                                 </Link>
                             </Button>
@@ -148,7 +148,7 @@ export default async function Home() {
                         <div className='flex flex-wrap gap-4 pt-4'>
                              <Button asChild className="shadow-md" size="lg">
                                 <Link href="https://www.instagram.com/osadia.cta" target="_blank" rel="noopener noreferrer">
-                                    <InstagramIcon className="mr-2" /> Síguenos en Instagram
+                                    <InstagramIcon className="w-6 h-6 mr-2" /> Síguenos en Instagram
                                 </Link>
                             </Button>
                              <Button asChild variant="outline" className="shadow-md" size="lg">
