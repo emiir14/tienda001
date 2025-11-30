@@ -35,27 +35,32 @@ function mapProductFromDb(product: any): Product {
 
 function _calculateSalePrice(product: Omit<Product, 'salePrice' | 'id'>): number | null {
     const now = new Date();
-    const isOfferValid = 
-        product.discountPercentage && product.discountPercentage > 0 &&
-        product.offerStartDate && product.offerEndDate &&
-        now >= new Date(product.offerStartDate) && now <= new Date(product.offerEndDate);
+    const hasDiscount = product.discountPercentage && product.discountPercentage > 0;
 
-    if (isOfferValid) {
+    if (!hasDiscount) {
+        return null;
+    }
+
+    const hasDateRange = product.offerStartDate && product.offerEndDate;
+    const isWithinDateRange = hasDateRange && 
+                              now >= new Date(product.offerStartDate!) && 
+                              now <= new Date(product.offerEndDate!);
+
+    if (!hasDateRange || isWithinDateRange) {
         const discount = product.price * (product.discountPercentage! / 100);
         return parseFloat((product.price - discount).toFixed(2));
     }
+
     return null;
 }
 
 function _mapDbRowToProduct(row: any): Product {
-    // Safely parse the images field, which might be a JSON string or an array
     let parsedImages: string[] = [];
     if (row.images) {
         if (typeof row.images === 'string') {
             try {
                 parsedImages = JSON.parse(row.images);
             } catch (e) {
-                // Fallback for non-JSON string, assuming it might be a single URL
                 parsedImages = [row.images];
             }
         } else {
@@ -69,7 +74,7 @@ function _mapDbRowToProduct(row: any): Product {
         description: row.description,
         shortDescription: row.short_description,
         price: parseFloat(row.price),
-        images: parsedImages, // Use the parsed images
+        images: parsedImages, 
         categoryIds: row.category_ids || [],
         stock: row.stock,
         sku: row.sku,
