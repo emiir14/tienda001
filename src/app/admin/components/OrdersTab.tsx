@@ -81,6 +81,7 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                 <TableCell className="font-medium cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{order.customerName}</TableCell>
                 <TableCell className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>{format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}</TableCell>
                 <TableCell className="font-semibold cursor-pointer text-center" onClick={() => setIsOpen(!isOpen)}>${order.total.toLocaleString('es-AR')}</TableCell>
+                <TableCell className="cursor-pointer text-center" onClick={() => setIsOpen(!isOpen)}>{order.paymentType}</TableCell>
                 <TableCell>
                     <Select value={order.status} onValueChange={handleStatusSelect}>
                         <SelectTrigger className={cn("h-8 text-xs font-semibold", getStatusClasses(order.status))}><SelectValue /></SelectTrigger>
@@ -91,12 +92,11 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
             </TableRow>
             {isOpen && (
                  <TableRow>
-                    <TableCell colSpan={6} className="p-0">
+                    <TableCell colSpan={7} className="p-0">
                         <div className="bg-muted/50 p-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="md:col-span-2 space-y-4">
                                     <h4 className="font-semibold text-lg">Productos Comprados</h4>
-                                    {/* --- INICIO DE LA MODIFICACIÓN --- */}
                                     {order.items.map((item: OrderItem) => (
                                         <div key={item.productId} className="flex items-center gap-4">
                                             <Image src={item.image} alt={item.name} width={50} height={50} className="rounded-md border object-cover"/>
@@ -113,7 +113,6 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                                             <p className="font-semibold">${(item.priceAtPurchase * item.quantity).toLocaleString('es-AR')}</p>
                                         </div>
                                     ))}
-                                    {/* --- FIN DE LA MODIFICACIÓN --- */}
                                 </div>
                                 <div className="space-y-4">
                                     <h4 className="font-semibold text-lg">Información del Cliente</h4>
@@ -146,8 +145,6 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
                                     <div className="space-y-2 text-sm">
                                         <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" /><span>ID de Pago: <span className="font-mono">{order.paymentId || 'N/A'}</span></span></div>
                                         {order.couponCode && <div className="flex items-center gap-2"><Ticket className="h-4 w-4 text-muted-foreground" /><span>Cupón: <span className="font-semibold">{order.couponCode}</span> (-${order.discountAmount?.toLocaleString('es-AR')})</span></div>}
-										<div className="flex items-center gap-2"><p>Tipo de Pago: {order.paymentType}</p></div>
-
 									</div>
                                 </div>
                             </div>
@@ -159,7 +156,7 @@ function OrderRow({ order, onStatusChange }: { order: Order; onStatusChange: (or
     )
 }
 
-type SortableKeys = 'id' | 'customerName' | 'createdAt' | 'total';
+type SortableKeys = 'id' | 'customerName' | 'createdAt' | 'total' | 'paymentType';
 
 export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { orders: Order[], isLoading: boolean, onExport: () => void, onStatusChange: (orderId: number, newStatus: OrderStatus) => void }) {
     const [currentPage, setCurrentPage] = useState(1);
@@ -179,7 +176,8 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                 order.deliveryMethod, order.shippingAddress || '', order.shippingCity || '',
                 order.shippingPostalCode || '', order.paymentId || '', order.couponCode || '',
                 order.pickupName || '', order.pickupDni || '',
-                ...order.items.map((item: OrderItem) => item.name) // <-- MODIFICADO
+                order.paymentType || '',
+                ...order.items.map((item: OrderItem) => item.name)
             ];
             return fieldsToSearch.some(field => field.toLowerCase().includes(lowercasedQuery));
         });
@@ -252,6 +250,7 @@ export function OrdersTab({ orders, isLoading, onExport, onStatusChange }: { ord
                                         <TableHead>{renderHeaderButton('customerName', 'Cliente')}</TableHead>
                                         <TableHead>{renderHeaderButton('createdAt', 'Fecha')}</TableHead>
                                         <TableHead className="text-center">{renderHeaderButton('total', 'Total', 'w-full flex justify-center items-center')}</TableHead>
+                                        <TableHead className="text-center">{renderHeaderButton('paymentType', 'Tipo de pago', 'w-full flex justify-center items-center')}</TableHead>
                                         <TableHead className="w-[230px]">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" className="px-2 w-full justify-start">Estado<ListFilter className="ml-auto h-4 w-4" /></Button></DropdownMenuTrigger>

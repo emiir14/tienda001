@@ -1,4 +1,6 @@
 -- This script is designed for a PostgreSQL database.
+ALTER TABLE orders
+ADD COLUMN payment_type TEXT;
 
 ALTER TABLE orders
 ADD COLUMN delivery_method VARCHAR(50),
