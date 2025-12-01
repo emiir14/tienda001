@@ -1,12 +1,11 @@
+import { neon } from '@neondatabase/serverless';
 
-import { neon, NeonQueryFunction } from '@neondatabase/serverless';
-
-// Instancia Singleton para la función de conexión a la base de datos
-// FIX: El tipo genérico requiere dos argumentos: <ArrayMode, FullResults>
-let dbInstance: NeonQueryFunction<false, false> | null = null;
+let dbInstance: any = null;
 
 /**
- * Comprueba si la cadena de conexión de la base de datos está disponible en las variables de entorno.
+ * Indica si la aplicación está configurada para usar una base de datos real.
+ * Esto se determina por la presencia de la variable de entorno de la cadena de conexión.
+ * Es una constante que se evalúa en el momento de la construcción (build time) en el servidor.
  */
 export const isDbConfigured = !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
 

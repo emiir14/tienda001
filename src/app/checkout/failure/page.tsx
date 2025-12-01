@@ -1,17 +1,24 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Home, RefreshCw, Loader2 } from 'lucide-react';
 
-// This is now a "dumb" component. All logic for cart restoration or clearing
-// is handled centrally by CartContext.
 function CheckoutFailureClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const collectionStatus = searchParams.get('collection_status');
+  const orderId = searchParams.get('orderId');
+
+  useEffect(() => {
+    // Si venimos de un fallo de pago, guardamos el ID de la orden para que 
+    // el CartContext pueda intentar restaurar el carrito en la próxima visita.
+    if (orderId) {
+      localStorage.setItem('pendingOrderId', orderId);
+    }
+  }, [orderId]);
 
   const getFailureReason = () => {
     switch (collectionStatus) {
@@ -59,7 +66,6 @@ function CheckoutFailureClient() {
   );
 }
 
-// The Suspense fallback is kept for a consistent user experience during page load.
 export default function CheckoutFailurePage() {
   return (
     <Suspense fallback={

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -14,42 +13,123 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCart } from "@/hooks/use-cart";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
-import { Loader2, Ticket, ArrowLeft, ShoppingCart, CreditCard, AlertTriangle, ExternalLink } from "lucide-react";
+import { useState, useEffect, Suspense, useMemo } from "react";
+import { Loader2, ShoppingCart, CreditCard, AlertTriangle, Truck, Store, HandCoins } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { cn, formatCurrency } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { createOrder } from "@/lib/data";
-import { useShippingStore } from "@/store/shipping-store";
+import { DeliveryMethod, PaymentType } from "@/lib/types";
+import { cn, formatCurrency } from "@/lib/utils";
 import { ShippingCalculator } from "@/components/ShippingCalculator";
+import { useShippingStore } from "@/store/shipping-store";
 
-const shippingSchema = z.object({
-  name: z.string().min(2, "El nombre es requerido."),
-  email: z.string().email("Email inválido."),
-  phone: z.string().min(10, "El número de teléfono debe tener al menos 10 dígitos.").max(15, "El número de teléfono no puede tener más de 15 dígitos."),
-  address: z.string().min(5, "La dirección es requerida."),
-  city: z.string().min(2, "La ciudad es requerida."),
-  postalCode: z.string().min(4, "El código postal es requerido."),
+
+const checkoutSchema = z.object({
+  name: z.string().trim().min(2, "El nombre completo es requerido."),
+  email: z.string().trim().email("El email ingresado no es válido."),
+  phone: z.string().trim().min(10, "El teléfono debe tener al menos 10 dígitos."),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  postalCode: z.string().optional(),
+  pickupName: z.string().optional(),
+  pickupDNI: z.string().optional(),
+  deliveryMethod: z.string(),
+  paymentType: z.string(),
+})
+.superRefine((data, ctx) => {
+    if (data.deliveryMethod === 'shipping') {
+        if (!data.address || data.address.trim().length < 5) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['address'], message: 'La dirección es requerida.' });
+        }
+        if (!data.city || data.city.trim().length < 2) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['city'], message: 'La ciudad es requerida.' });
+        }
+        if (!data.postalCode || data.postalCode.trim().length < 4) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['postalCode'], message: 'El código postal es requerido.' });
+        }
+    }
+    if (data.deliveryMethod === 'pickup' || data.deliveryMethod === 'pay_in_store') {
+        if (!data.pickupName || data.pickupName.trim().length < 3) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['pickupName'], message: 'El nombre y apellido de quien retira son requeridos.' });
+        }
+        // Expresión regular corregida y se eliminan espacios con trim()
+        const trimmedDNI = data.pickupDNI ? data.pickupDNI.trim() : '';
+        if (!/^\d{7,8}$/.test(trimmedDNI)) {
+             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['pickupDNI'], message: 'El DNI debe tener entre 7 y 8 dígitos numéricos.' });
+        }
+    }
 });
 
-type ShippingFormData = z.infer<typeof shippingSchema>;
 
-export default function CheckoutPage() {
-  const { cartItems, subtotal, appliedCoupon, discount, totalPrice, cartCount, shippingCost } = useCart();
+type CheckoutFormData = z.infer<typeof checkoutSchema>;
+
+function CheckoutForm() {
+  const { cartItems, subtotal, appliedCoupon, cartCount, clearCart } = useCart();
+  const { shippingCost, postalCode: shippingPostalCode, setPostalCode, reset } = useShippingStore();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showAdBlockerWarning, setShowAdBlockerWarning] = useState(false);
-  const { postalCode: shippingPostalCode, setPostalCode } = useShippingStore();
-  
-  const form = useForm<ShippingFormData>({
-    resolver: zodResolver(shippingSchema),
-    defaultValues: { name: "", email: "", phone: "", address: "", city: "", postalCode: shippingPostalCode || "" },
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('shipping');
+
+  const paymentType = useMemo(() => {
+    return deliveryMethod === 'pay_in_store' ? 'Pago en Local' : 'Pago Online';
+  }, [deliveryMethod]);
+
+  const {
+    originalSubtotal,
+    productDiscount,
+    couponDiscount,
+    localPaymentDiscount,
+    finalTotalPrice,
+    totalDiscount
+  } = useMemo(() => {
+    const originalSubtotal = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+    const productDiscount = originalSubtotal - subtotal;
+
+    let couponDiscountValue = 0;
+    if (appliedCoupon) {
+      if (appliedCoupon.discountType === 'percentage') {
+        couponDiscountValue = subtotal * (appliedCoupon.discountValue / 100);
+      } else {
+        couponDiscountValue = appliedCoupon.discountValue;
+      }
+    }
+
+    const subtotalAfterCoupons = subtotal - couponDiscountValue;
+    const isPayInStore = deliveryMethod === 'pay_in_store';
+    const localPaymentDiscountValue = isPayInStore ? subtotalAfterCoupons * 0.20 : 0;
+    
+    const shippingCostValue = deliveryMethod === 'shipping' ? (shippingCost ?? 0) : 0;
+
+    const finalTotalPrice = subtotalAfterCoupons - localPaymentDiscountValue + shippingCostValue;
+    const totalDiscount = productDiscount + couponDiscountValue + localPaymentDiscountValue;
+
+    return {
+      originalSubtotal, productDiscount, couponDiscount: couponDiscountValue,
+      localPaymentDiscount: localPaymentDiscountValue, finalTotalPrice, totalDiscount
+    };
+  }, [cartItems, subtotal, appliedCoupon, deliveryMethod, shippingCost]);
+
+  const form = useForm<CheckoutFormData>({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: { name: "", email: "", phone: "", address: "", city: "", postalCode: shippingPostalCode || "", pickupName: "", pickupDNI: "", deliveryMethod: 'shipping', paymentType: 'Pago Online' },
   });
+  
+  useEffect(() => {
+    form.setValue('deliveryMethod', deliveryMethod);
+    form.setValue('paymentType', paymentType);
+     if (deliveryMethod !== 'shipping') {
+      reset();
+      form.setValue('postalCode', '');
+    }
+  }, [deliveryMethod, form, reset, paymentType]);
 
   useEffect(() => {
     if (shippingPostalCode) {
@@ -59,10 +139,10 @@ export default function CheckoutPage() {
 
   const postalCodeValue = form.watch("postalCode");
   useEffect(() => {
-    if (postalCodeValue && postalCodeValue.length >= 4) {
+    if (deliveryMethod === 'shipping' && postalCodeValue && postalCodeValue.length >= 4) {
       setPostalCode(postalCodeValue);
     }
-  }, [postalCodeValue, setPostalCode]);
+  }, [postalCodeValue, setPostalCode, deliveryMethod]);
 
   useEffect(() => {
     const checkAdBlocker = async () => {
@@ -77,82 +157,81 @@ export default function CheckoutPage() {
     checkAdBlocker();
   }, []);
 
-  const handleShippingSubmit = async (values: ShippingFormData) => {
+  const handleCheckoutSubmit = async (values: CheckoutFormData) => {
     setIsLoading(true);
-    
     try {
-      if (!cartItems || cartItems.length === 0) {
-        throw new Error("El carrito está vacío");
-      }
-
-      if (shippingCost === null || shippingCost === undefined) {
+      if (cartCount === 0) throw new Error("El carrito está vacío.");
+      if (deliveryMethod === 'shipping' && (shippingCost === null || shippingCost === undefined)) {
         throw new Error("Por favor, calcula el costo de envío antes de continuar.");
       }
-      
-      const orderDataForDb = {
+
+      const orderItems = cartItems.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        image: item.product.images[0] ?? '',
+        quantity: item.quantity,
+        priceAtPurchase: item.product.salePrice ?? item.product.price,
+        originalPrice: (item.product.salePrice && item.product.salePrice < item.product.price) ? item.product.price : null,
+      }));
+
+      const orderData = {
         customerName: values.name,
         customerEmail: values.email,
         customerPhone: values.phone,
-        total: totalPrice,
-        status: 'pending' as const,
-        items: cartItems,
+        total: finalTotalPrice,
+        items: orderItems,
+        couponCode: appliedCoupon?.code,
+        discountAmount: totalDiscount,
+        deliveryMethod: deliveryMethod,
+        paymentType: paymentType as PaymentType,
         shippingAddress: values.address,
         shippingCity: values.city,
         shippingPostalCode: values.postalCode,
-        shippingCost: shippingCost,
-        couponCode: appliedCoupon?.code,
-        discountAmount: discount,
+        shippingCost: deliveryMethod === 'shipping' ? shippingCost : 0,
+        pickupName: values.pickupName,
+        pickupDni: values.pickupDNI,
       };
 
-      const orderResponse = await createOrder(orderDataForDb);
-      if (orderResponse.error || !orderResponse.orderId) {
-        throw new Error(orderResponse.error || "No se pudo crear la orden en la base de datos.");
+      if (paymentType === "Pago en Local") {
+        const orderResponse = await createOrder({ ...orderData, status: 'awaiting_payment_in_store' });
+        if (orderResponse.error || !orderResponse.orderId) throw new Error(orderResponse.error || "No se pudo generar el pedido.");
+        clearCart();
+        router.push(`/checkout/success?orderId=${orderResponse.orderId}&type=store_payment`);
+      } else {
+        const orderResponse = await createOrder({ ...orderData, status: 'pending_payment' });
+        if (orderResponse.error || !orderResponse.orderId) throw new Error(orderResponse.error || "No se pudo crear la orden.");
+
+        localStorage.setItem('pendingOrderId', String(orderResponse.orderId));
+
+        const mpResponse = await fetch('/api/create-preference', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+              items: cartItems, 
+              orderId: orderResponse.orderId, 
+              shippingCost: deliveryMethod === 'shipping' ? shippingCost : 0,
+              discountAmount: couponDiscount, 
+              couponCode: appliedCoupon?.code 
+          }),
+        });
+
+        if (!mpResponse.ok) {
+          const errorData = await mpResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || `Error del servidor: ${mpResponse.status}`);
+        }
+
+        const preferenceData = await mpResponse.json();
+        if (!preferenceData.init_point) throw new Error("No se pudo obtener el link de pago.");
+
+        window.location.href = preferenceData.init_point;
       }
-      console.log("Order created successfully with ID:", orderResponse.orderId);
-      
-      localStorage.setItem('pendingOrderId', String(orderResponse.orderId));
-
-      const requestBodyForMp = {
-        items: cartItems,
-        customer: {
-          name: values.name,
-          email: values.email, 
-        },
-        orderId: orderResponse.orderId,
-        shippingCost: shippingCost,
-        discountAmount: discount,
-        couponCode: appliedCoupon?.code
-      };
-
-      const response = await fetch('/api/create-preference', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBodyForMp),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Error del servidor: ${response.status}`);
-      }
-
-      const preferenceData = await response.json();
-      
-      if (!preferenceData.id || !preferenceData.init_point) {
-        throw new Error("Datos de preferencia de pago inválidos recibidos del servidor");
-      }
-
-      console.log("Preference created successfully, redirecting...", preferenceData);
-      
-      window.location.href = preferenceData.init_point;
-      
     } catch (error) {
-      console.error("Error during checkout process:", error);
-      let errorMessage = (error instanceof Error) ? error.message : "Error desconocido";
-      toast({ title: "Error en el Checkout", description: errorMessage, variant: "destructive" });
+      console.error("Error during checkout:", error);
+      toast({ title: "Error al finalizar la compra", description: (error as Error).message, variant: "destructive" });
       setIsLoading(false);
     }
   };
-  
+
   if (cartCount === 0 && !isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
@@ -163,183 +242,164 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY) {
+  const renderOrderSummary = () => {
+    const hasProductDiscount = productDiscount > 0;
+    const showShipping = deliveryMethod === 'shipping';
+    const isPayInStore = deliveryMethod === 'pay_in_store';
+    
     return (
-      <div className="text-center py-12 text-destructive">
-        <h1 className="text-2xl font-semibold">Error de Configuración</h1>
-        <p className="text-muted-foreground mt-2">El sistema de pagos no está configurado.</p>
-      </div>
-    );
-  }
+      <div className="lg:col-span-1">
+        <div className="sticky top-24">
+          <h2 className="text-3xl font-headline font-bold mb-6">Resumen de tu compra</h2>
+          <Card className="shadow-lg">
+            <CardContent className="p-6 space-y-4">
+              {cartItems.map(item => {
+                const hasSale = item.product.salePrice && item.product.salePrice < item.product.price;
+                const itemTotal = (item.product.salePrice ?? item.product.price) * item.quantity;
+                const originalItemTotal = item.product.price * item.quantity;
 
-  const renderOrderSummary = () => (
-    <div className="lg:col-span-1">
-      <div className="sticky top-24">
-        <h2 className="text-3xl font-headline font-bold mb-6">Resumen de tu compra</h2>
-        <Card className="shadow-lg">
-          <CardContent className="p-6 space-y-4">
-            {cartItems.map(item => (
-              <div key={item.product.id} className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="relative w-16 h-16 rounded-md overflow-hidden border">
-                    <Image 
-                      src={item.product.images[0] ?? "https://placehold.co/100x100.png"} 
-                      alt={item.product.name} 
-                      fill 
-                      className="object-cover" 
-                    />
+                return (
+                  <div key={item.product.id} className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-16 h-16 rounded-md overflow-hidden border">
+                        <Image
+                          src={item.product.images[0] ?? "https://placehold.co/100x100.png"}
+                          alt={item.product.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{item.product.name}</p>
+                        <p className="text-sm text-muted-foreground">Cantidad: {item.quantity}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <p className="font-medium">
+                        {formatCurrency(itemTotal)}
+                      </p>
+                      {hasSale && (
+                        <p className="text-sm text-muted-foreground line-through">
+                          {formatCurrency(originalItemTotal)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold">{item.product.name}</p>
-                    <p className="text-sm text-muted-foreground">Cantidad: {item.quantity}</p>
-                  </div>
-                </div>
-                <p className="font-medium text-right">
-                  ${((item.product.salePrice ?? item.product.price) * item.quantity).toLocaleString('es-AR')}
-                </p>
-              </div>
-            ))}
-            <Separator className="my-4"/>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <p className="text-muted-foreground">Subtotal</p>
-                <p>{formatCurrency(subtotal)}</p>
-              </div>
-              {appliedCoupon && (
-                <div className="flex justify-between text-primary">
-                  <div className="flex items-center gap-2">
-                    <Ticket className="h-4 w-4"/>
-                    <span>Cupón: {appliedCoupon.code}</span>
-                  </div>
-                  <span>-{formatCurrency(discount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <p className="text-muted-foreground">Envío</p>
-                <p>{shippingCost !== null ? formatCurrency(shippingCost) : "Calcula tu envío"}</p>
-              </div>
+                );
+              })}
               <Separator className="my-4"/>
-              <div className="flex justify-between font-bold text-xl">
-                <p>Total</p>
-                <p>{formatCurrency(totalPrice)}</p>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                    <p className="text-muted-foreground">Subtotal</p>
+                    <p className={hasProductDiscount ? "line-through text-muted-foreground" : ""}>
+                        {formatCurrency(originalSubtotal)}
+                    </p>
+                </div>
+                {hasProductDiscount && (
+                    <div className="flex justify-between">
+                        <p className="text-muted-foreground">Subtotal c/ Dtos.</p>
+                        <p>{formatCurrency(subtotal)}</p>
+                    </div>
+                )}
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-primary">
+                    <div className="flex items-center gap-2">
+                      <span>Descuento Cupón</span>
+                      {appliedCoupon && (
+                        <span className='text-xs font-medium'>({appliedCoupon.code})</span>
+                      )}
+                    </div>
+                    <span>-{formatCurrency(couponDiscount)}</span>
+                  </div>
+                )}
+                {isPayInStore && (
+                  <div className="flex justify-between text-primary font-medium">
+                      <span>Dto. pago en local (20%)</span>
+                      <span>-{formatCurrency(localPaymentDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <p className="text-muted-foreground">Envío</p>
+                  <p>
+                    {showShipping 
+                      ? (shippingCost !== null ? formatCurrency(shippingCost) : "Calcula tu envío")
+                      : "No aplica"}
+                  </p>
+                </div>
+                <Separator className="my-4"/>
+                <div className="flex justify-between font-bold text-xl"><p>Total</p><p>{formatCurrency(finalTotalPrice)}</p></div>
               </div>
+            </CardContent>
+          </Card>
+          <div className="mt-4 p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CreditCard className="h-4 w-4" />
+              <span>Pagos seguros procesados por Mercado Pago</span>
             </div>
-          </CardContent>
-        </Card>
-        
-        <div className="mt-4 p-4 bg-muted rounded-lg">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CreditCard className="h-4 w-4" />
-            <span>Pagos seguros procesados por Mercado Pago</span>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const getButtonText = () => {
+      if (isLoading) return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Procesando...</>;
+      if (paymentType === 'Pago en Local') return "Generar Pedido";
+      return "Continuar y Pagar con Mercado Pago";
+  }
 
   return (
     <div className="grid lg:grid-cols-3 gap-12 max-w-7xl mx-auto py-8">
       <div className="lg:col-span-2">
         <h1 className="text-3xl font-headline font-bold mb-6">Finalizar Compra</h1>
+        <div className="space-y-6">
+            <Card>
+              <CardHeader><CardTitle>1. Elige cómo quieres obtener tu pedido</CardTitle></CardHeader>
+              <CardContent>
+                <RadioGroup value={deliveryMethod} onValueChange={(val) => setDeliveryMethod(val as DeliveryMethod)} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Label htmlFor="shipping" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="shipping" id="shipping" className="sr-only" /><Truck className="mb-3 h-6 w-6" />Envío a Domicilio</Label>
+                  <Label htmlFor="pickup" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="pickup" id="pickup" className="sr-only" /><Store className="mb-3 h-6 w-6" />Retiro en Local</Label>
+                  <Label htmlFor="pay_in_store" className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="pay_in_store" id="pay_in_store" className="sr-only" /><HandCoins className="mb-3 h-6 w-6" /><span className="text-center">Pago en Local<br/>(20% OFF)</span></Label>
+                </RadioGroup>
+              </CardContent>
+            </Card>
 
-        {showAdBlockerWarning && (
-          <Card className="border-yellow-200 bg-yellow-50 mb-6">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-yellow-800">
-                <AlertTriangle className="h-5 w-5" />
-                <p className="text-sm">
-                  <strong>Importante:</strong> Detectamos un bloqueador de anuncios activo. 
-                  Por favor desactívalo para este sitio para asegurar que el sistema de pagos funcione correctamente.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {isLoading ? (
-          <div className="flex flex-col justify-center items-center h-96 gap-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground">Procesando tu orden y preparando el pago...</p>
-            <p className="text-sm text-muted-foreground mt-2">No cierres esta ventana.</p>
-          </div>
-        ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleShippingSubmit)} className="space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Información de Contacto y Envío</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                     <FormField control={form.control} name="name" render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Nombre Completo</FormLabel>
-                        <FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}/>
-                     <FormField control={form.control} name="phone" render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Teléfono</FormLabel>
-                        <FormControl><Input type="tel" {...field} placeholder="1122334455" /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}/>
-                  </div>
-                  <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}/>
-                  <div>
-                    <h3 className="font-medium mb-4">Dirección de Envío</h3>
-                     <div className="space-y-4">
-                        <FormField control={form.control} name="address" render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Dirección</FormLabel>
-                            <FormControl><Input {...field} placeholder="Av. Corrientes 1234 5A" /></FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}/>
+            {showAdBlockerWarning && ( <Card className="border-yellow-200 bg-yellow-50 mb-6"><CardContent className="p-4"><div className="flex items-center gap-2 text-yellow-800"><AlertTriangle className="h-5 w-5" /><p className="text-sm"><strong>Importante:</strong> Detectamos un bloqueador de anuncios activo. Por favor desactívalo para este sitio para asegurar que el sistema de pagos funcione correctamente.</p></div></CardContent></Card> )}
+
+            {isLoading ? (
+                <div className="flex flex-col justify-center items-center h-96 gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary" /><p className="text-muted-foreground">Procesando tu orden...</p></div>
+            ) : (
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleCheckoutSubmit)} className="space-y-6">
+                <Card>
+                    <CardHeader><CardTitle>2. Completa tus datos de contacto</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input {...field} placeholder="Juan Pérez" /></FormControl><FormMessage /></FormItem> )}/>
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="city" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Ciudad</FormLabel>
-                                <FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}/>
-                            <FormField control={form.control} name="postalCode" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Código Postal</FormLabel>
-                                <FormControl><Input {...field} placeholder="C1043AAS" /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}/>
+                            <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} placeholder="juan@email.com" /></FormControl><FormMessage /></FormItem> )}/>
+                            <FormField control={form.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input type="tel" {...field} placeholder="1122334455" /></FormControl><FormMessage /></FormItem> )}/>
                         </div>
-                     </div>
-                  </div>
-                  <ShippingCalculator />
-                </CardContent>
-              </Card>
-                <Button type="submit" size="lg" className="w-full" disabled={isLoading || shippingCost === null}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Procesando...
-                    </>
-                  ) : (
-                    "Continuar y Pagar con Mercado Pago"
-                  )}
-                </Button>
-            </form>
-          </Form>
-        )}
-      </div>
+                    </CardContent>
+                </Card>
 
+                {deliveryMethod === 'shipping' && ( <Card><CardHeader><CardTitle>3. Información de Envío</CardTitle></CardHeader><CardContent className="space-y-4"><FormField control={form.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} placeholder="Av. Corrientes 1234" /></FormControl><FormMessage /></FormItem> )}/><div className="grid grid-cols-2 gap-4"><FormField control={form.control} name="city" render={({ field }) => ( <FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input {...field} placeholder="Buenos Aires" /></FormControl><FormMessage /></FormItem> )}/><FormField control={form.control} name="postalCode" render={({ field }) => ( <FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} placeholder="1001" /></FormControl><FormMessage /></FormItem> )}/></div><ShippingCalculator /></CardContent></Card> )}
+                {(deliveryMethod === 'pickup' || deliveryMethod === 'pay_in_store') && ( <Card><CardHeader><CardTitle>3. Información de Retiro</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">Por favor, completa los datos de la persona que va a retirar el pedido. El DNI será solicitado al momento de la entrega.</p><FormField control={form.control} name="pickupName" render={({ field }) => ( <FormItem><FormLabel>Nombre y Apellido de quien retira</FormLabel><FormControl><Input {...field} placeholder="El nombre que figura en el DNI" /></FormControl><FormMessage /></FormItem> )}/><FormField control={form.control} name="pickupDNI" render={({ field }) => ( <FormItem><FormLabel>DNI de quien retira</FormLabel><FormControl><Input {...field} placeholder="Sin puntos ni espacios" /></FormControl><FormMessage /></FormItem> )}/></CardContent></Card> )}
+
+                <Button type="submit" size="lg" className="w-full" disabled={isLoading || (deliveryMethod === 'shipping' && shippingCost === null)}>{getButtonText()}</Button>
+                </form>
+            </Form>
+            )}
+        </div>
+      </div>
       {renderOrderSummary()}
     </div>
   );
+}
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center items-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <CheckoutForm />
+        </Suspense>
+    )
 }

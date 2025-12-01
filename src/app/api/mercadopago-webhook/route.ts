@@ -1,7 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
-import { updateOrderStatusFromWebhook, deductStockFromWebhook } from '@/lib/webhook-db';
+// --- CORRECCIÓN: Importar directamente desde data.ts ---
+import { updateOrderStatus, deductStockForOrder } from '@/lib/data';
+import type { OrderStatus } from '@/lib/types';
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
 
@@ -15,7 +17,6 @@ export async function POST(request: NextRequest) {
         console.log(`[WEBHOOK] Received payment notification for ID: ${paymentId}.`);
 
         try {
-            // CORRECT WAY: Fetch the payment directly using its ID
             console.log(`[WEBHOOK] Fetching payment details for ID: ${paymentId}`);
             const payment = await new Payment(client).get({ id: paymentId });
             console.log('[WEBHOOK] Payment details fetched successfully.');
@@ -27,32 +28,44 @@ export async function POST(request: NextRequest) {
             }
             console.log(`[WEBHOOK] Order ID (external_reference): ${orderId}`);
 
-            if (payment.status === 'approved') {
-                console.log(`[WEBHOOK] Payment for order ${orderId} is approved.`);
+            const orderIdNumber = Number(orderId);
 
-                // 1. Update order status to 'paid'
-                console.log(`[WEBHOOK] ==> Step 1: Updating order status to 'paid' for order ${orderId}.`);
-                await updateOrderStatusFromWebhook(Number(orderId), 'paid', paymentId);
+            if (payment.status === 'approved') {
+                console.log(`[WEBHOOK] Payment for order ${orderIdNumber} is approved.`);
+
+                // --- PASO 1: Actualizar estado del pedido a 'paid' ---
+                console.log(`[WEBHOOK] ==> Step 1: Updating order status to 'paid' for order ${orderIdNumber}.`);
+                // --- CORRECCIÓN: Usar la función correcta de data.ts ---
+                await updateOrderStatus(orderIdNumber, 'paid', paymentId);
                 console.log(`[WEBHOOK] <== Step 1 complete.`);
 
-                // 2. Deduct stock
+                // --- PASO 2: Descontar stock ---
                 try {
-                    console.log(`[WEBHOOK] ==> Step 2: Deducting stock for order ${orderId}.`);
-                    await deductStockFromWebhook(Number(orderId));
+                    console.log(`[WEBHOOK] ==> Step 2: Deducting stock for order ${orderIdNumber}.`);
+                    // --- CORRECCIÓN: Usar la función correcta de data.ts ---
+                    await deductStockForOrder(orderIdNumber);
                     console.log(`[WEBHOOK] <== Step 2 complete.`);
                 } catch (stockError: any) {
-                    console.error(`[WEBHOOK] CRITICAL FAILURE IN STEP 2: Failed to deduct stock for order ${orderId}. MANUAL INTERVENTION REQUIRED.`, stockError);
+                    console.error(`[WEBHOOK] CRITICAL FAILURE IN STEP 2: Failed to deduct stock for order ${orderIdNumber}. MANUAL INTERVENTION REQUIRED.`, stockError);
+                    // Opcional: Podrías intentar revertir el estado o notificar a un admin
                 }
 
-                console.log(`[WEBHOOK] ✅ Order ${orderId} processed successfully.`);
-                return NextResponse.json({ success: true, orderId });
+                console.log(`[WEBHOOK] ✅ Order ${orderIdNumber} processed successfully.`);
+                return NextResponse.json({ success: true, orderId: orderIdNumber });
 
             } else {
-                console.log(`[WEBHOOK] Payment for order ${orderId} is not approved. Status is: ${payment.status}.`);
-                // Map other Mercado Pago statuses to your app's statuses
-                const newStatus = (payment.status === 'pending' || payment.status === 'in_process') ? 'pending' : 'failed';
-                await updateOrderStatusFromWebhook(Number(orderId), newStatus, paymentId);
-                console.log(`[WEBHOOK] Order ${orderId} status updated to ${newStatus}.`);
+                console.log(`[WEBHOOK] Payment for order ${orderIdNumber} is not approved. Status is: ${payment.status}.`);
+                
+                let newStatus: OrderStatus;
+                if (payment.status === 'in_process' || payment.status === 'pending') {
+                    newStatus = 'pending_payment';
+                } else { // 'rejected', 'cancelled', 'refunded', etc.
+                    newStatus = 'failed';
+                }
+
+                // --- CORRECCIÓN: Usar la función correcta de data.ts ---
+                await updateOrderStatus(orderIdNumber, newStatus, paymentId);
+                console.log(`[WEBHOOK] Order ${orderIdNumber} status updated to ${newStatus}.`);
                 return NextResponse.json({ success: true, message: `Status updated to ${newStatus}` });
             }
 
@@ -66,7 +79,6 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    // This console.log now uses double quotes to prevent syntax errors
     console.log("[WEBHOOK] Notification is not of type 'payment'. Ignoring.");
     return NextResponse.json({ success: true, message: 'Notification acknowledged' });
 }
